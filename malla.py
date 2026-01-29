@@ -685,7 +685,7 @@ def aplicar_estilo_dataframe(df):
 # ============================================================================
 def pagina_login():
     """Página de inicio de sesión"""
-    st.markdown("<h1 class='main-header'>🔐 Sistema de Gestión de Turnos</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='main-header'>🔐 Malla de Turnos Locatel Restrepo</h1>", unsafe_allow_html=True)
     
     with st.container():
         col1, col2, col3 = st.columns([1, 2, 1])
