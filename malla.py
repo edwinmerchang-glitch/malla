@@ -728,18 +728,18 @@ def pagina_login():
                         st.rerun()
     
     # Información de acceso
-    with st.expander("ℹ️ Credenciales de prueba", expanded=False):
-        st.markdown("""
-        ### Usuarios de demostración:
-        
-        | Usuario | Contraseña | Rol | Descripción |
-        |---------|------------|-----|-------------|
-        | **admin** | admin123 | Administrador | Acceso completo al sistema |
-        | **supervisor** | super123 | Supervisor | Puede editar turnos |
-        | **empleado** | empleado123 | Empleado | Solo lectura de información |
-        
-        *Para uso en producción, cambie las contraseñas por defecto.*
-        """)
+    #with st.expander("ℹ️ Credenciales de prueba", expanded=False):
+    #   st.markdown("""
+    #    ### Usuarios de demostración:
+    #    
+    #    | Usuario | Contraseña | Rol | Descripción |
+    #    |---------|------------|-----|-------------|
+    #    | **admin** | admin123 | Administrador | Acceso completo al sistema |
+    #    | **supervisor** | super123 | Supervisor | Puede editar turnos |
+    #    | **empleado** | empleado123 | Empleado | Solo lectura de información |
+    #    
+    #    *Para uso en producción, cambie las contraseñas por defecto.*
+    #    """)
 
 # ============================================================================
 # BARRA DE USUARIO
