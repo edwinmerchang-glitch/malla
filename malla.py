@@ -1938,7 +1938,7 @@ def main():
     st.markdown("---")
     st.markdown(
         "<div style='text-align: center; color: #6c757d; padding: 20px;'>"
-        "📊 Sistema de Gestión de Turnos | © 2024 | Versión 2.0"
+        "📊 Creado por Edwin Merchán | © 2026 | Versión 2.0"
         "</div>",
         unsafe_allow_html=True
     )
