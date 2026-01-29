@@ -1401,13 +1401,14 @@ def pagina_configuracion():
         conn.close()
         
         if not codigos_df.empty:
-            # Editor de códigos
+            # Opción A: Usar TextColumn (compatible con versiones antiguas)
             edited_codigos = st.data_editor(
                 codigos_df,
                 column_config={
                     "codigo": st.column_config.TextColumn("Código", width="small", required=True),
                     "nombre": st.column_config.TextColumn("Descripción", width="medium", required=True),
-                    "color": st.column_config.ColorPickerColumn("Color", required=True),
+                    # REEMPLAZADO: ColorPickerColumn por TextColumn
+                    "color": st.column_config.TextColumn("Color (hex: #RRGGBB)", width="medium", required=True),
                     "horas": st.column_config.NumberColumn("Horas", min_value=0, max_value=24, required=True)
                 },
                 num_rows="fixed",
@@ -1439,38 +1440,42 @@ def pagina_configuracion():
                 registrar_log("actualizar_codigos", f"{len(edited_codigos)} códigos")
                 st.rerun()
         
-        # Formulario para agregar nuevo código
+        # Formulario para agregar nuevo código con color picker manual
         st.markdown("---")
         st.markdown("#### Agregar Nuevo Código")
         
-        with st.form("form_nuevo_codigo"):
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                nuevo_codigo = st.text_input("Código", placeholder="Ej: 99")
-            with col2:
-                nuevo_nombre = st.text_input("Nombre", placeholder="Ej: Turno Especial")
-            with col3:
-                nuevo_color = st.color_picker("Color", "#000000")
-            
-            horas_nuevo = st.number_input("Horas", min_value=0, max_value=24, value=8)
-            
-            if st.form_submit_button("➕ Agregar Código"):
-                if nuevo_codigo and nuevo_nombre:
-                    conn = get_connection()
-                    cursor = conn.cursor()
-                    
-                    cursor.execute(
-                        "INSERT OR REPLACE INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
-                        (nuevo_codigo, nuevo_nombre, nuevo_color, horas_nuevo)
-                    )
-                    
-                    conn.commit()
-                    conn.close()
-                    
-                    # Actualizar session state
-                    st.session_state.codigos_turno = get_codigos_turno()
-                    st.success(f"✅ Código {nuevo_codigo} agregado")
-                    st.rerun()
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            nuevo_codigo = st.text_input("Código", placeholder="Ej: 99", key="nuevo_codigo")
+        with col2:
+            nuevo_nombre = st.text_input("Nombre", placeholder="Ej: Turno Especial", key="nuevo_nombre")
+        with col3:
+            # Color picker manual usando st.color_picker (si está disponible)
+            if hasattr(st, 'color_picker'):
+                nuevo_color = st.color_picker("Color", "#000000", key="nuevo_color")
+            else:
+                # Fallback: input de texto para color hex
+                nuevo_color = st.text_input("Color (hex)", "#000000", key="nuevo_color")
+        
+        horas_nuevo = st.number_input("Horas", min_value=0, max_value=24, value=8, key="horas_nuevo")
+        
+        if st.button("➕ Agregar Código", key="btn_agregar_codigo"):
+            if nuevo_codigo and nuevo_nombre:
+                conn = get_connection()
+                cursor = conn.cursor()
+                
+                cursor.execute(
+                    "INSERT OR REPLACE INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
+                    (nuevo_codigo, nuevo_nombre, nuevo_color, horas_nuevo)
+                )
+                
+                conn.commit()
+                conn.close()
+                
+                # Actualizar session state
+                st.session_state.codigos_turno = get_codigos_turno()
+                st.success(f"✅ Código {nuevo_codigo} agregado")
+                st.rerun()
     
     with tab2:
         st.markdown("### Configuración General")
