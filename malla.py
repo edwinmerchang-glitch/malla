@@ -717,15 +717,15 @@ def pagina_login():
                     else:
                         st.error("❌ Usuario o contraseña incorrectos")
                 
-                if demo_empleado:
-                    if login("empleado", "empleado123"):
-                        st.success("✅ Modo empleado activado")
-                        st.rerun()
+               # if demo_empleado:
+               #     if login("empleado", "empleado123"):
+               #         st.success("✅ Modo empleado activado")
+               #         st.rerun()
                 
-                if demo_admin:
-                    if login("admin", "admin123"):
-                        st.success("✅ Modo administrador activado")
-                        st.rerun()
+               # if demo_admin:
+               #     if login("admin", "admin123"):
+               #         st.success("✅ Modo administrador activado")
+               #         st.rerun()
     
     # Información de acceso
     #with st.expander("ℹ️ Credenciales de prueba", expanded=False):
