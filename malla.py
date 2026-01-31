@@ -468,48 +468,57 @@ def get_malla_turnos(mes, ano):
     return df_base
 
 def guardar_malla_turnos(df_malla, mes, ano):
-    """Guardar malla de turnos en la base de datos"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    # Obtener empleados
-    empleados_df = get_empleados()
-    id_por_cedula = dict(zip(empleados_df['cedula'], empleados_df['id']))
-    
-    # Determinar número de días en el mes
-    if mes == 2 and ano == 2026:
-        num_dias = 28
-    elif mes in [4, 6, 9, 11]:
-        num_dias = 30
-    else:
-        num_dias = 31
-    
-    # Para cada empleado y cada día, guardar el turno
-    for _, row in df_malla.iterrows():
-        cedula = row['CC']
-        if cedula not in id_por_cedula:
-            continue
+    """Guardar malla de turnos en la base de datos - VERSIÓN MEJORADA"""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
         
-        emp_id = id_por_cedula[cedula]
+        # Obtener empleados
+        empleados_df = get_empleados()
+        id_por_cedula = dict(zip(empleados_df['cedula'], empleados_df['id']))
         
-        for dia in range(1, num_dias + 1):
-            col_name = f'{dia}/{mes}/{ano}'
-            if col_name in row:
-                codigo = row[col_name]
-                # Manejar valores NaN o vacíos de manera consistente
-                if pd.isna(codigo) or codigo == '':
-                    codigo = None
-                else:
-                    codigo = str(codigo).strip()
-                
-                # Insertar o actualizar
-                cursor.execute('''
-                    INSERT OR REPLACE INTO malla_turnos (empleado_id, mes, ano, dia, codigo_turno)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', (emp_id, mes, ano, dia, codigo))
-    
-    conn.commit()
-    conn.close()
+        # Determinar número de días en el mes
+        num_dias = calendar.monthrange(ano, mes)[1]
+        
+        # Contador de cambios
+        cambios_guardados = 0
+        
+        # Para cada empleado y cada día, guardar el turno
+        for _, row in df_malla.iterrows():
+            cedula = row['CC']
+            if cedula not in id_por_cedula:
+                continue
+            
+            emp_id = id_por_cedula[cedula]
+            
+            for dia in range(1, num_dias + 1):
+                col_name = f'{dia}/{mes}/{ano}'
+                if col_name in row:
+                    codigo = row[col_name]
+                    
+                    # Manejar valores NaN o vacíos
+                    if pd.isna(codigo) or codigo == '':
+                        codigo_valor = None
+                    else:
+                        codigo_valor = str(codigo).strip()
+                    
+                    # Insertar o actualizar
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO malla_turnos (empleado_id, mes, ano, dia, codigo_turno)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', (emp_id, mes, ano, dia, codigo_valor))
+                    
+                    cambios_guardados += 1
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"✅ Guardados {cambios_guardados} turnos para {mes}/{ano}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error al guardar malla: {str(e)}")
+        return False
 
 def get_turnos_empleado_mes(empleado_id, mes, ano):
     """Obtener todos los turnos de un empleado para un mes específico"""
@@ -859,8 +868,11 @@ def mostrar_sidebar():
 # ============================================================================
 # PÁGINAS PARA ADMINISTRADORES
 # ============================================================================
+# ============================================================================
+# PÁGINAS PARA ADMINISTRADORES - VERSIÓN CORREGIDA CON GUARDADO FUNCIONAL
+# ============================================================================
 def pagina_malla():
-    """Página principal - Malla de turnos (editable)"""
+    """Página principal - Malla de turnos (editable) - VERSIÓN CORREGIDA"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
     
     # Selector de mes y año
@@ -915,12 +927,18 @@ def pagina_malla():
             column_config = {}
             day_columns = [col for col in malla_editable.columns if '/' in str(col)]
             
+            # Opciones para los selectboxes (códigos de turno)
+            opciones_codigos = list(st.session_state.codigos_turno.keys())
+            # Filtrar opción vacía si existe
+            if "" in opciones_codigos:
+                opciones_codigos.remove("")
+            
             for col in malla_editable.columns:
                 if col in day_columns:
                     column_config[col] = st.column_config.SelectboxColumn(
                         col,
                         width="small",
-                        options=[""] + list(st.session_state.codigos_turno.keys()),
+                        options=[""] + opciones_codigos,
                         help="Selecciona el código del turno"
                     )
                 elif col in ['N°', 'CC']:
@@ -938,25 +956,62 @@ def pagina_malla():
                 use_container_width=True,
                 height=600,
                 num_rows="fixed",
-                key="editor_malla"
+                key=f"editor_malla_{mes_numero}_{ano}"
             )
             
-            # Botones de acción
+            # BOTONES DE ACCIÓN CORREGIDOS
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("💾 Guardar Cambios", use_container_width=True):
-                    guardar_malla_turnos(edited_df, mes_numero, ano)
-                    st.session_state.last_save = datetime.now()
-                    st.session_state.malla_actual = edited_df
-                    st.success("✅ Cambios guardados en la base de datos")
-                    registrar_log("guardar_malla", f"{mes_seleccionado} {ano}")
-                    st.rerun()
+                if st.button("💾 Guardar Cambios en Base de Datos", use_container_width=True, key="btn_guardar_malla"):
+                    try:
+                        # Guardar en la base de datos
+                        guardar_malla_turnos(edited_df, mes_numero, ano)
+                        
+                        # Actualizar session state
+                        st.session_state.last_save = datetime.now()
+                        st.session_state.malla_actual = edited_df
+                        
+                        st.success("✅ Cambios guardados permanentemente en la base de datos")
+                        registrar_log("guardar_malla", f"{mes_seleccionado} {ano} - {len(edited_df)} empleados")
+                        
+                        # Mostrar confirmación
+                        with st.spinner("Actualizando datos..."):
+                            # Recargar para asegurar consistencia
+                            st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+                        
+                    except Exception as e:
+                        st.error(f"❌ Error al guardar: {str(e)}")
             
             with col2:
-                if st.button("🔄 Recargar desde BD", use_container_width=True):
+                if st.button("🔄 Recargar desde Base de Datos", use_container_width=True, key="btn_recargar_malla"):
                     st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
                     st.success("✅ Malla recargada desde base de datos")
                     st.rerun()
+            
+            # VERIFICACIÓN DE GUARDADO
+            st.markdown("---")
+            with st.expander("🔍 Verificar Datos Guardados", expanded=False):
+                st.markdown("**Últimos 5 registros guardados en la base de datos:**")
+                
+                conn = get_connection()
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT e.nombre_completo, mt.dia, mt.codigo_turno, mt.updated_at
+                    FROM malla_turnos mt
+                    JOIN empleados e ON mt.empleado_id = e.id
+                    WHERE mt.mes = ? AND mt.ano = ?
+                    ORDER BY mt.updated_at DESC
+                    LIMIT 5
+                ''', (mes_numero, ano))
+                
+                ultimos_registros = cursor.fetchall()
+                conn.close()
+                
+                if ultimos_registros:
+                    for nombre, dia, codigo, fecha in ultimos_registros:
+                        st.info(f"**{nombre}** - Día {dia}: {codigo} ({fecha})")
+                else:
+                    st.warning("No hay registros guardados para este mes.")
         else:
             # Modo solo lectura
             st.info("👁️ Vista de solo lectura - No puedes editar")
@@ -1900,7 +1955,17 @@ def pagina_mi_info():
 # ============================================================================
 # RUTA PRINCIPAL DE LA APLICACIÓN
 # ============================================================================
+# Agrega esto al inicio de main() para depuración
 def main():
+    print("🔍 Verificando base de datos...")
+    print(f"Ruta actual: {os.getcwd()}")
+    print(f"¿Existe DB?: {os.path.exists('turnos_database.db')}")
+    
+    if not os.path.exists('turnos_database.db'):
+        print("⚠️ Creando base de datos...")
+        init_db()
+        inicializar_datos_bd()
+
     """Función principal que gestiona toda la aplicación"""
     # Inicializar session state
     inicializar_session_state()
