@@ -948,19 +948,19 @@ def pagina_login():
                         st.error("❌ Usuario o contraseña incorrectos")
     
     # Información de acceso
-    with st.expander("ℹ️ Información", expanded=False):
-        st.markdown("""
-        ### Sistema de Gestión de Turnos
-        
-        **Funcionalidades:**
-        - 📅 Malla de turnos editable
-        - 👥 Gestión de empleados
-        - 👑 Gestión de usuarios
-        - 📦 Sistema de backup automático
-        - 🔄 Restauración de datos
-        
-        **Contacto:** soporte@empresa.com
-        """)
+    #with st.expander("ℹ️ Información", expanded=False):
+    #    st.markdown("""
+    #    ### Sistema de Gestión de Turnos
+    #    
+    #    **Funcionalidades:**
+    #    - 📅 Malla de turnos editable
+    #    - 👥 Gestión de empleados
+    #    - 👑 Gestión de usuarios
+    #    - 📦 Sistema de backup automático
+    #    - 🔄 Restauración de datos
+    #    
+    #    **Contacto:** soporte@empresa.com
+    #    """)
 
 # ============================================================================
 # BARRA DE USUARIO (MANTENIDA)
