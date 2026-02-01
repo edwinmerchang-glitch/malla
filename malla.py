@@ -141,6 +141,46 @@ def get_connection():
     """Obtener conexión a la base de datos"""
     return sqlite3.connect(DB_NAME)
 
+def actualizar_estructura_bd():
+    """Actualizar la estructura de la base de datos si faltan columnas"""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # Verificar si existe la columna 'updated_at' en malla_turnos
+        cursor.execute("PRAGMA table_info(malla_turnos)")
+        columnas = cursor.fetchall()
+        columnas_nombres = [col[1] for col in columnas]
+        
+        if 'updated_at' not in columnas_nombres:
+            st.warning("⚠️ Actualizando estructura de la base de datos...")
+            # Agregar columna updated_at
+            cursor.execute('''
+                ALTER TABLE malla_turnos 
+                ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ''')
+            st.success("✅ Columna 'updated_at' agregada a malla_turnos")
+        
+        # También verificar otras columnas importantes
+        cursor.execute("PRAGMA table_info(empleados)")
+        columnas_empleados = cursor.fetchall()
+        columnas_emp_nombres = [col[1] for col in columnas_empleados]
+        
+        if 'updated_at' not in columnas_emp_nombres:
+            cursor.execute('''
+                ALTER TABLE empleados 
+                ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ''')
+            st.success("✅ Columna 'updated_at' agregada a empleados")
+        
+        conn.commit()
+        conn.close()
+        return True
+        
+    except Exception as e:
+        st.error(f"❌ Error al actualizar estructura BD: {str(e)}")
+        return False
+
 # ============================================================================
 # SISTEMA DE BACKUP AUTOMÁTICO
 # ============================================================================
@@ -786,6 +826,10 @@ def inicializar_session_state():
     """Inicializar todas las variables de session_state"""
     # Inicializar base de datos
     init_db()
+    
+    # Actualizar estructura si es necesario
+    actualizar_estructura_bd()
+    
     inicializar_datos_bd()
     
     # Crear backup inicial si no existe
