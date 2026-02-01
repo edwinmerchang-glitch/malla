@@ -782,34 +782,42 @@ def guardar_usuarios(edited_df, original_df):
 # ============================================================================
 # OTRAS FUNCIONES DE DATOS (MANTENIDAS)
 # ============================================================================
-def get_turnos_empleado_mes_corregido(empleado_id, mes, ano):
+def get_turnos_empleado_mes(empleado_id, mes, ano):
     """Obtener todos los turnos de un empleado para un mes específico - VERSIÓN CORREGIDA"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    # Primero verificar si el empleado existe
-    cursor.execute('SELECT id FROM empleados WHERE id = ?', (empleado_id,))
-    if not cursor.fetchone():
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # Verificar si el empleado existe
+        cursor.execute('SELECT id FROM empleados WHERE id = ?', (empleado_id,))
+        if not cursor.fetchone():
+            conn.close()
+            return {}
+        
+        # Obtener turnos del empleado
+        cursor.execute('''
+            SELECT dia, codigo_turno 
+            FROM malla_turnos 
+            WHERE empleado_id = ? AND mes = ? AND ano = ?
+            ORDER BY dia
+        ''', (empleado_id, mes, ano))
+        
+        turnos = cursor.fetchall()
         conn.close()
+        
+        # Convertir a diccionario
+        turnos_dict = {}
+        for dia, codigo in turnos:
+            if codigo is not None and str(codigo).strip() != '':
+                turnos_dict[int(dia)] = str(codigo).strip()
+            else:
+                turnos_dict[int(dia)] = ""
+        
+        return turnos_dict
+        
+    except Exception as e:
+        print(f"Error en get_turnos_empleado_mes: {str(e)}")
         return {}
-    
-    # Obtener turnos del empleado
-    cursor.execute('''
-        SELECT dia, codigo_turno 
-        FROM malla_turnos 
-        WHERE empleado_id = ? AND mes = ? AND ano = ?
-        ORDER BY dia
-    ''', (empleado_id, mes, ano))
-    
-    turnos = cursor.fetchall()
-    conn.close()
-    
-    # Convertir a diccionario
-    turnos_dict = {}
-    for dia, codigo in turnos:
-        turnos_dict[dia] = codigo if codigo else ""
-    
-    return turnos_dict
 
 # ============================================================================
 # ROLES Y PERMISOS (MANTENIDOS)
@@ -893,30 +901,38 @@ def login(username, password):
         password_hash = hashlib.sha256(password.encode()).hexdigest()
         
         if stored_hash == password_hash:
-            # Obtener nombre del usuario
             nombre_usuario = result[3]
             
-            # Buscar empleado por nombre (búsqueda más flexible)
+            # Buscar empleado correspondiente (búsqueda más flexible)
             empleados_df = get_empleados()
             
-            # Intentar encontrar coincidencia por nombre
-            empleado_encontrado = None
-            
-            # Primero buscar coincidencia exacta
-            coincidencia_exacta = empleados_df[
-                empleados_df['nombre_completo'].str.strip().str.upper() == nombre_usuario.strip().upper()
-            ]
-            
-            if not coincidencia_exacta.empty:
-                empleado_encontrado = coincidencia_exacta.iloc[0].to_dict()
+            if empleados_df.empty:
+                print("DEBUG: No hay empleados en la base de datos")
+                st.session_state.empleado_actual = None
             else:
-                # Buscar coincidencia parcial (por si los nombres no coinciden exactamente)
-                for idx, empleado in empleados_df.iterrows():
-                    if (empleado['nombre_completo'].upper() in nombre_usuario.upper() or 
-                        nombre_usuario.upper() in empleado['nombre_completo'].upper()):
-                        empleado_encontrado = empleado.to_dict()
-                        break
+                # Buscar coincidencia (case-insensitive, permite espacios diferentes)
+                nombre_buscado = nombre_usuario.strip().upper()
+                
+                # Primero buscar coincidencia exacta
+                empleado_encontrado = empleados_df[
+                    empleados_df['nombre_completo'].str.strip().str.upper() == nombre_buscado
+                ]
+                
+                if empleado_encontrado.empty:
+                    # Buscar coincidencia parcial
+                    empleado_encontrado = empleados_df[
+                        empleados_df['nombre_completo'].str.upper().str.contains(nombre_buscado) |
+                        nombre_buscado.str.contains(empleados_df['nombre_completo'].str.upper())
+                    ]
+                
+                if not empleado_encontrado.empty:
+                    st.session_state.empleado_actual = empleado_encontrado.iloc[0].to_dict()
+                    print(f"DEBUG: Empleado encontrado: {st.session_state.empleado_actual.get('nombre_completo')}")
+                else:
+                    print(f"DEBUG: No se encontró empleado para: {nombre_usuario}")
+                    st.session_state.empleado_actual = None
             
+            # Configurar sesión
             st.session_state.auth = {
                 'is_authenticated': True,
                 'username': username,
@@ -927,14 +943,6 @@ def login(username, password):
                 }
             }
             
-            if empleado_encontrado:
-                st.session_state.empleado_actual = empleado_encontrado
-                print(f"DEBUG: Empleado encontrado: {empleado_encontrado.get('nombre_completo')}")
-            else:
-                print(f"DEBUG: No se encontró empleado para {nombre_usuario}")
-                st.session_state.empleado_actual = None
-            
-            # Registrar log
             registrar_log("login", f"Usuario {username} inició sesión")
             return True
     
@@ -2375,89 +2383,177 @@ def pagina_mis_turnos():
     
     if not st.session_state.empleado_actual:
         st.warning("⚠️ No se encontró tu registro como empleado.")
+        
+        # Mostrar ayuda para solucionar
+        st.info("""
+        **Solución:** 
+        1. Ve a la página **"👤 Mi Información"**
+        2. Expande la sección **"Solucionar Problema de Asociación"**
+        3. Busca y selecciona tu nombre en la lista de empleados
+        """)
+        
+        if st.button("Ir a Mi Información", use_container_width=True):
+            st.session_state.current_page = "mi_info"
+            st.rerun()
+        
         return
     
     empleado_info = st.session_state.empleado_actual
+    
+    # Mostrar información básica
+    with st.expander("👤 Mi Información", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**Nombre:** {empleado_info.get('nombre_completo', 'N/A')}")
+            st.write(f"**Cargo:** {empleado_info.get('cargo', 'N/A')}")
+        with col2:
+            st.write(f"**Departamento:** {empleado_info.get('departamento', 'N/A')}")
+            st.write(f"**Estado:** {empleado_info.get('estado', 'N/A')}")
     
     # Seleccionar mes y año
     col1, col2 = st.columns(2)
     with col1:
         meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
                 "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-        mes_seleccionado = st.selectbox("Mes:", meses, index=st.session_state.mes_actual - 1)
+        mes_seleccionado = st.selectbox("Mes:", meses, index=datetime.now().month - 1)
         mes_numero = meses.index(mes_seleccionado) + 1
     
     with col2:
-        ano = st.selectbox("Año:", [2026, 2025, 2024, 2027], index=0)
+        ano = st.selectbox("Año:", [2026, 2025, 2024, 2027], 
+                          index=0 if 2026 in [2026, 2025, 2024, 2027] else 0)
     
     # Cargar turnos del empleado
-    if st.button("📅 Cargar Mis Turnos", use_container_width=True):
-        # Guardar mes y año para el calendario
-        st.session_state.calendario_mes = mes_numero
-        st.session_state.calendario_ano = ano
-        
-        # Obtener turnos del empleado
-        turnos_dict = get_turnos_empleado_mes(empleado_info['id'], mes_numero, ano)
-        
-        if not turnos_dict:
-            st.info(f"ℹ️ No tienes turnos asignados para {mes_seleccionado} {ano}.")
-            return
-        
-        # Mostrar información personal
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Cargo", empleado_info['cargo'])
-        with col2:
-            st.metric("Departamento", empleado_info['departamento'])
-        with col3:
-            st.metric("Estado", empleado_info['estado'])
-        
-        # Convertir a lista para mostrar
-        turnos_lista = []
-        for dia, codigo in sorted(turnos_dict.items()):
-            if codigo:
-                turno_info = st.session_state.codigos_turno.get(str(codigo), {})
-                turnos_lista.append({
-                    'Día': f"{dia}/{mes_numero}/{ano}",
-                    'Código': codigo,
-                    'Turno': turno_info.get('nombre', 'Desconocido'),
-                    'Horas': turno_info.get('horas', 0)
-                })
-        
-        if turnos_lista:
-            df_calendario = pd.DataFrame(turnos_lista)
+    if st.button("📅 Cargar Mis Turnos", use_container_width=True, type="primary"):
+        try:
+            # Guardar mes y año para el calendario
+            st.session_state.calendario_mes = mes_numero
+            st.session_state.calendario_ano = ano
             
-            # Mostrar como tabla
-            st.markdown(f"### 📋 Mis Turnos - {mes_seleccionado} {ano}")
-            st.dataframe(
-                df_calendario[['Día', 'Turno', 'Horas']],
-                hide_index=True,
-                use_container_width=True
-            )
+            # Obtener ID del empleado
+            empleado_id = empleado_info.get('id')
             
-            # Estadísticas personales
-            st.markdown("---")
-            st.markdown("### 📈 Mis Estadísticas")
+            if not empleado_id:
+                st.error("❌ No se pudo obtener el ID del empleado")
+                return
             
-            total_horas = sum(t['Horas'] for t in turnos_lista)
-            total_turnos = len(turnos_lista)
+            # Obtener turnos del empleado
+            turnos_dict = get_turnos_empleado_mes(empleado_id, mes_numero, ano)
             
-            # Determinar número de días en el mes
-            num_dias = calendar.monthrange(ano, mes_numero)[1]
+            if not turnos_dict:
+                st.info(f"ℹ️ No tienes turnos asignados para {mes_seleccionado} {ano}.")
+                
+                # Verificar si es problema de datos
+                with st.expander("🔍 Verificar en base de datos", expanded=False):
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    
+                    # Verificar empleado
+                    cursor.execute('SELECT id, nombre_completo FROM empleados WHERE id = ?', (empleado_id,))
+                    emp = cursor.fetchone()
+                    st.write(f"**Empleado en BD:** {emp[1] if emp else 'No encontrado'}")
+                    
+                    # Verificar turnos
+                    cursor.execute('''
+                        SELECT COUNT(*) as total_turnos FROM malla_turnos 
+                        WHERE empleado_id = ? AND mes = ? AND ano = ?
+                    ''', (empleado_id, mes_numero, ano))
+                    total = cursor.fetchone()[0]
+                    st.write(f"**Turnos en BD para este mes:** {total}")
+                    
+                    # Verificar algunos turnos específicos
+                    cursor.execute('''
+                        SELECT dia, codigo_turno FROM malla_turnos 
+                        WHERE empleado_id = ? AND mes = ? AND ano = ?
+                        LIMIT 5
+                    ''', (empleado_id, mes_numero, ano))
+                    ejemplos = cursor.fetchall()
+                    if ejemplos:
+                        st.write("**Primeros 5 turnos:**")
+                        for dia, codigo in ejemplos:
+                            st.write(f"  Día {dia}: {codigo if codigo else '(vacío)'}")
+                    
+                    conn.close()
+                
+                return
             
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Total Turnos Asignados", total_turnos)
-            with col2:
-                st.metric("Horas Totales", total_horas)
-            with col3:
-                promedio = total_horas / max(total_turnos, 1)
-                st.metric("Promedio Horas/Turno", f"{promedio:.1f}")
-            with col4:
-                porcentaje = (total_turnos / num_dias * 100) if num_dias > 0 else 0
-                st.metric("Días con Turno", f"{porcentaje:.1f}%")
-        else:
-            st.info(f"ℹ️ No tienes turnos asignados para {mes_seleccionado} {ano}.")
+            # Convertir a lista para mostrar
+            turnos_lista = []
+            for dia, codigo in sorted(turnos_dict.items()):
+                if codigo and str(codigo).strip() != '':
+                    turno_info = st.session_state.codigos_turno.get(str(codigo), {})
+                    turnos_lista.append({
+                        'Día': f"{dia}/{mes_numero}/{ano}",
+                        'Código': codigo,
+                        'Turno': turno_info.get('nombre', 'Desconocido'),
+                        'Horas': turno_info.get('horas', 0)
+                    })
+            
+            if turnos_lista:
+                df_calendario = pd.DataFrame(turnos_lista)
+                
+                # Mostrar como tabla
+                st.markdown(f"### 📋 Mis Turnos - {mes_seleccionado} {ano}")
+                st.dataframe(
+                    df_calendario[['Día', 'Turno', 'Horas']],
+                    hide_index=True,
+                    use_container_width=True
+                )
+                
+                # Estadísticas personales
+                st.markdown("---")
+                st.markdown("### 📈 Mis Estadísticas")
+                
+                total_horas = sum(t['Horas'] for t in turnos_lista)
+                total_turnos = len(turnos_lista)
+                
+                # Determinar número de días en el mes
+                num_dias = calendar.monthrange(ano, mes_numero)[1]
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Total Turnos", total_turnos)
+                with col2:
+                    st.metric("Horas Totales", total_horas)
+                with col3:
+                    promedio = total_horas / max(total_turnos, 1)
+                    st.metric("Promedio Horas/Turno", f"{promedio:.1f}")
+                with col4:
+                    porcentaje = (total_turnos / num_dias * 100) if num_dias > 0 else 0
+                    st.metric("Días con Turno", f"{porcentaje:.1f}%")
+                    
+                # Mostrar leyenda de códigos usados
+                st.markdown("---")
+                st.markdown("### 🎨 Códigos de mis turnos:")
+                
+                codigos_usados = set(t['Código'] for t in turnos_lista)
+                cols = st.columns(4)
+                
+                for idx, codigo in enumerate(sorted(codigos_usados)):
+                    if codigo:
+                        info = st.session_state.codigos_turno.get(str(codigo), {})
+                        color = info.get('color', '#FFFFFF')
+                        nombre = info.get('nombre', 'Desconocido')
+                        
+                        with cols[idx % 4]:
+                            st.markdown(f"""
+                            <div style="background-color: {color}; padding: 10px; border-radius: 5px; 
+                                      margin: 5px; text-align: center; border: 1px solid #ccc;">
+                                <strong>{codigo}</strong><br>
+                                <small>{nombre}</small>
+                            </div>
+                            """, unsafe_allow_html=True)
+            else:
+                st.info(f"ℹ️ No tienes turnos asignados para {mes_seleccionado} {ano}.")
+                
+        except Exception as e:
+            st.error(f"❌ Error al cargar turnos: {str(e)}")
+            
+            # Información para debugging
+            with st.expander("🔍 Detalles del error", expanded=False):
+                st.write("**Empleado ID:**", empleado_info.get('id'))
+                st.write("**Mes:**", mes_numero)
+                st.write("**Año:**", ano)
+                st.write("**Error completo:**", str(e))
 
 def pagina_calendario():
     """Página de calendario visual simplificada"""
