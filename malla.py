@@ -782,11 +782,18 @@ def guardar_usuarios(edited_df, original_df):
 # ============================================================================
 # OTRAS FUNCIONES DE DATOS (MANTENIDAS)
 # ============================================================================
-def get_turnos_empleado_mes(empleado_id, mes, ano):
-    """Obtener todos los turnos de un empleado para un mes específico"""
+def get_turnos_empleado_mes_corregido(empleado_id, mes, ano):
+    """Obtener todos los turnos de un empleado para un mes específico - VERSIÓN CORREGIDA"""
     conn = get_connection()
     cursor = conn.cursor()
     
+    # Primero verificar si el empleado existe
+    cursor.execute('SELECT id FROM empleados WHERE id = ?', (empleado_id,))
+    if not cursor.fetchone():
+        conn.close()
+        return {}
+    
+    # Obtener turnos del empleado
     cursor.execute('''
         SELECT dia, codigo_turno 
         FROM malla_turnos 
@@ -798,7 +805,10 @@ def get_turnos_empleado_mes(empleado_id, mes, ano):
     conn.close()
     
     # Convertir a diccionario
-    turnos_dict = {dia: codigo for dia, codigo in turnos}
+    turnos_dict = {}
+    for dia, codigo in turnos:
+        turnos_dict[dia] = codigo if codigo else ""
+    
     return turnos_dict
 
 # ============================================================================
