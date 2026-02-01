@@ -2518,6 +2518,10 @@ def pagina_calendario():
     """Página de calendario visual simplificada - MEJORADA"""
     st.markdown("<h1 class='main-header'>📆 Mi Calendario</h1>", unsafe_allow_html=True)
     
+    # Lista de meses para usar en selectbox
+    nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
+                    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+    
     if not st.session_state.empleado_actual:
         st.warning("⚠️ No se encontró tu registro como empleado.")
         
@@ -2535,10 +2539,9 @@ def pagina_calendario():
     # Selector de mes y año
     col1, col2, col3 = st.columns([2, 2, 1])
     with col1:
-        meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
-                "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-        mes_seleccionado = st.selectbox("Mes:", meses, index=st.session_state.get('calendario_mes', datetime.now().month) - 1)
-        mes_numero = meses.index(mes_seleccionado) + 1
+        mes_seleccionado = st.selectbox("Mes:", nombres_meses, 
+                                       index=st.session_state.get('calendario_mes', datetime.now().month) - 1)
+        mes_numero = nombres_meses.index(mes_seleccionado) + 1
     
     with col2:
         ano = st.number_input("Año:", min_value=2023, max_value=2030, 
@@ -2670,6 +2673,10 @@ def pagina_calendario():
 
 def generar_calendario_simple(mes, ano, turnos_dict):
     """Generar calendario simple usando componentes nativos de Streamlit - CORREGIDA DEFINITIVAMENTE"""
+    # Lista de meses para usar en el indicador "Hoy"
+    nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
+                    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+    
     # Determinar número de días en el mes
     num_dias = calendar.monthrange(ano, mes)[1]
     
@@ -2681,17 +2688,12 @@ def generar_calendario_simple(mes, ano, turnos_dict):
     
     # Obtener día de la semana (0=Lunes, 6=Domingo en Python weekday())
     # Convertir a nuestro formato: 0=Domingo, 1=Lunes, ..., 6=Sábado
-    # weekday() devuelve: Lunes=0, Martes=1, Miércoles=2, Jueves=3, Viernes=4, Sábado=5, Domingo=6
-    # Queremos: Domingo=0, Lunes=1, ..., Sábado=6
     dia_semana_python = primer_dia.weekday()  # Lunes=0, Domingo=6
     # Convertir: si es Domingo(6) -> 0, Lunes(0) -> 1, ..., Sábado(5) -> 6
     dia_inicio_semana = (dia_semana_python + 1) % 7
     
     # Crear calendario con columnas
-    st.markdown(f"#### 🗓️ Calendario - {mes}/{ano}")
-    
-    # DEBUG: Mostrar información
-    # st.write(f"Primer día: {primer_dia}, Día semana Python: {dia_semana_python}, Día inicio: {dia_inicio_semana}")
+    st.markdown(f"#### 🗓️ Calendario - {nombres_meses[mes-1]} {ano}")
     
     # Encabezados de días (DOMINGO primero)
     cols = st.columns(7)
@@ -2794,7 +2796,7 @@ def generar_calendario_simple(mes, ano, turnos_dict):
     # Indicador de "Hoy"
     hoy = datetime.now()
     if mes == hoy.month and ano == hoy.year:
-        st.markdown(f'<div style="text-align: center; color: #FF5722; margin-top: 10px; font-size: 0.9em;">📅 <strong>Hoy: {hoy.day} de {meses[hoy.month-1]}</strong></div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="text-align: center; color: #FF5722; margin-top: 10px; font-size: 0.9em;">📅 <strong>Hoy: {hoy.day} de {nombres_meses[hoy.month-1]}</strong></div>', unsafe_allow_html=True)
     
     # Leyenda de códigos presentes
     codigos_presentes = set(str(codigo) for codigo in turnos_dict.values() if codigo)
@@ -2831,6 +2833,12 @@ def generar_calendario_simple(mes, ano, turnos_dict):
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
+    
+    # Si no hay turnos asignados
+    elif any(turnos_dict.values()):
+        st.info("ℹ️ Tienes días asignados pero sin códigos de turno específicos.")
+    else:
+        st.info("📭 No tienes turnos asignados para este mes.")
 
 def pagina_mi_info():
     """Página de información personal del empleado"""
