@@ -1766,43 +1766,188 @@ def pagina_configuracion():
         codigos_df = pd.read_sql("SELECT * FROM codigos_turno", conn)
         conn.close()
         
-        if not codigos_df.empty:
-            edited_codigos = st.data_editor(
-                codigos_df,
-                column_config={
-                    "codigo": st.column_config.TextColumn("Código", width="small", required=True),
-                    "nombre": st.column_config.TextColumn("Descripción", width="medium", required=True),
-                    "color": st.column_config.TextColumn("Color (hex: #RRGGBB)", width="medium", required=True),
-                    "horas": st.column_config.NumberColumn("Horas", min_value=0, max_value=24, required=True)
-                },
-                num_rows="fixed",
-                use_container_width=True,
-                key="editor_codigos"
+        # Configurar columnas para el editor - CAMBIO AQUÍ: num_rows="dynamic"
+        column_config = {
+            "codigo": st.column_config.TextColumn(
+                "Código", 
+                width="small", 
+                required=True,
+                help="Código único (ej: 20, 15, VC, CP)"
+            ),
+            "nombre": st.column_config.TextColumn(
+                "Descripción", 
+                width="medium", 
+                required=True,
+                help="Descripción del turno (ej: 10 AM - 7 PM)"
+            ),
+            "color": st.column_config.ColorColumn(
+                "Color",
+                help="Color para visualización en la malla",
+                required=True
+            ),
+            "horas": st.column_config.NumberColumn(
+                "Horas", 
+                min_value=0, 
+                max_value=24, 
+                required=True,
+                help="Duración en horas (0 para días libres)"
             )
-            
-            # Botón para guardar cambios
-            if st.button("💾 Guardar Configuración de Códigos", use_container_width=True):
-                conn = get_connection()
-                cursor = conn.cursor()
-                
-                # Eliminar todos los códigos existentes
-                cursor.execute("DELETE FROM codigos_turno")
-                
-                # Insertar los códigos editados
-                for _, row in edited_codigos.iterrows():
-                    cursor.execute(
-                        "INSERT INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
-                        (row['codigo'], row['nombre'], row['color'], int(row['horas']))
-                    )
-                
-                conn.commit()
-                conn.close()
-                
-                # Actualizar session state
-                st.session_state.codigos_turno = get_codigos_turno()
-                st.success("✅ Configuración de códigos guardada")
-                registrar_log("actualizar_codigos", f"{len(edited_codigos)} códigos")
-                st.rerun()
+        }
+        
+        # Mostrar editor de datos con posibilidad de agregar filas
+        edited_codigos = st.data_editor(
+            codigos_df,
+            column_config=column_config,
+            num_rows="dynamic",  # CAMBIO IMPORTANTE: permite agregar nuevas filas
+            use_container_width=True,
+            key="editor_codigos"
+        )
+        
+        # Mostrar estadísticas rápidas
+        if not edited_codigos.empty:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Códigos", len(edited_codigos))
+            with col2:
+                codigos_con_horas = len(edited_codigos[edited_codigos['horas'] > 0])
+                st.metric("Con Horas", codigos_con_horas)
+            with col3:
+                st.metric("Sin Horas", len(edited_codigos[edited_codigos['horas'] == 0]))
+        
+        # Sección para agregar código rápido
+        st.markdown("---")
+        st.markdown("### ➕ Agregar Código Rápido")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            nuevo_codigo = st.text_input("Código", key="nuevo_codigo_rapido")
+        with col2:
+            nuevo_nombre = st.text_input("Descripción", key="nuevo_nombre_rapido")
+        with col3:
+            nuevo_color = st.color_picker("Color", "#FF6B6B", key="nuevo_color_rapido")
+        with col4:
+            nuevo_horas = st.number_input("Horas", min_value=0, max_value=24, value=8, key="nuevo_horas_rapido")
+        
+        if st.button("➕ Agregar este Código", key="btn_agregar_codigo_rapido"):
+            if nuevo_codigo and nuevo_nombre:
+                # Verificar si el código ya existe
+                if nuevo_codigo in edited_codigos['codigo'].values:
+                    st.error(f"❌ El código '{nuevo_codigo}' ya existe")
+                else:
+                    # Agregar nueva fila al DataFrame
+                    nueva_fila = pd.DataFrame({
+                        'codigo': [nuevo_codigo],
+                        'nombre': [nuevo_nombre],
+                        'color': [nuevo_color],
+                        'horas': [nuevo_horas]
+                    })
+                    edited_codigos = pd.concat([edited_codigos, nueva_fila], ignore_index=True)
+                    st.success(f"✅ Código '{nuevo_codigo}' agregado a la lista")
+                    st.rerun()
+            else:
+                st.error("❌ Por favor ingrese código y descripción")
+        
+        # Botones de acción
+        st.markdown("---")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("💾 Guardar Cambios", use_container_width=True, key="btn_guardar_codigos"):
+                try:
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    
+                    # Eliminar todos los códigos existentes
+                    cursor.execute("DELETE FROM codigos_turno")
+                    
+                    # Insertar los códigos editados
+                    for _, row in edited_codigos.iterrows():
+                        # Validar filas vacías
+                        if pd.isna(row['codigo']) or pd.isna(row['nombre']):
+                            continue
+                            
+                        cursor.execute(
+                            "INSERT INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
+                            (
+                                str(row['codigo']).strip(),
+                                str(row['nombre']).strip(),
+                                str(row['color']),
+                                int(row['horas'])
+                            )
+                        )
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                    # Actualizar session state
+                    st.session_state.codigos_turno = get_codigos_turno()
+                    st.success(f"✅ {len(edited_codigos)} códigos guardados correctamente")
+                    registrar_log("actualizar_codigos", f"{len(edited_codigos)} códigos")
+                    
+                    # Crear backup automático
+                    crear_backup_automatico()
+                    
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"❌ Error al guardar: {str(e)}")
+        
+        with col2:
+            if st.button("🔄 Restaurar Valores por Defecto", use_container_width=True, key="btn_reset_codigos"):
+                if st.checkbox("¿Confirmar restauración a valores por defecto?"):
+                    try:
+                        conn = get_connection()
+                        cursor = conn.cursor()
+                        
+                        # Limpiar tabla
+                        cursor.execute("DELETE FROM codigos_turno")
+                        
+                        # Insertar códigos por defecto
+                        codigos_default = [
+                            ("20", "10 AM - 7 PM", "#FF6B6B", 8),
+                            ("15", "8 AM - 5 PM", "#4ECDC4", 8),
+                            ("70", "9:00 AM - 7:30 PM", "#FFD166", 9),
+                            ("155", "11 AM - 7 PM", "#06D6A0", 7),
+                            ("151", "8 AM - 4 PM", "#118AB2", 7),
+                            ("177", "1:30 PM - 8:30 PM", "#EF476F", 7),
+                            ("149", "7 AM - 3 PM", "#073B4C", 7),
+                            ("26", "11 AM - 8:30 PM", "#7209B7", 9),
+                            ("158", "12:30 PM - 8:30 PM", "#F15BB5", 10),
+                            ("214", "1 PM - 8:30 PM", "#00BBF9", 8),
+                            ("VC", "Vacaciones", "#9B5DE5", 0),
+                            ("CP", "Cumpleaños", "#00F5D4", 0),
+                            ("PA", "Permiso Administrativo", "#FF9E00", 0),
+                            ("-1", "Ausente", "#E0E0E0", 0)
+                        ]
+                        
+                        cursor.executemany(
+                            "INSERT INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
+                            codigos_default
+                        )
+                        
+                        conn.commit()
+                        conn.close()
+                        
+                        # Actualizar session state
+                        st.session_state.codigos_turno = get_codigos_turno()
+                        st.success("✅ Valores por defecto restaurados")
+                        st.rerun()
+                        
+                    except Exception as e:
+                        st.error(f"❌ Error al restaurar: {str(e)}")
+        
+        with col3:
+            # Exportar códigos
+            if not edited_codigos.empty:
+                csv = edited_codigos.to_csv(index=False)
+                st.download_button(
+                    label="📥 Exportar CSV",
+                    data=csv,
+                    file_name="codigos_turno.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
     
     with tab2:
         st.markdown("### Configuración General")
