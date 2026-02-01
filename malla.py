@@ -2672,7 +2672,7 @@ def pagina_calendario():
             generar_calendario_simple(datetime.now().month, datetime.now().year, ejemplo_turnos)
 
 def generar_calendario_simple(mes, ano, turnos_dict):
-    """Generar calendario simple - VERSIÓN SIMPLIFICADA Y CORREGIDA"""
+    """Generar calendario simple - VERSIÓN MEJORADA"""
     # Lista de meses
     nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
                     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
@@ -2687,7 +2687,6 @@ def generar_calendario_simple(mes, ano, turnos_dict):
     primer_dia = date(ano, mes, 1)
     
     # Calcular día de inicio (0=Domingo, 1=Lunes, ..., 6=Sábado)
-    # weekday() devuelve: Lunes=0, Martes=1, ..., Domingo=6
     dia_semana_python = primer_dia.weekday()  # Lunes=0, Domingo=6
     dia_inicio_semana = (dia_semana_python + 1) % 7  # Convertir a Dom=0, Lun=1, ..., Sáb=6
     
@@ -2695,22 +2694,22 @@ def generar_calendario_simple(mes, ano, turnos_dict):
     st.markdown(f"### 📅 {nombres_meses[mes-1]} {ano}")
     
     # Crear encabezados de días
-    cols = st.columns(7)
+    cols_encabezado = st.columns(7)
     for idx, dia in enumerate(dias_semana):
-        with cols[idx]:
+        with cols_encabezado[idx]:
             if idx == 0:  # Domingo
-                st.markdown(f"<div style='color: #d32f2f; text-align: center; font-weight: bold; padding: 5px;'>DOM</div>", 
+                st.markdown(f"<div style='color: #d32f2f; text-align: center; font-weight: bold; padding: 5px; background: #fff5f5; border-radius: 3px;'>DOM</div>", 
                            unsafe_allow_html=True)
             elif idx == 6:  # Sábado
-                st.markdown(f"<div style='color: #1976d2; text-align: center; font-weight: bold; padding: 5px;'>SÁB</div>", 
+                st.markdown(f"<div style='color: #1976d2; text-align: center; font-weight: bold; padding: 5px; background: #f0f7ff; border-radius: 3px;'>SÁB</div>", 
                            unsafe_allow_html=True)
             else:
-                st.markdown(f"<div style='text-align: center; font-weight: bold; padding: 5px;'>{dia.upper()}</div>", 
+                st.markdown(f"<div style='text-align: center; font-weight: bold; padding: 5px; background: #f8f9fa; border-radius: 3px;'>{dia.upper()}</div>", 
                            unsafe_allow_html=True)
     
-    # Crear calendario usando Streamlit nativo (sin HTML complejo)
+    # Crear calendario
     dia_actual = 0
-    filas_necesarias = (dia_inicio_semana + num_dias + 6) // 7
+    filas_necesarias = 6  # Máximo 6 filas para cualquier mes
     
     for fila in range(filas_necesarias):
         cols = st.columns(7)
@@ -2722,17 +2721,28 @@ def generar_calendario_simple(mes, ano, turnos_dict):
                 
                 if dia_actual < dia_inicio_semana or num_dia_celda > num_dias:
                     # Celda vacía (antes del primer día o después del último)
-                    st.write(" ")
+                    st.markdown(f"""
+                    <div style="height: 75px; display: flex; align-items: center; justify-content: center;
+                               background-color: #f9f9f9; border-radius: 5px; border: 1px solid #f0f0f0;">
+                        <span style="color: #ccc;">&nbsp;</span>
+                    </div>
+                    """, unsafe_allow_html=True)
                 else:
                     # Día válido del mes
                     dia_num = num_dia_celda
                     
                     # Obtener información del turno
                     codigo = turnos_dict.get(dia_num, "")
-                    turno_info = st.session_state.codigos_turno.get(str(codigo), 
-                                                                   {"color": "#FFFFFF", "nombre": "Sin turno"})
-                    color = turno_info["color"]
-                    nombre_turno = turno_info.get("nombre", "")
+                    if codigo and str(codigo).strip() != "":
+                        turno_info = st.session_state.codigos_turno.get(str(codigo).strip(), 
+                                                                       {"color": "#e0e0e0", "nombre": "Turno"})
+                        color = turno_info["color"]
+                        nombre_turno = turno_info.get("nombre", "")
+                        tiene_turno = True
+                    else:
+                        color = "#ffffff"
+                        nombre_turno = ""
+                        tiene_turno = False
                     
                     # Determinar día de la semana
                     dia_semana_actual = (dia_inicio_semana + dia_num - 1) % 7
@@ -2742,27 +2752,38 @@ def generar_calendario_simple(mes, ano, turnos_dict):
                     es_hoy = (dia_num == hoy.day and mes == hoy.month and ano == hoy.year)
                     
                     # Estilos según día de la semana
-                    estilo_texto = ""
+                    estilo_numero = "font-weight: bold;"
                     if dia_semana_actual == 0:  # Domingo
-                        estilo_texto = "color: #d32f2f;"
+                        estilo_numero += " color: #d32f2f;"
+                        borde_dia = "#d32f2f"
                     elif dia_semana_actual == 6:  # Sábado
-                        estilo_texto = "color: #1976d2;"
+                        estilo_numero += " color: #1976d2;"
+                        borde_dia = "#1976d2"
+                    else:
+                        borde_dia = "#e0e0e0"
+                    
+                    # Borde especial para hoy
+                    if es_hoy:
+                        borde_dia = "#FF5722"
+                        estilo_numero += " text-shadow: 0 0 1px #FF5722;"
                     
                     # Crear contenido de la celda
                     contenido = f"""
                     <div style="background-color: {color}; 
-                               padding: 8px; 
+                               padding: 5px; 
                                border-radius: 5px; 
-                               border: 2px solid {'#FF5722' if es_hoy else '#e0e0e0'};
+                               border: 2px solid {borde_dia};
                                text-align: center;
-                               min-height: 60px;
+                               height: 75px;
                                display: flex;
                                flex-direction: column;
-                               justify-content: center;">
-                        <div style="font-weight: bold; font-size: 1.1em; {estilo_texto}">
+                               justify-content: space-between;
+                               overflow: hidden;">
+                        <div style="{estilo_numero} font-size: 1.2em;">
                             {dia_num}
                         </div>
-                        {f'<div style="font-size: 0.8em; margin-top: 3px;">{codigo}</div>' if codigo else ''}
+                        {f'<div style="font-size: 0.9em; font-weight: bold; color: #333; margin-top: 3px;">{codigo}</div>' if tiene_turno else ''}
+                        {f'<div style="font-size: 0.7em; color: #666; margin-top: 2px; line-height: 1.1;">{nombre_turno[:15]}{"..." if len(nombre_turno) > 15 else ""}</div>' if tiene_turno and nombre_turno else ''}
                     </div>
                     """
                     
@@ -2773,41 +2794,84 @@ def generar_calendario_simple(mes, ano, turnos_dict):
     # Indicador de "Hoy"
     hoy = datetime.now()
     if mes == hoy.month and ano == hoy.year:
-        st.markdown(f'<div style="text-align: center; color: #FF5722; margin-top: 10px;">📅 <strong>Hoy: {hoy.day} de {nombres_meses[hoy.month-1]}</strong></div>', 
-                   unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="text-align: center; color: #FF5722; margin-top: 10px; 
+                   padding: 8px; background: #fff8e1; border-radius: 5px; border: 1px solid #FFECB3;">
+            📅 <strong>Hoy: {hoy.day} de {nombres_meses[hoy.month-1]} {hoy.year}</strong>
+        </div>
+        """, unsafe_allow_html=True)
     
-    # Leyenda de códigos
-    codigos_presentes = set(str(codigo) for codigo in turnos_dict.values() if codigo)
+    # Leyenda de códigos con descripciones completas
+    codigos_presentes = set(str(codigo).strip() for codigo in turnos_dict.values() if codigo and str(codigo).strip() != "")
     
     if codigos_presentes:
         st.markdown("---")
-        st.markdown("#### 🎨 Turnos Asignados")
+        st.markdown("#### 🎨 Leyenda de Turnos")
         
-        # Mostrar en columnas
-        codigos_lista = sorted(list(codigos_presentes))
-        num_columnas = min(4, len(codigos_lista))
+        # Ordenar códigos numéricamente cuando sea posible
+        try:
+            codigos_ordenados = sorted(codigos_presentes, key=lambda x: int(x) if x.isdigit() else x)
+        except:
+            codigos_ordenados = sorted(codigos_presentes)
         
-        if num_columnas > 0:
-            cols_leyenda = st.columns(num_columnas)
+        # Mostrar en una tabla mejor organizada
+        for i in range(0, len(codigos_ordenados), 3):
+            cols_leyenda = st.columns(3)
+            grupo = codigos_ordenados[i:i+3]
             
-            for idx, codigo in enumerate(codigos_lista):
-                col_idx = idx % num_columnas
-                with cols_leyenda[col_idx]:
+            for j, codigo in enumerate(grupo):
+                with cols_leyenda[j]:
                     info = st.session_state.codigos_turno.get(codigo, {})
-                    color = info.get('color', '#FFFFFF')
-                    nombre = info.get('nombre', 'Desconocido')
+                    color = info.get('color', '#e0e0e0')
+                    nombre = info.get('nombre', 'Sin descripción')
                     horas = info.get('horas', 0)
                     
+                    # Formatear nombre para mostrar mejor
+                    nombre_formateado = nombre
+                    if len(nombre) > 25:
+                        nombre_formateado = nombre[:22] + "..."
+                    
                     st.markdown(f"""
-                    <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 5px;">
-                        <div style="width: 20px; height: 20px; background-color: {color}; 
-                                 margin-right: 8px; border-radius: 3px; border: 1px solid #ccc;"></div>
-                        <div>
-                            <strong>{codigo}</strong><br>
-                            <small style="color: #666;">{nombre[:12]}{'...' if len(nombre) > 12 else ''}</small>
+                    <div style="padding: 10px; margin-bottom: 10px; background: white; 
+                               border-radius: 5px; border: 1px solid #e0e0e0; 
+                               border-left: 4px solid {color};">
+                        <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                            <div style="width: 20px; height: 20px; background-color: {color}; 
+                                     margin-right: 10px; border-radius: 3px;"></div>
+                            <div style="font-weight: bold; font-size: 1.1em;">{codigo}</div>
+                        </div>
+                        <div style="font-size: 0.85em; color: #555; margin-bottom: 3px;">
+                            {nombre_formateado}
+                        </div>
+                        <div style="font-size: 0.8em; color: #777;">
+                            <strong>{horas}h</strong> | {len([d for d, c in turnos_dict.items() if str(c).strip() == codigo])} día(s)
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
+    
+    # Resumen estadístico
+    if turnos_dict:
+        dias_con_turno = sum(1 for codigo in turnos_dict.values() if codigo and str(codigo).strip() != '')
+        horas_totales = 0
+        for dia, codigo in turnos_dict.items():
+            if codigo and str(codigo).strip() != '':
+                horas = st.session_state.codigos_turno.get(str(codigo).strip(), {}).get("horas", 0)
+                horas_totales += horas
+        
+        st.markdown("---")
+        st.markdown("#### 📊 Resumen del Mes")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Días con turno", f"{dias_con_turno}/{num_dias}")
+        with col2:
+            st.metric("Horas totales", horas_totales)
+        with col3:
+            if dias_con_turno > 0:
+                promedio = horas_totales / dias_con_turno
+                st.metric("Promedio por día", f"{promedio:.1f}h")
+            else:
+                st.metric("Promedio por día", "0h")
 
 def pagina_mi_info():
     """Página de información personal del empleado"""
