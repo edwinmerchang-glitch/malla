@@ -883,24 +883,46 @@ def login(username, password):
         password_hash = hashlib.sha256(password.encode()).hexdigest()
         
         if stored_hash == password_hash:
+            # Obtener nombre del usuario
+            nombre_usuario = result[3]
+            
+            # Buscar empleado por nombre (búsqueda más flexible)
+            empleados_df = get_empleados()
+            
+            # Intentar encontrar coincidencia por nombre
+            empleado_encontrado = None
+            
+            # Primero buscar coincidencia exacta
+            coincidencia_exacta = empleados_df[
+                empleados_df['nombre_completo'].str.strip().str.upper() == nombre_usuario.strip().upper()
+            ]
+            
+            if not coincidencia_exacta.empty:
+                empleado_encontrado = coincidencia_exacta.iloc[0].to_dict()
+            else:
+                # Buscar coincidencia parcial (por si los nombres no coinciden exactamente)
+                for idx, empleado in empleados_df.iterrows():
+                    if (empleado['nombre_completo'].upper() in nombre_usuario.upper() or 
+                        nombre_usuario.upper() in empleado['nombre_completo'].upper()):
+                        empleado_encontrado = empleado.to_dict()
+                        break
+            
             st.session_state.auth = {
                 'is_authenticated': True,
                 'username': username,
                 'role': result[2],
                 'user_data': {
-                    'nombre': result[3],
+                    'nombre': nombre_usuario,
                     'departamento': result[4]
                 }
             }
             
-            # Buscar empleado correspondiente
-            empleados_df = st.session_state.empleados_df
-            empleado_encontrado = empleados_df[
-                empleados_df['nombre_completo'].str.upper() == result[3].upper()
-            ]
-            
-            if not empleado_encontrado.empty:
-                st.session_state.empleado_actual = empleado_encontrado.iloc[0].to_dict()
+            if empleado_encontrado:
+                st.session_state.empleado_actual = empleado_encontrado
+                print(f"DEBUG: Empleado encontrado: {empleado_encontrado.get('nombre_completo')}")
+            else:
+                print(f"DEBUG: No se encontró empleado para {nombre_usuario}")
+                st.session_state.empleado_actual = None
             
             # Registrar log
             registrar_log("login", f"Usuario {username} inició sesión")
