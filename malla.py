@@ -565,7 +565,7 @@ def get_malla_turnos(mes, ano):
     return df_base
 
 def guardar_malla_turnos(df_malla, mes, ano):
-    """Guardar malla de turnos en la base de datos - CORREGIDA"""
+    """Guardar malla de turnos en la base de datos - VERSIÓN CORREGIDA"""
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -586,6 +586,7 @@ def guardar_malla_turnos(df_malla, mes, ano):
         for idx, row in df_malla.iterrows():
             cedula = str(row.get('CC', ''))
             if not cedula or cedula not in id_por_cedula:
+                st.error(f"❌ No se encontró empleado con cédula: {cedula}")
                 continue
             
             emp_id = id_por_cedula[cedula]
@@ -608,7 +609,8 @@ def guardar_malla_turnos(df_malla, mes, ano):
                         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                     ''', (emp_id, mes, ano, dia, codigo_valor))
                     
-                    cambios_guardados += 1
+                    if cursor.rowcount > 0:
+                        cambios_guardados += 1
         
         conn.commit()
         conn.close()
@@ -616,7 +618,7 @@ def guardar_malla_turnos(df_malla, mes, ano):
         return cambios_guardados
         
     except Exception as e:
-        print(f"❌ Error al guardar malla: {str(e)}")
+        st.error(f"❌ Error al guardar malla: {str(e)}")
         return 0
 
 def guardar_empleados(df_editado):
@@ -1154,45 +1156,129 @@ def pagina_malla():
                 key=f"editor_malla_{mes_numero}_{ano}"
             )
             
-            # BOTONES DE ACCIÓN CORREGIDOS
-            col1, col2 = st.columns(2)
+            # BOTONES DE ACCIÓN - VERSIÓN SIMPLIFICADA Y FUNCIONAL
+            st.markdown("---")
+            st.markdown("### 💾 Acciones de Guardado")
+            
+            col1, col2, col3 = st.columns(3)
+            
             with col1:
-                if st.button("💾 Guardar Cambios en Base de Datos", use_container_width=True, key="btn_guardar_malla"):
-                    try:
-                        # Guardar en la base de datos CON BACKUP
-                        cambios = guardar_malla_turnos_con_backup(edited_df, mes_numero, ano)
-                        
-                        if cambios > 0:
-                            # Actualizar session state
-                            st.session_state.last_save = datetime.now()
-                            st.session_state.malla_actual = edited_df
+                if st.button("💾 Guardar Cambios Ahora", use_container_width=True, type="primary"):
+                    with st.spinner("Guardando cambios..."):
+                        try:
+                            # Guardar en la base de datos
+                            cambios = guardar_malla_turnos_con_backup(edited_df, mes_numero, ano)
                             
-                            st.success(f"✅ {cambios} cambios guardados permanentemente en la base de datos")
-                            registrar_log("guardar_malla", f"{mes_seleccionado} {ano} - {cambios} cambios")
-                            
-                            # Recargar para asegurar consistencia
-                            with st.spinner("Actualizando datos..."):
+                            if cambios > 0:
+                                # Actualizar session state
+                                st.session_state.last_save = datetime.now()
                                 st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+                                
+                                st.success(f"✅ {cambios} cambios guardados exitosamente!")
+                                registrar_log("guardar_malla", f"{mes_seleccionado} {ano} - {cambios} cambios")
+                                
+                                # Forzar recarga
                                 st.rerun()
-                        else:
-                            st.warning("⚠️ No se realizaron cambios")
-                            
-                    except Exception as e:
-                        st.error(f"❌ Error al guardar: {str(e)}")
+                            else:
+                                st.warning("⚠️ No se detectaron cambios para guardar")
+                                
+                        except Exception as e:
+                            st.error(f"❌ Error al guardar: {str(e)}")
             
             with col2:
-                if st.button("🔄 Recargar desde Base de Datos", use_container_width=True, key="btn_recargar_malla"):
+                if st.button("🔄 Recargar desde BD", use_container_width=True):
                     st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
                     st.success("✅ Malla recargada desde base de datos")
                     st.rerun()
+            
+            with col3:
+                # Botón para limpiar todos los turnos
+                if st.button("🗑️ Limpiar Todos", use_container_width=True, type="secondary"):
+                    if st.checkbox("¿Confirmar que quieres limpiar TODOS los turnos de este mes?"):
+                        # Crear copia vacía
+                        malla_vacia = edited_df.copy()
+                        for col in day_columns:
+                            malla_vacia[col] = ""
+                        
+                        cambios = guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
+                        st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+                        st.success(f"✅ {cambios} turnos limpiados")
+                        st.rerun()
+            
+            # Detectar cambios automáticamente
+            if 'ultima_version' not in st.session_state:
+                st.session_state.ultima_version = st.session_state.malla_actual.to_dict()
+            
+            # Verificar si hay cambios
+            cambios_detectados = False
+            try:
+                cambios_detectados = not edited_df.equals(st.session_state.malla_actual)
+            except:
+                pass
+            
+            if cambios_detectados:
+                st.info("💡 **Hay cambios sin guardar.** Presiona 'Guardar Cambios Ahora' para guardarlos permanentemente.")
+                
+                # Mostrar vista previa de cambios
+                with st.expander("👁️ Vista previa de cambios", expanded=False):
+                    st.write("**Cambios detectados:**")
+                    # Mostrar solo algunas filas con cambios
+                    st.dataframe(edited_df.head(5))
+            
+            # Mostrar estadísticas
+            mostrar_estadisticas_malla_preview(edited_df, mes_numero, ano)
+            
         else:
             # Modo solo lectura
             st.info("👁️ Vista de solo lectura - No puedes editar")
             styled_df = aplicar_estilo_dataframe(st.session_state.malla_actual)
             st.dataframe(styled_df, use_container_width=True, height=600)
+            
+            # Mostrar estadísticas
+            mostrar_estadisticas_malla()
+def mostrar_estadisticas_malla_preview(df_malla, mes, ano):
+    """Mostrar estadísticas de vista previa de la malla"""
+    if df_malla.empty:
+        return
+    
+    day_columns = [col for col in df_malla.columns if '/' in str(col)]
+    
+    if day_columns:
+        # Calcular estadísticas
+        total_empleados = len(df_malla)
         
-        # Estadísticas
-        mostrar_estadisticas_malla()
+        # Contar turnos por tipo
+        turnos_por_tipo = {}
+        for col in day_columns:
+            for turno in df_malla[col]:
+                if pd.notna(turno) and str(turno).strip() != '':
+                    turno_str = str(turno).strip()
+                    turnos_por_tipo[turno_str] = turnos_por_tipo.get(turno_str, 0) + 1
+        
+        total_turnos = sum(turnos_por_tipo.values())
+        
+        # Calcular horas totales
+        horas_totales = 0
+        for turno, cantidad in turnos_por_tipo.items():
+            horas = st.session_state.codigos_turno.get(str(turno), {}).get("horas", 0)
+            horas_totales += horas * cantidad
+        
+        # Mostrar métricas en tiempo real
+        st.markdown("---")
+        st.markdown("### 📊 Estadísticas (Vista Previa)")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Empleados", total_empleados)
+        with col2:
+            st.metric("Turnos Asignados", total_turnos)
+        with col3:
+            st.metric("Horas Totales", horas_totales)
+        with col4:
+            empleados_activos = df_malla[
+                df_malla['ESTADO'] == 'Activo'
+            ].shape[0]
+            st.metric("Empleados Activos", empleados_activos)
 
 def mostrar_leyenda():
     """Mostrar leyenda de colores"""
