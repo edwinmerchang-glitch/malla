@@ -1749,7 +1749,7 @@ def crear_nuevo_usuario(username, password, confirm_password, nombre, rol, depar
 
 # 4. PÁGINA DE CONFIGURACIÓN (ACTUALIZADA)
 def pagina_configuracion():
-    """Página de configuración - ACTUALIZADA"""
+    """Página de configuración - CORREGIDA"""
     if not check_permission("configure"):
         st.error("⛔ No tienes permisos para acceder a la configuración")
         return
@@ -1763,10 +1763,10 @@ def pagina_configuracion():
         
         # Obtener códigos actuales
         conn = get_connection()
-        codigos_df = pd.read_sql("SELECT * FROM codigos_turno", conn)
+        codigos_df = pd.read_sql("SELECT * FROM codigos_turno ORDER BY codigo", conn)
         conn.close()
         
-        # Configurar columnas para el editor - CAMBIO AQUÍ: num_rows="dynamic"
+        # Configurar columnas para el editor - CORREGIDO
         column_config = {
             "codigo": st.column_config.TextColumn(
                 "Código", 
@@ -1780,9 +1780,9 @@ def pagina_configuracion():
                 required=True,
                 help="Descripción del turno (ej: 10 AM - 7 PM)"
             ),
-            "color": st.column_config.ColorColumn(
-                "Color",
-                help="Color para visualización en la malla",
+            "color": st.column_config.TextColumn(
+                "Color (HEX)",
+                help="Color en formato HEX (#RRGGBB)",
                 required=True
             ),
             "horas": st.column_config.NumberColumn(
@@ -1798,7 +1798,7 @@ def pagina_configuracion():
         edited_codigos = st.data_editor(
             codigos_df,
             column_config=column_config,
-            num_rows="dynamic",  # CAMBIO IMPORTANTE: permite agregar nuevas filas
+            num_rows="dynamic",  # Permite agregar nuevas filas
             use_container_width=True,
             key="editor_codigos"
         )
@@ -1818,43 +1818,75 @@ def pagina_configuracion():
         st.markdown("---")
         st.markdown("### ➕ Agregar Código Rápido")
         
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            nuevo_codigo = st.text_input("Código", key="nuevo_codigo_rapido")
-        with col2:
-            nuevo_nombre = st.text_input("Descripción", key="nuevo_nombre_rapido")
-        with col3:
-            nuevo_color = st.color_picker("Color", "#FF6B6B", key="nuevo_color_rapido")
-        with col4:
-            nuevo_horas = st.number_input("Horas", min_value=0, max_value=24, value=8, key="nuevo_horas_rapido")
-        
-        if st.button("➕ Agregar este Código", key="btn_agregar_codigo_rapido"):
-            if nuevo_codigo and nuevo_nombre:
-                # Verificar si el código ya existe
-                if nuevo_codigo in edited_codigos['codigo'].values:
-                    st.error(f"❌ El código '{nuevo_codigo}' ya existe")
+        with st.form("form_codigo_rapido"):
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                nuevo_codigo = st.text_input("Código*", placeholder="Ej: 25")
+            with col2:
+                nuevo_nombre = st.text_input("Descripción*", placeholder="Ej: 9 AM - 6 PM")
+            with col3:
+                nuevo_color = st.color_picker("Color", "#FF6B6B")
+            with col4:
+                nuevo_horas = st.number_input("Horas*", min_value=0, max_value=24, value=8)
+            
+            submitted = st.form_submit_button("➕ Agregar Código", use_container_width=True)
+            
+            if submitted:
+                if nuevo_codigo and nuevo_nombre:
+                    # Verificar si el código ya existe
+                    if nuevo_codigo in edited_codigos['codigo'].values:
+                        st.error(f"❌ El código '{nuevo_codigo}' ya existe")
+                    else:
+                        # Convertir color HEX a string
+                        color_hex = nuevo_color
+                        
+                        # Agregar nueva fila al DataFrame
+                        nueva_fila = pd.DataFrame({
+                            'codigo': [nuevo_codigo],
+                            'nombre': [nuevo_nombre],
+                            'color': [color_hex],
+                            'horas': [nuevo_horas]
+                        })
+                        edited_codigos = pd.concat([edited_codigos, nueva_fila], ignore_index=True)
+                        st.success(f"✅ Código '{nuevo_codigo}' agregado a la lista")
+                        st.rerun()
                 else:
-                    # Agregar nueva fila al DataFrame
-                    nueva_fila = pd.DataFrame({
-                        'codigo': [nuevo_codigo],
-                        'nombre': [nuevo_nombre],
-                        'color': [nuevo_color],
-                        'horas': [nuevo_horas]
-                    })
-                    edited_codigos = pd.concat([edited_codigos, nueva_fila], ignore_index=True)
-                    st.success(f"✅ Código '{nuevo_codigo}' agregado a la lista")
-                    st.rerun()
-            else:
-                st.error("❌ Por favor ingrese código y descripción")
+                    st.error("❌ Por favor complete los campos obligatorios (*)")
         
         # Botones de acción
         st.markdown("---")
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("💾 Guardar Cambios", use_container_width=True, key="btn_guardar_codigos"):
+            if st.button("💾 Guardar Todos los Cambios", use_container_width=True, type="primary", key="btn_guardar_codigos"):
                 try:
+                    # Validar datos antes de guardar
+                    errores = []
+                    
+                    for idx, row in edited_codigos.iterrows():
+                        # Validar código no vacío
+                        if pd.isna(row['codigo']) or str(row['codigo']).strip() == '':
+                            errores.append(f"Fila {idx+1}: Código vacío")
+                            continue
+                        
+                        # Validar nombre no vacío
+                        if pd.isna(row['nombre']) or str(row['nombre']).strip() == '':
+                            errores.append(f"Fila {idx+1}: Descripción vacía")
+                            continue
+                        
+                        # Validar formato color HEX
+                        color_str = str(row['color']).strip()
+                        if not color_str.startswith('#') or len(color_str) != 7:
+                            errores.append(f"Fila {idx+1}: Color inválido (debe ser #RRGGBB)")
+                            continue
+                    
+                    if errores:
+                        st.error("❌ Errores encontrados:")
+                        for error in errores:
+                            st.write(f"- {error}")
+                        return
+                    
                     conn = get_connection()
                     cursor = conn.cursor()
                     
@@ -1863,16 +1895,12 @@ def pagina_configuracion():
                     
                     # Insertar los códigos editados
                     for _, row in edited_codigos.iterrows():
-                        # Validar filas vacías
-                        if pd.isna(row['codigo']) or pd.isna(row['nombre']):
-                            continue
-                            
                         cursor.execute(
                             "INSERT INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
                             (
                                 str(row['codigo']).strip(),
                                 str(row['nombre']).strip(),
-                                str(row['color']),
+                                str(row['color']).strip(),
                                 int(row['horas'])
                             )
                         )
@@ -1895,47 +1923,61 @@ def pagina_configuracion():
         
         with col2:
             if st.button("🔄 Restaurar Valores por Defecto", use_container_width=True, key="btn_reset_codigos"):
-                if st.checkbox("¿Confirmar restauración a valores por defecto?"):
-                    try:
-                        conn = get_connection()
-                        cursor = conn.cursor()
-                        
-                        # Limpiar tabla
-                        cursor.execute("DELETE FROM codigos_turno")
-                        
-                        # Insertar códigos por defecto
-                        codigos_default = [
-                            ("20", "10 AM - 7 PM", "#FF6B6B", 8),
-                            ("15", "8 AM - 5 PM", "#4ECDC4", 8),
-                            ("70", "9:00 AM - 7:30 PM", "#FFD166", 9),
-                            ("155", "11 AM - 7 PM", "#06D6A0", 7),
-                            ("151", "8 AM - 4 PM", "#118AB2", 7),
-                            ("177", "1:30 PM - 8:30 PM", "#EF476F", 7),
-                            ("149", "7 AM - 3 PM", "#073B4C", 7),
-                            ("26", "11 AM - 8:30 PM", "#7209B7", 9),
-                            ("158", "12:30 PM - 8:30 PM", "#F15BB5", 10),
-                            ("214", "1 PM - 8:30 PM", "#00BBF9", 8),
-                            ("VC", "Vacaciones", "#9B5DE5", 0),
-                            ("CP", "Cumpleaños", "#00F5D4", 0),
-                            ("PA", "Permiso Administrativo", "#FF9E00", 0),
-                            ("-1", "Ausente", "#E0E0E0", 0)
-                        ]
-                        
-                        cursor.executemany(
-                            "INSERT INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
-                            codigos_default
-                        )
-                        
-                        conn.commit()
-                        conn.close()
-                        
-                        # Actualizar session state
-                        st.session_state.codigos_turno = get_codigos_turno()
-                        st.success("✅ Valores por defecto restaurados")
-                        st.rerun()
-                        
-                    except Exception as e:
-                        st.error(f"❌ Error al restaurar: {str(e)}")
+                with st.expander("⚠️ Confirmar Restauración", expanded=True):
+                    st.warning("""
+                    **ADVERTENCIA:** Esto eliminará todos los códigos actuales y 
+                    restaurará los valores por defecto.
+                    
+                    Se recomienda exportar primero los códigos actuales.
+                    """)
+                    
+                    col_res1, col_res2 = st.columns(2)
+                    with col_res1:
+                        if st.button("✅ Sí, Restaurar", type="primary"):
+                            try:
+                                conn = get_connection()
+                                cursor = conn.cursor()
+                                
+                                # Limpiar tabla
+                                cursor.execute("DELETE FROM codigos_turno")
+                                
+                                # Insertar códigos por defecto
+                                codigos_default = [
+                                    ("20", "10 AM - 7 PM", "#FF6B6B", 8),
+                                    ("15", "8 AM - 5 PM", "#4ECDC4", 8),
+                                    ("70", "9:00 AM - 7:30 PM", "#FFD166", 9),
+                                    ("155", "11 AM - 7 PM", "#06D6A0", 7),
+                                    ("151", "8 AM - 4 PM", "#118AB2", 7),
+                                    ("177", "1:30 PM - 8:30 PM", "#EF476F", 7),
+                                    ("149", "7 AM - 3 PM", "#073B4C", 7),
+                                    ("26", "11 AM - 8:30 PM", "#7209B7", 9),
+                                    ("158", "12:30 PM - 8:30 PM", "#F15BB5", 10),
+                                    ("214", "1 PM - 8:30 PM", "#00BBF9", 8),
+                                    ("VC", "Vacaciones", "#9B5DE5", 0),
+                                    ("CP", "Cumpleaños", "#00F5D4", 0),
+                                    ("PA", "Permiso Administrativo", "#FF9E00", 0),
+                                    ("-1", "Ausente", "#E0E0E0", 0)
+                                ]
+                                
+                                cursor.executemany(
+                                    "INSERT INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
+                                    codigos_default
+                                )
+                                
+                                conn.commit()
+                                conn.close()
+                                
+                                # Actualizar session state
+                                st.session_state.codigos_turno = get_codigos_turno()
+                                st.success("✅ Valores por defecto restaurados")
+                                st.rerun()
+                                
+                            except Exception as e:
+                                st.error(f"❌ Error al restaurar: {str(e)}")
+                    
+                    with col_res2:
+                        if st.button("❌ Cancelar"):
+                            st.info("Operación cancelada")
         
         with col3:
             # Exportar códigos
@@ -1946,8 +1988,28 @@ def pagina_configuracion():
                     data=csv,
                     file_name="codigos_turno.csv",
                     mime="text/csv",
-                    use_container_width=True
+                    use_container_width=True,
+                    key="btn_export_codigos"
                 )
+        
+        # Mostrar vista previa de cambios
+        if not edited_codigos.empty:
+            with st.expander("👁️ Vista Previa de Códigos", expanded=False):
+                st.dataframe(edited_codigos, use_container_width=True)
+                
+                # Mostrar colores
+                st.markdown("**🎨 Vista previa de colores:**")
+                cols = st.columns(min(5, len(edited_codigos)))
+                for idx, (_, row) in enumerate(edited_codigos.iterrows()):
+                    if idx < 5:  # Mostrar solo primeros 5
+                        with cols[idx % 5]:
+                            st.markdown(f"""
+                            <div style="background-color: {row['color']}; padding: 10px; 
+                                      border-radius: 5px; text-align: center; margin: 5px;">
+                                <strong>{row['codigo']}</strong><br>
+                                <small>{row['nombre']}</small>
+                            </div>
+                            """, unsafe_allow_html=True)
     
     with tab2:
         st.markdown("### Configuración General")
@@ -1962,7 +2024,8 @@ def pagina_configuracion():
             inicio_semana = st.selectbox("Inicio de semana", ["Lunes", "Domingo"])
             departamentos_text = st.text_area(
                 "Departamentos (separados por comas)",
-                value=",".join(st.session_state.configuracion['departamentos'])
+                value=",".join(st.session_state.configuracion['departamentos']),
+                height=100
             )
         
         if st.button("💾 Guardar Configuración General", use_container_width=True):
@@ -1990,6 +2053,7 @@ def pagina_configuracion():
             st.session_state.configuracion = get_configuracion()
             st.success("✅ Configuración general guardada")
             registrar_log("actualizar_configuracion", "configuración general")
+            st.rerun()
     
     with tab3:
         st.markdown("### ⚙️ Configuración del Sistema")
@@ -2030,6 +2094,7 @@ def pagina_configuracion():
             
             st.success("✅ Configuración del sistema guardada")
             registrar_log("config_sistema", "Configuración actualizada")
+            st.rerun()
 
 # 5. PÁGINA DE BACKUP (NUEVA)
 def pagina_backup():
