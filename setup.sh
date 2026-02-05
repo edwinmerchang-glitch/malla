@@ -16,4 +16,8 @@ serverAddress = \"0.0.0.0\"\n\
 gatherUsageStats = false\n\
 " > ~/.streamlit/config.toml
 
-echo "✅ Configuración de Streamlit creada"
+# Crear directorio para backups (importante para tu app)
+mkdir -p turnos_backups
+chmod 755 turnos_backups
+
+echo "✅ Configuración completada"

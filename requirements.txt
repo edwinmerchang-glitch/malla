@@ -3,3 +3,4 @@ pandas==2.1.0
 numpy==1.24.0
 plotly==5.17.0
 pytz==2023.3
+sqlite3  # SQLite viene con Python, pero por si acaso
