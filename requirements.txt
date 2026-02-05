@@ -1,6 +1,5 @@
-streamlit==1.28.0
-pandas==2.1.0
-numpy==1.24.0
-plotly==5.17.0
-pytz==2023.3
-sqlite3  # SQLite viene con Python, pero por si acaso
+streamlit==1.34.0
+pandas==2.2.2
+numpy==1.26.0
+plotly==5.18.0
+pytz==2024.1

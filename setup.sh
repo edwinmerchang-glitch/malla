@@ -4,20 +4,16 @@
 mkdir -p ~/.streamlit/
 
 # Crear archivo de configuración
-echo "\
-[server]\n\
-headless = true\n\
-port = \$PORT\n\
-enableCORS = false\n\
-enableXsrfProtection = false\n\
-\n\
-[browser]\n\
-serverAddress = \"0.0.0.0\"\n\
-gatherUsageStats = false\n\
-" > ~/.streamlit/config.toml
+cat > ~/.streamlit/config.toml << EOF
+[server]
+headless = true
+port = \$PORT
+enableCORS = false
+enableXsrfProtection = false
 
-# Crear directorio para backups (importante para tu app)
-mkdir -p turnos_backups
-chmod 755 turnos_backups
+[browser]
+serverAddress = "0.0.0.0"
+gatherUsageStats = false
+EOF
 
-echo "✅ Configuración completada"
+echo "✅ Configuración de Streamlit completada"
