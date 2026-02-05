@@ -1674,6 +1674,929 @@ def importar_backup_json(json_str):
 # ============================================================================
 # FUNCIÓN PRINCIPAL
 # ============================================================================
+def pagina_empleados():
+    """Página de gestión de empleados"""
+    if not check_permission("write"):
+        st.error("⛔ No tienes permisos para gestionar empleados")
+        return
+    
+    st.markdown("<h1 class='main-header'>👥 Gestión de Empleados</h1>", unsafe_allow_html=True)
+    
+    # Advertencia de Streamlit Cloud
+    if IS_STREAMLIT_CLOUD:
+        st.warning("""
+        ⚠️ **STREAMLIT CLOUD**
+        - Exporta la lista de empleados regularmente
+        - Los datos se guardan automáticamente en backups
+        """)
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Total Empleados", len(st.session_state.empleados_df))
+    with col2:
+        activos = st.session_state.empleados_df[st.session_state.empleados_df['estado'] == 'Activo'].shape[0]
+        st.metric("Activos", activos)
+    with col3:
+        vacaciones = st.session_state.empleados_df[st.session_state.empleados_df['estado'] == 'Vacaciones'].shape[0]
+        st.metric("Vacaciones", vacaciones)
+    with col4:
+        departamentos = st.session_state.empleados_df['departamento'].nunique()
+        st.metric("Departamentos", departamentos)
+    
+    # Agregar nuevo empleado
+    st.markdown("### ➕ Agregar Nuevo Empleado")
+    with st.expander("Click para expandir", expanded=False):
+        if agregar_empleado():
+            st.rerun()
+    
+    st.markdown("---")
+    st.markdown("### 📋 Lista de Empleados")
+    
+    if st.session_state.empleados_df.empty:
+        st.warning("No hay empleados registrados.")
+    else:
+        df_editable = st.session_state.empleados_df.copy()
+        
+        df_display = df_editable.rename(columns={
+            'id': 'ID_OCULTO',
+            'numero': 'N°',
+            'cargo': 'CARGO',
+            'nombre_completo': 'APELLIDOS Y NOMBRES',
+            'cedula': 'CC',
+            'departamento': 'DEPARTAMENTO',
+            'estado': 'ESTADO',
+            'hora_inicio': 'HORA_INICIO',
+            'hora_fin': 'HORA_FIN',
+            'created_at': 'FECHA_REGISTRO'
+        })
+        
+        column_order = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 
+                       'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO']
+        
+        column_config = {
+            "N°": st.column_config.NumberColumn("N°", width="small", disabled=True),
+            "CARGO": st.column_config.TextColumn("Cargo", width="medium"),
+            "APELLIDOS Y NOMBRES": st.column_config.TextColumn("Nombre", width="large"),
+            "CC": st.column_config.TextColumn("Cédula", width="medium"),
+            "DEPARTAMENTO": st.column_config.SelectboxColumn(
+                "Departamento",
+                options=st.session_state.configuracion['departamentos']
+            ),
+            "ESTADO": st.column_config.SelectboxColumn(
+                "Estado",
+                options=["Activo", "Vacaciones", "Licencia", "Inactivo"]
+            ),
+            "HORA_INICIO": st.column_config.TextColumn("Hora Inicio", width="small"),
+            "HORA_FIN": st.column_config.TextColumn("Hora Fin", width="small"),
+            "FECHA_REGISTRO": st.column_config.DatetimeColumn("Fecha Registro", disabled=True),
+            "ID_OCULTO": st.column_config.NumberColumn("ID", disabled=True, width="small")
+        }
+        
+        edited_df = st.data_editor(
+            df_display[column_order + ['ID_OCULTO']],
+            column_config=column_config,
+            hide_index=True,
+            use_container_width=True,
+            num_rows="fixed",
+            key="editor_empleados"
+        )
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("💾 Guardar Cambios", use_container_width=True, key="btn_guardar_empleados"):
+                try:
+                    cambios = guardar_empleados(edited_df)
+                    if cambios > 0:
+                        st.success(f"✅ {cambios} cambios guardados correctamente")
+                        # Crear backup automático
+                        crear_backup_automatico()
+                        st.info("📦 Backup automático creado")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ No se realizaron cambios")
+                except Exception as e:
+                    st.error(f"❌ Error al guardar: {str(e)}")
+        
+        with col2:
+            if st.button("🔄 Recargar desde BD", use_container_width=True, key="btn_recargar_empleados"):
+                st.session_state.empleados_df = get_empleados()
+                st.success("✅ Datos recargados desde base de datos")
+                st.rerun()
+        
+        with col3:
+            csv = df_display[column_order].to_csv(index=False)
+            st.download_button(
+                label="📥 Exportar CSV",
+                data=csv,
+                file_name="empleados.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+
+def agregar_empleado():
+    """Agregar nuevo empleado a la base de datos"""
+    with st.form("form_nuevo_empleado", clear_on_submit=True):
+        st.markdown("#### 📝 Nuevo Empleado")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            cargo = st.text_input("Cargo*", placeholder="Ej: JEFE DE TIENDA", key="cargo_nuevo")
+            nombre = st.text_input("Apellidos y Nombres*", placeholder="Ej: GARCIA JUAN", key="nombre_nuevo")
+            cc = st.text_input("Cédula de Ciudadanía*", placeholder="Ej: 1234567890", key="cc_nuevo")
+        
+        with col2:
+            departamento = st.selectbox("Departamento*", 
+                                       st.session_state.configuracion['departamentos'],
+                                       key="depto_nuevo")
+            estado = st.selectbox("Estado*", 
+                                 ["Activo", "Vacaciones", "Licencia", "Inactivo"],
+                                 key="estado_nuevo")
+            
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT MAX(numero) FROM empleados")
+            max_num = cursor.fetchone()[0]
+            nuevo_numero = (max_num or 0) + 1
+            conn.close()
+            
+            st.info(f"**Número asignado:** {nuevo_numero}")
+        
+        col3, col4 = st.columns(2)
+        with col3:
+            hora_inicio = st.text_input("Hora Inicio", placeholder="Ej: 06:00", key="hora_ini_nuevo")
+        with col4:
+            hora_fin = st.text_input("Hora Fin", placeholder="Ej: 14:00", key="hora_fin_nuevo")
+        
+        submitted = st.form_submit_button("💾 Guardar Empleado", use_container_width=True)
+        
+        if submitted:
+            if not all([cargo.strip(), nombre.strip(), cc.strip(), departamento]):
+                st.error("❌ Por favor complete todos los campos obligatorios (*)")
+                return False
+            
+            if not cc.strip().isdigit():
+                st.error("❌ La cédula debe contener solo números")
+                return False
+            
+            conn = get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT COUNT(*) FROM empleados WHERE cedula = ?", (cc.strip(),))
+            if cursor.fetchone()[0] > 0:
+                st.error("❌ Ya existe un empleado con esta cédula")
+                conn.close()
+                return False
+            
+            cursor.execute('''
+                INSERT INTO empleados 
+                (numero, cargo, nombre_completo, cedula, departamento, estado, hora_inicio, hora_fin)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                nuevo_numero,
+                cargo.upper().strip(),
+                nombre.upper().strip(),
+                cc.strip(),
+                departamento,
+                estado,
+                hora_inicio.strip() if hora_inicio.strip() else None,
+                hora_fin.strip() if hora_fin.strip() else None
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+            st.success(f"✅ Empleado {nombre.upper()} agregado correctamente")
+            registrar_log("agregar_empleado", f"{nombre.upper()} - {cargo} - CC: {cc}")
+            st.session_state.empleados_df = get_empleados()
+            
+            # Crear backup después de agregar empleado
+            crear_backup_automatico()
+            
+            return True
+    
+    return False
+
+def pagina_configuracion():
+    """Página de configuración"""
+    if not check_permission("configure"):
+        st.error("⛔ No tienes permisos para acceder a la configuración")
+        return
+    
+    st.markdown("<h1 class='main-header'>⚙️ Configuración</h1>", unsafe_allow_html=True)
+    
+    tab1, tab2 = st.tabs(["Códigos de Turno", "General"])
+    
+    with tab1:
+        st.markdown("### Configurar Códigos de Turno")
+        
+        conn = get_connection()
+        codigos_df = pd.read_sql("SELECT * FROM codigos_turno ORDER BY codigo", conn)
+        conn.close()
+        
+        column_config = {
+            "codigo": st.column_config.TextColumn(
+                "Código", 
+                width="small", 
+                required=True,
+                help="Código único (ej: 20, 15, VC, CP)"
+            ),
+            "nombre": st.column_config.TextColumn(
+                "Descripción", 
+                width="medium", 
+                required=True,
+                help="Descripción del turno (ej: 10 AM - 7 PM)"
+            ),
+            "color": st.column_config.TextColumn(
+                "Color (HEX)",
+                help="Color en formato HEX (#RRGGBB)",
+                required=True
+            ),
+            "horas": st.column_config.NumberColumn(
+                "Horas", 
+                min_value=0, 
+                max_value=24, 
+                required=True,
+                help="Duración en horas (0 para días libres)"
+            )
+        }
+        
+        edited_codigos = st.data_editor(
+            codigos_df,
+            column_config=column_config,
+            num_rows="dynamic",
+            use_container_width=True,
+            key="editor_codigos"
+        )
+        
+        st.markdown("---")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("💾 Guardar Códigos", use_container_width=True, type="primary"):
+                try:
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    
+                    cursor.execute("DELETE FROM codigos_turno")
+                    
+                    for _, row in edited_codigos.iterrows():
+                        if pd.notna(row['codigo']) and pd.notna(row['nombre']):
+                            cursor.execute(
+                                "INSERT INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
+                                (
+                                    str(row['codigo']).strip(),
+                                    str(row['nombre']).strip(),
+                                    str(row['color']).strip(),
+                                    int(row['horas'])
+                                )
+                            )
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                    st.session_state.codigos_turno = get_codigos_turno()
+                    st.success(f"✅ {len(edited_codigos)} códigos guardados")
+                    crear_backup_automatico()
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"❌ Error al guardar: {str(e)}")
+        
+        with col2:
+            if st.button("🔄 Restaurar Default", use_container_width=True):
+                if st.checkbox("¿Confirmar restauración a valores por defecto?"):
+                    try:
+                        conn = get_connection()
+                        cursor = conn.cursor()
+                        
+                        cursor.execute("DELETE FROM codigos_turno")
+                        
+                        codigos_default = [
+                            ("20", "10 AM - 7 PM", "#FF6B6B", 8),
+                            ("15", "8 AM - 5 PM", "#4ECDC4", 8),
+                            ("70", "9:00 AM - 7:30 PM", "#FFD166", 9),
+                            ("155", "11 AM - 7 PM", "#06D6A0", 7),
+                            ("151", "8 AM - 4 PM", "#118AB2", 7),
+                            ("177", "1:30 PM - 8:30 PM", "#EF476F", 7),
+                            ("149", "7 AM - 3 PM", "#073B4C", 7),
+                            ("26", "11 AM - 8:30 PM", "#7209B7", 9),
+                            ("158", "12:30 PM - 8:30 PM", "#F15BB5", 10),
+                            ("214", "1 PM - 8:30 PM", "#00BBF9", 8),
+                            ("VC", "Vacaciones", "#9B5DE5", 0),
+                            ("CP", "Cumpleaños", "#00F5D4", 0),
+                            ("PA", "Permiso Administrativo", "#FF9E00", 0),
+                            ("-1", "Ausente", "#E0E0E0", 0)
+                        ]
+                        
+                        cursor.executemany(
+                            "INSERT INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
+                            codigos_default
+                        )
+                        
+                        conn.commit()
+                        conn.close()
+                        
+                        st.session_state.codigos_turno = get_codigos_turno()
+                        st.success("✅ Valores por defecto restaurados")
+                        crear_backup_automatico()
+                        st.rerun()
+                        
+                    except Exception as e:
+                        st.error(f"❌ Error al restaurar: {str(e)}")
+        
+        with col3:
+            if not edited_codigos.empty:
+                csv = edited_codigos.to_csv(index=False)
+                st.download_button(
+                    label="📥 Exportar CSV",
+                    data=csv,
+                    file_name="codigos_turno.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+    
+    with tab2:
+        st.markdown("### Configuración General")
+        
+        config = st.session_state.configuracion
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            formato_hora = st.selectbox("Formato de hora", ["24 horas", "12 horas (AM/PM)"], 
+                                      index=0 if config.get('formato_hora') == '24 horas' else 1)
+            dias_vacaciones = st.number_input("Días de vacaciones por año", min_value=0, max_value=30, 
+                                            value=config.get('dias_vacaciones', 15))
+        
+        with col2:
+            inicio_semana = st.selectbox("Inicio de semana", ["Lunes", "Domingo"], 
+                                       index=0 if config.get('inicio_semana') == 'Lunes' else 1)
+            departamentos_text = st.text_area(
+                "Departamentos (separados por comas)",
+                value=",".join(config.get('departamentos', []))
+            )
+        
+        # Configuración específica para Streamlit Cloud
+        if IS_STREAMLIT_CLOUD:
+            st.markdown("### ☁️ Configuración Streamlit Cloud")
+            
+            col_cloud1, col_cloud2 = st.columns(2)
+            with col_cloud1:
+                auto_backup = st.checkbox("Backup automático al guardar", 
+                                        value=config.get('auto_backup', True))
+            with col_cloud2:
+                max_backups = st.number_input("Máximo de backups a mantener", 
+                                            min_value=1, max_value=10, 
+                                            value=config.get('max_backups', 5))
+        
+        if st.button("💾 Guardar Configuración", use_container_width=True, type="primary"):
+            try:
+                conn = get_connection()
+                cursor = conn.cursor()
+                
+                # Actualizar configuración básica
+                updates = [
+                    ("formato_hora", formato_hora, "text"),
+                    ("dias_vacaciones", str(dias_vacaciones), "number"),
+                    ("inicio_semana", inicio_semana, "text"),
+                    ("departamentos", departamentos_text, "list")
+                ]
+                
+                # Agregar configuración de Streamlit Cloud si aplica
+                if IS_STREAMLIT_CLOUD:
+                    updates.append(("auto_backup", "1" if auto_backup else "0", "boolean"))
+                    updates.append(("max_backups", str(max_backups), "number"))
+                
+                for clave, valor, tipo in updates:
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO configuracion (clave, valor, tipo, descripcion)
+                        VALUES (?, ?, ?, ?)
+                    ''', (clave, valor, tipo, f"Configuración de {clave}"))
+                
+                conn.commit()
+                conn.close()
+                
+                st.session_state.configuracion = get_configuracion()
+                st.success("✅ Configuración guardada correctamente")
+                crear_backup_automatico()
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"❌ Error al guardar configuración: {str(e)}")
+
+def pagina_usuarios():
+    """Página de gestión de usuarios para administradores"""
+    if not check_permission("manage_users"):
+        st.error("⛔ No tienes permisos para gestionar usuarios")
+        return
+    
+    st.markdown("<h1 class='main-header'>👑 Gestión de Usuarios</h1>", unsafe_allow_html=True)
+    
+    st.markdown("### 📋 Usuarios del Sistema")
+    
+    usuarios_df = get_usuarios()
+    
+    if usuarios_df.empty:
+        st.warning("No hay usuarios registrados en el sistema.")
+    else:
+        df_editable = usuarios_df.copy()
+        
+        if 'password_hash' in df_editable.columns:
+            df_display = df_editable.drop(columns=['password_hash'])
+        else:
+            df_display = df_editable
+        
+        df_display = df_display.rename(columns={
+            'username': 'USUARIO',
+            'nombre': 'NOMBRE_COMPLETO',
+            'role': 'ROL',
+            'departamento': 'DEPARTAMENTO',
+            'created_at': 'FECHA_CREACION'
+        })
+        
+        column_config = {
+            "USUARIO": st.column_config.TextColumn("Usuario", width="small", required=True),
+            "NOMBRE_COMPLETO": st.column_config.TextColumn("Nombre", width="medium", required=True),
+            "ROL": st.column_config.SelectboxColumn(
+                "Rol",
+                options=list(ROLES.keys()),
+                width="small",
+                required=True
+            ),
+            "DEPARTAMENTO": st.column_config.SelectboxColumn(
+                "Departamento",
+                options=st.session_state.configuracion['departamentos'],
+                width="medium"
+            ),
+            "FECHA_CREACION": st.column_config.DatetimeColumn("Fecha Creación", disabled=True)
+        }
+        
+        edited_df = st.data_editor(
+            df_display,
+            column_config=column_config,
+            hide_index=True,
+            use_container_width=True,
+            num_rows="fixed",
+            key="editor_usuarios"
+        )
+        
+        if st.button("💾 Guardar Cambios de Usuarios", use_container_width=True):
+            try:
+                cambios = guardar_usuarios(edited_df, usuarios_df)
+                if cambios > 0:
+                    st.success(f"✅ {cambios} usuarios actualizados correctamente")
+                    crear_backup_automatico()
+                    st.rerun()
+                else:
+                    st.warning("⚠️ No se realizaron cambios")
+            except Exception as e:
+                st.error(f"❌ Error al guardar usuarios: {str(e)}")
+    
+    st.markdown("---")
+    st.markdown("### ➕ Crear Nuevo Usuario")
+    
+    with st.form("form_nuevo_usuario", clear_on_submit=True):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            nuevo_username = st.text_input("Usuario*", placeholder="Ej: juan.perez")
+            nuevo_nombre = st.text_input("Nombre Completo*", placeholder="Ej: Juan Pérez García")
+        
+        with col2:
+            nuevo_rol = st.selectbox("Rol*", list(ROLES.keys()))
+            nuevo_depto = st.selectbox("Departamento", st.session_state.configuracion['departamentos'])
+        
+        st.markdown("**Contraseña**")
+        col3, col4 = st.columns(2)
+        with col3:
+            nueva_password = st.text_input("Contraseña*", type="password", placeholder="Mínimo 6 caracteres")
+        with col4:
+            confirm_password = st.text_input("Confirmar Contraseña*", type="password")
+        
+        submitted = st.form_submit_button("👑 Crear Nuevo Usuario", use_container_width=True)
+        
+        if submitted:
+            if crear_nuevo_usuario(nuevo_username, nueva_password, confirm_password, nuevo_nombre, nuevo_rol, nuevo_depto):
+                st.rerun()
+
+def crear_nuevo_usuario(username, password, confirm_password, nombre, rol, departamento):
+    """Crear nuevo usuario"""
+    if not all([username.strip(), password, confirm_password, nombre.strip(), rol]):
+        st.error("❌ Por favor complete todos los campos obligatorios (*)")
+        return False
+    
+    if len(password) < 6:
+        st.error("❌ La contraseña debe tener al menos 6 caracteres")
+        return False
+    
+    if password != confirm_password:
+        st.error("❌ Las contraseñas no coinciden")
+        return False
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT COUNT(*) FROM usuarios WHERE username = ?", (username.strip(),))
+    if cursor.fetchone()[0] > 0:
+        st.error("❌ Ya existe un usuario con ese nombre")
+        conn.close()
+        return False
+    
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    cursor.execute('''
+        INSERT INTO usuarios (username, password_hash, role, nombre, departamento)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (
+        username.strip(),
+        password_hash,
+        rol,
+        nombre.strip(),
+        departamento
+    ))
+    
+    conn.commit()
+    conn.close()
+    
+    st.success(f"✅ Usuario {username} creado correctamente")
+    registrar_log("crear_usuario", f"Usuario: {username}, Rol: {rol}")
+    crear_backup_automatico()
+    
+    return True
+
+def pagina_mis_turnos():
+    """Página para que los empleados vean SUS turnos"""
+    st.markdown("<h1 class='main-header'>📅 Mis Turnos</h1>", unsafe_allow_html=True)
+    
+    if not st.session_state.empleado_actual:
+        st.warning("⚠️ No se encontró tu registro como empleado.")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Ir a Mi Información", use_container_width=True):
+                st.session_state.current_page = "mi_info"
+                st.rerun()
+        
+        return
+    
+    empleado_info = st.session_state.empleado_actual
+    
+    with st.expander("👤 Mi Información", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**Nombre:** {empleado_info.get('nombre_completo', 'N/A')}")
+            st.write(f"**Cargo:** {empleado_info.get('cargo', 'N/A')}")
+        with col2:
+            st.write(f"**Departamento:** {empleado_info.get('departamento', 'N/A')}")
+            st.write(f"**Estado:** {empleado_info.get('estado', 'N/A')}")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
+                "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+        mes_seleccionado = st.selectbox("Mes:", meses, index=obtener_hora_colombia().month - 1)
+        mes_numero = meses.index(mes_seleccionado) + 1
+    
+    with col2:
+        ano = st.selectbox("Año:", [2026, 2025, 2024, 2027], index=0)
+    
+    if st.button("📅 Cargar Mis Turnos", use_container_width=True, type="primary"):
+        try:
+            empleado_id = empleado_info.get('id')
+            
+            if not empleado_id:
+                st.error("❌ No se pudo obtener el ID del empleado")
+                return
+            
+            turnos_dict = get_turnos_empleado_mes(empleado_id, mes_numero, ano)
+            
+            if not turnos_dict:
+                st.info(f"ℹ️ No tienes turnos asignados para {mes_seleccionado} {ano}.")
+                return
+            
+            turnos_lista = []
+            for dia, codigo in sorted(turnos_dict.items()):
+                if codigo:
+                    turno_info = st.session_state.codigos_turno.get(str(codigo), {})
+                    turnos_lista.append({
+                        'Día': f"{dia}/{mes_numero}/{ano}",
+                        'Código': codigo,
+                        'Turno': turno_info.get('nombre', 'Desconocido'),
+                        'Horas': turno_info.get('horas', 0)
+                    })
+            
+            if turnos_lista:
+                df_calendario = pd.DataFrame(turnos_lista)
+                
+                st.markdown(f"### 📋 Mis Turnos - {mes_seleccionado} {ano}")
+                st.dataframe(
+                    df_calendario[['Día', 'Turno', 'Horas']],
+                    hide_index=True,
+                    use_container_width=True
+                )
+                
+                st.markdown("---")
+                st.markdown("### 📈 Mis Estadísticas")
+                
+                total_horas = sum(t['Horas'] for t in turnos_lista)
+                total_turnos = len(turnos_lista)
+                
+                num_dias = calendar.monthrange(ano, mes_numero)[1]
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Total Turnos Asignados", total_turnos)
+                with col2:
+                    st.metric("Horas Totales", total_horas)
+                with col3:
+                    promedio = total_horas / max(total_turnos, 1)
+                    st.metric("Promedio Horas/Turno", f"{promedio:.1f}")
+                with col4:
+                    porcentaje = (total_turnos / num_dias * 100) if num_dias > 0 else 0
+                    st.metric("Días con Turno", f"{porcentaje:.1f}%")
+            else:
+                st.info(f"ℹ️ No tienes turnos asignados para {mes_seleccionado} {ano}.")
+                
+        except Exception as e:
+            st.error(f"❌ Error al cargar turnos: {str(e)}")
+
+def pagina_calendario():
+    """Página de calendario visual simplificada"""
+    st.markdown("<h1 class='main-header'>📆 Mi Calendario</h1>", unsafe_allow_html=True)
+    
+    nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
+                    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+    
+    if not st.session_state.empleado_actual:
+        st.warning("⚠️ No se encontró tu registro como empleado.")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Ir a Mi Información", use_container_width=True):
+                st.session_state.current_page = "mi_info"
+                st.rerun()
+        
+        return
+    
+    empleado_info = st.session_state.empleado_actual
+    
+    col1, col2, col3 = st.columns([2, 2, 1])
+    with col1:
+        mes_seleccionado = st.selectbox("Mes:", nombres_meses, 
+                                       index=st.session_state.get('calendario_mes', obtener_hora_colombia().month) - 1)
+        mes_numero = nombres_meses.index(mes_seleccionado) + 1
+    
+    with col2:
+        ano = st.number_input("Año:", min_value=2023, max_value=2030, 
+                             value=st.session_state.get('calendario_ano', obtener_hora_colombia().year))
+    
+    with col3:
+        if st.button("📅 Generar Calendario", use_container_width=True, type="primary"):
+            st.session_state.calendario_mes = mes_numero
+            st.session_state.calendario_ano = ano
+            st.rerun()
+    
+    if 'calendario_mes' in st.session_state and 'calendario_ano' in st.session_state:
+        turnos_dict = get_turnos_empleado_mes(empleado_info['id'], mes_numero, ano)
+        
+        col_info1, col_info2 = st.columns(2)
+        with col_info1:
+            st.markdown(f"""
+            <div class="info-card">
+                <h4 style="margin-top: 0;">👤 Mi Información</h4>
+                <p><strong>Nombre:</strong> {empleado_info.get('nombre_completo', 'N/A')}</p>
+                <p><strong>Cargo:</strong> {empleado_info.get('cargo', 'N/A')}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col_info2:
+            st.markdown(f"""
+            <div class="info-card">
+                <h4 style="margin-top: 0;">💼 Datos Laborales</h4>
+                <p><strong>Departamento:</strong> {empleado_info.get('departamento', 'N/A')}</p>
+                <p><strong>Estado:</strong> {empleado_info.get('estado', 'N/A')}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        generar_calendario_simple(mes_numero, ano, turnos_dict)
+
+def pagina_mi_info():
+    """Página de información personal del empleado"""
+    st.markdown("<h1 class='main-header'>👤 Mi Información</h1>", unsafe_allow_html=True)
+    
+    if not st.session_state.empleado_actual:
+        st.warning("⚠️ No se encontró tu registro como empleado.")
+        
+        with st.expander("🛠️ Solucionar Problema de Asociación", expanded=True):
+            st.markdown("""
+            ### 🔍 Tu usuario no está asociado a un empleado
+            
+            **Posibles causas:**
+            1. Tu nombre de usuario no coincide exactamente con tu nombre en la lista de empleados
+            2. No estás registrado en la base de datos de empleados
+            
+            **Solución:**
+            
+            **Opción 1:** Contacta al administrador para que asocie tu usuario correctamente.
+            
+            **Opción 2:** Busca manualmente tu registro:
+            """)
+            
+            nombre_buscar = st.text_input("Buscar por nombre:", 
+                                         placeholder="Ingresa tu nombre o apellido")
+            
+            if nombre_buscar:
+                empleados_df = get_empleados()
+                resultados = empleados_df[
+                    empleados_df['nombre_completo'].str.contains(nombre_buscar.upper(), case=False, na=False)
+                ]
+                
+                if not resultados.empty:
+                    st.success(f"✅ Se encontraron {len(resultados)} resultados:")
+                    st.dataframe(resultados[['numero', 'nombre_completo', 'cargo', 'departamento']])
+                    
+                    opciones = resultados['nombre_completo'].tolist()
+                    seleccion = st.selectbox("Selecciona tu nombre:", opciones)
+                    
+                    if st.button("👤 Usar este registro"):
+                        empleado_seleccionado = resultados[resultados['nombre_completo'] == seleccion].iloc[0].to_dict()
+                        st.session_state.empleado_actual = empleado_seleccionado
+                        st.success("✅ Registro asociado correctamente")
+                        st.rerun()
+                else:
+                    st.warning("No se encontraron empleados con ese nombre.")
+        
+        return
+    
+    empleado_info = st.session_state.empleado_actual
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### 📋 Datos Personales")
+        st.markdown(f"""
+        <div class="info-card">
+            <p><strong>Nombre Completo:</strong> {empleado_info.get('nombre_completo', 'N/A')}</p>
+            <p><strong>Cédula:</strong> {empleado_info.get('cedula', 'N/A')}</p>
+            <p><strong>Cargo:</strong> {empleado_info.get('cargo', 'N/A')}</p>
+            <p><strong>Departamento:</strong> {empleado_info.get('departamento', 'N/A')}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("### ⚙️ Datos Laborales")
+        st.markdown(f"""
+        <div class="info-card">
+            <p><strong>Estado:</strong> {empleado_info.get('estado', 'N/A')}</p>
+            <p><strong>Número:</strong> {empleado_info.get('numero', 'N/A')}</p>
+            <p><strong>Horario Base:</strong> {empleado_info.get('hora_inicio', 'N/A')} - {empleado_info.get('hora_fin', 'N/A')}</p>
+            <p><strong>Fecha Registro:</strong> {empleado_info.get('created_at', 'N/A')}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    col_nav1, col_nav2 = st.columns(2)
+    with col_nav1:
+        if st.button("📅 Ver Mis Turnos", use_container_width=True, type="primary"):
+            st.session_state.current_page = "mis_turnos"
+            st.rerun()
+    with col_nav2:
+        if st.button("📆 Ver Calendario", use_container_width=True):
+            st.session_state.current_page = "calendario"
+            st.rerun()
+
+def pagina_info_sistema():
+    """Página de información del sistema con hora Colombia"""
+    if not check_permission("configure"):
+        st.error("⛔ No tienes permisos para ver esta información")
+        return
+    
+    st.markdown("<h1 class='main-header'>🖥️ Información del Sistema</h1>", unsafe_allow_html=True)
+    
+    hora_colombia = obtener_hora_colombia()
+    hora_utc = datetime.now(pytz.utc)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown(f"""
+        <div style="background-color: #1E3A8A; color: white; padding: 20px; 
+                   border-radius: 10px; text-align: center;">
+            <h3>🇨🇴 Colombia</h3>
+            <div style="font-size: 1.5em; font-weight: bold;">
+                {hora_colombia.strftime('%H:%M:%S')}
+            </div>
+            <div>{hora_colombia.strftime('%A, %d de %B de %Y')}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div style="background-color: #374151; color: white; padding: 20px; 
+                   border-radius: 10px; text-align: center;">
+            <h3>🌍 UTC</h3>
+            <div style="font-size: 1.5em; font-weight: bold;">
+                {hora_utc.strftime('%H:%M:%S')}
+            </div>
+            <div>{hora_utc.strftime('%A, %d de %B de %Y')}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        diferencia = hora_utc - hora_colombia
+        horas_diferencia = diferencia.total_seconds() / 3600
+        
+        st.markdown(f"""
+        <div style="background-color: #0F766E; color: white; padding: 20px; 
+                   border-radius: 10px; text-align: center;">
+            <h3>⏱️ Diferencia</h3>
+            <div style="font-size: 1.5em; font-weight: bold;">
+                UTC {horas_diferencia:+.0f}h
+            </div>
+            <div>Colombia está {abs(horas_diferencia)} horas {'' if horas_diferencia > 0 else 'adelantada'} respecto a UTC</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.markdown("### 📊 Información del Sistema")
+    
+    col_info1, col_info2 = st.columns(2)
+    
+    with col_info1:
+        st.markdown(f"""
+        <div class="info-card">
+            <h4>📅 Configuración Horaria</h4>
+            <p><strong>Zona horaria:</strong> America/Bogota</p>
+            <p><strong>Código:</strong> COT (Colombia Time)</p>
+            <p><strong>UTC offset:</strong> -5 horas</p>
+            <p><strong>Horario de verano:</strong> No aplica</p>
+            <p><strong>Streamlit Cloud:</strong> {'✅ ACTIVADO' if IS_STREAMLIT_CLOUD else '❌ DESACTIVADO'}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col_info2:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT COUNT(*) FROM empleados")
+        num_empleados = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM malla_turnos")
+        num_turnos = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM usuarios")
+        num_usuarios = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM codigos_turno")
+        num_codigos = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        st.markdown(f"""
+        <div class="info-card">
+            <h4>🗄️ Base de Datos</h4>
+            <p><strong>Empleados:</strong> {num_empleados}</p>
+            <p><strong>Turnos registrados:</strong> {num_turnos}</p>
+            <p><strong>Usuarios:</strong> {num_usuarios}</p>
+            <p><strong>Códigos de turno:</strong> {num_codigos}</p>
+            <p><strong>Ubicación BD:</strong> {DB_NAME}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Información de backups
+    if IS_STREAMLIT_CLOUD:
+        st.markdown("---")
+        st.markdown("### ☁️ Información de Streamlit Cloud")
+        
+        backups = list(BACKUP_DIR.glob("turnos_backup_*.db"))
+        
+        col_backup1, col_backup2 = st.columns(2)
+        with col_backup1:
+            st.markdown(f"""
+            <div class="info-card">
+                <h4>📦 Backups</h4>
+                <p><strong>Backups disponibles:</strong> {len(backups)}</p>
+                <p><strong>Máximo configurado:</strong> {st.session_state.configuracion.get('max_backups', 5)}</p>
+                <p><strong>Auto-backup:</strong> {'✅ ACTIVADO' if st.session_state.configuracion.get('auto_backup', True) else '❌ DESACTIVADO'}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col_backup2:
+            if backups:
+                ultimo_backup = max(backups, key=os.path.getmtime)
+                tamaño_mb = os.path.getsize(ultimo_backup) / (1024 * 1024)
+                fecha_mod = datetime.fromtimestamp(os.path.getmtime(ultimo_backup))
+                
+                st.markdown(f"""
+                <div class="info-card">
+                    <h4>🕐 Último Backup</h4>
+                    <p><strong>Archivo:</strong> {ultimo_backup.name}</p>
+                    <p><strong>Tamaño:</strong> {tamaño_mb:.2f} MB</p>
+                    <p><strong>Fecha:</strong> {fecha_mod.strftime('%Y-%m-%d %H:%M:%S')}</p>
+                </div>
+                """, unsafe_allow_html=True)
+
 def main():
     """Función principal que gestiona toda la aplicación"""
     # Inicializar session state (esto maneja la persistencia)
