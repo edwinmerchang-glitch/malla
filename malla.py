@@ -2618,7 +2618,7 @@ def pagina_mis_turnos():
         return
     
     try:
-        # Obtener turnos
+        # Obtener turnos - CORREGIDO: usar get_turnos_empleado_mes en lugar de get_turnos_empleado_mes_mejorado
         turnos_dict = get_turnos_empleado_mes(empleado_id, mes_numero, ano)
         
         # Filtrar solo días con códigos válidos (no None ni vacíos)
