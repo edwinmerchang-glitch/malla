@@ -477,19 +477,21 @@ def get_malla_turnos(mes, ano):
     return df_base
 
 def get_turnos_empleado_mes(empleado_id, mes, ano):
-    """Obtener todos los turnos de un empleado para un mes específico - VERSIÓN ROBUSTA"""
+    """Obtener todos los turnos de un empleado para un mes específico - VERSIÓN MEJORADA"""
     try:
         conn = get_connection()
         cursor = conn.cursor()
         
-        # Verificar que el empleado existe
-        cursor.execute('SELECT id FROM empleados WHERE id = ?', (empleado_id,))
-        if not cursor.fetchone():
+        # Debug: Verificar que el empleado existe
+        cursor.execute('SELECT id, nombre_completo FROM empleados WHERE id = ?', (empleado_id,))
+        empleado_data = cursor.fetchone()
+        
+        if not empleado_data:
             print(f"⚠️ Empleado con ID {empleado_id} no encontrado")
             conn.close()
             return {}
         
-        # Obtener turnos
+        # Obtener turnos con manejo mejorado de valores nulos
         cursor.execute('''
             SELECT dia, codigo_turno 
             FROM malla_turnos 
@@ -504,17 +506,15 @@ def get_turnos_empleado_mes(empleado_id, mes, ano):
         num_dias = calendar.monthrange(ano, mes)[1]
         turnos_dict = {}
         
-        # Inicializar todos los días como vacíos
         for dia in range(1, num_dias + 1):
-            turnos_dict[dia] = ""
+            turnos_dict[dia] = ""  # Valor por defecto vacío
         
-        # Llenar con datos de la BD
+        # Llenar con los datos de la base de datos
         for dia, codigo in turnos:
-            if dia and 1 <= dia <= num_dias:
-                if codigo is not None and str(codigo).strip() != '':
-                    turnos_dict[int(dia)] = str(codigo).strip()
-                else:
-                    turnos_dict[int(dia)] = ""
+            if codigo is not None and str(codigo).strip() != '' and str(codigo).strip().lower() != 'nan':
+                turnos_dict[int(dia)] = str(codigo).strip()
+            else:
+                turnos_dict[int(dia)] = ""
         
         return turnos_dict
         
@@ -2619,7 +2619,7 @@ def pagina_mis_turnos():
     
     try:
         # Obtener turnos
-        turnos_dict = get_turnos_empleado_mes_mejorado(empleado_id, mes_numero, ano)
+        turnos_dict = get_turnos_empleado_mes(empleado_id, mes_numero, ano)
         
         # Filtrar solo días con códigos válidos (no None ni vacíos)
         turnos_con_codigo = {dia: codigo for dia, codigo in turnos_dict.items() 
@@ -2709,54 +2709,6 @@ def pagina_mis_turnos():
             
     except Exception as e:
         st.error(f"❌ Error al cargar turnos: {str(e)}")
-
-def get_turnos_empleado_mes(empleado_id, mes, ano):
-    """Obtener todos los turnos de un empleado para un mes específico - VERSIÓN MEJORADA"""
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        
-        # Debug: Verificar que el empleado existe
-        cursor.execute('SELECT id, nombre_completo FROM empleados WHERE id = ?', (empleado_id,))
-        empleado_data = cursor.fetchone()
-        
-        if not empleado_data:
-            st.error(f"⚠️ Empleado con ID {empleado_id} no encontrado")
-            conn.close()
-            return {}
-        
-        # Obtener turnos con manejo mejorado de valores nulos
-        cursor.execute('''
-            SELECT dia, codigo_turno 
-            FROM malla_turnos 
-            WHERE empleado_id = ? AND mes = ? AND ano = ?
-            ORDER BY dia
-        ''', (empleado_id, mes, ano))
-        
-        turnos = cursor.fetchall()
-        conn.close()
-        
-        # Crear diccionario con todos los días del mes
-        num_dias = calendar.monthrange(ano, mes)[1]
-        turnos_dict = {}
-        
-        for dia in range(1, num_dias + 1):
-            turnos_dict[dia] = ""  # Valor por defecto vacío
-        
-        # Llenar con los datos de la base de datos
-        for dia, codigo in turnos:
-            if codigo is not None and str(codigo).strip() != '' and str(codigo).strip().lower() != 'nan':
-                turnos_dict[int(dia)] = str(codigo).strip()
-            else:
-                turnos_dict[int(dia)] = ""
-        
-        return turnos_dict
-        
-    except Exception as e:
-        print(f"❌ Error en get_turnos_empleado_mes: {str(e)}")
-        import traceback
-        print(f"Traceback: {traceback.format_exc()}")
-        return {}
 
 def pagina_calendario():
     """Página de calendario visual"""
@@ -3075,7 +3027,6 @@ def main():
         pagina_login()
         return
     
-      
     mostrar_barra_usuario()
     mostrar_sidebar()
     
