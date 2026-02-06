@@ -570,58 +570,130 @@ def guardar_empleados(df_editado):
         
         cambios_realizados = 0
         
-        for _, row in df_editado.iterrows():
-            if 'ID_OCULTO' in row and pd.notna(row['ID_OCULTO']):
-                cursor.execute('''
-                    UPDATE empleados 
-                    SET cargo = ?, nombre_completo = ?, cedula = ?, 
-                        departamento = ?, estado = ?, hora_inicio = ?, hora_fin = ?,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
-                ''', (
-                    str(row['CARGO']) if pd.notna(row['CARGO']) else '',
-                    str(row['APELLIDOS Y NOMBRES']) if pd.notna(row['APELLIDOS Y NOMBRES']) else '',
-                    str(row['CC']) if pd.notna(row['CC']) else '',
-                    str(row['DEPARTAMENTO']) if pd.notna(row['DEPARTAMENTO']) else '',
-                    str(row['ESTADO']) if pd.notna(row['ESTADO']) else 'Activo',
-                    str(row['HORA_INICIO']) if pd.notna(row['HORA_INICio']) else None,
-                    str(row['HORA_FIN']) if pd.notna(row['HORA_FIN']) else None,
-                    int(row['ID_OCULTO'])
-                ))
-                
-                cambios_realizados += cursor.rowcount
-                
+        # Primero, asegurémonos de que las columnas existen
+        columnas_necesarias = ['ID_OCULTO', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 'ESTADO', 'HORA_INICIO', 'HORA_FIN']
+        for col in columnas_necesarias:
+            if col not in df_editado.columns:
+                st.error(f"❌ Columna faltante: {col}")
+                return 0, []
+        
+        for idx, row in df_editado.iterrows():
+            # Convertir la fila a un diccionario para acceso seguro
+            row_dict = row.to_dict() if hasattr(row, 'to_dict') else dict(row)
+            
+            # Verificar si es una actualización o inserción
+            if 'ID_OCULTO' in row_dict and pd.notna(row_dict['ID_OCULTO']) and row_dict['ID_OCULTO'] != '':
+                try:
+                    # Es una actualización
+                    emp_id = int(row_dict['ID_OCULTO'])
+                    
+                    # Preparar valores, manejando posibles NaN
+                    cargo = str(row_dict['CARGO']) if pd.notna(row_dict.get('CARGO', '')) else ''
+                    nombre = str(row_dict['APELLIDOS Y NOMBRES']) if pd.notna(row_dict.get('APELLIDOS Y NOMBRES', '')) else ''
+                    cc = str(row_dict['CC']) if pd.notna(row_dict.get('CC', '')) else ''
+                    departamento = str(row_dict['DEPARTAMENTO']) if pd.notna(row_dict.get('DEPARTAMENTO', '')) else ''
+                    estado = str(row_dict['ESTADO']) if pd.notna(row_dict.get('ESTADO', '')) else 'Activo'
+                    
+                    # Manejar horas (pueden ser NaN)
+                    hora_inicio = str(row_dict['HORA_INICIO']) if pd.notna(row_dict.get('HORA_INICIO', '')) else None
+                    hora_fin = str(row_dict['HORA_FIN']) if pd.notna(row_dict.get('HORA_FIN', '')) else None
+                    
+                    # Si hora_inicio es una cadena vacía, convertir a None
+                    if hora_inicio == '' or hora_inicio == 'nan':
+                        hora_inicio = None
+                    if hora_fin == '' or hora_fin == 'nan':
+                        hora_fin = None
+                    
+                    cursor.execute('''
+                        UPDATE empleados 
+                        SET cargo = ?, nombre_completo = ?, cedula = ?, 
+                            departamento = ?, estado = ?, hora_inicio = ?, hora_fin = ?,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', (
+                        cargo,
+                        nombre,
+                        cc,
+                        departamento,
+                        estado,
+                        hora_inicio,
+                        hora_fin,
+                        emp_id
+                    ))
+                    
+                    if cursor.rowcount > 0:
+                        cambios_realizados += 1
+                        print(f"✅ Empleado actualizado: ID={emp_id}, CC={cc}")
+                        
+                except Exception as e:
+                    print(f"❌ Error al actualizar empleado ID {row_dict.get('ID_OCULTO', 'N/A')}: {str(e)}")
+                    continue
+                    
             else:
-                cursor.execute("SELECT MAX(numero) FROM empleados")
-                max_num = cursor.fetchone()[0]
-                nuevo_numero = (max_num or 0) + 1
-                
-                cursor.execute('''
-                    INSERT INTO empleados 
-                    (numero, cargo, nombre_completo, cedula, departamento, estado, hora_inicio, hora_fin)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    nuevo_numero,
-                    str(row.get('CARGO', '')),
-                    str(row.get('APELLIDOS Y NOMBRES', '')),
-                    str(row.get('CC', '')),
-                    str(row.get('DEPARTAMENTO', '')),
-                    str(row.get('ESTADO', 'Activo')),
-                    str(row.get('HORA_INICIO', '')),
-                    str(row.get('HORA_FIN', ''))
-                ))
-                
-                cambios_realizados += 1
+                # Es una nueva inserción
+                try:
+                    # Obtener el próximo número
+                    cursor.execute("SELECT MAX(numero) FROM empleados")
+                    max_num = cursor.fetchone()[0]
+                    nuevo_numero = (max_num or 0) + 1
+                    
+                    # Preparar valores
+                    cargo = str(row_dict.get('CARGO', '')) if pd.notna(row_dict.get('CARGO', '')) else ''
+                    nombre = str(row_dict.get('APELLIDOS Y NOMBRES', '')) if pd.notna(row_dict.get('APELLIDOS Y NOMBRES', '')) else ''
+                    cc = str(row_dict.get('CC', '')) if pd.notna(row_dict.get('CC', '')) else ''
+                    departamento = str(row_dict.get('DEPARTAMENTO', '')) if pd.notna(row_dict.get('DEPARTAMENTO', '')) else ''
+                    estado = str(row_dict.get('ESTADO', 'Activo')) if pd.notna(row_dict.get('ESTADO', '')) else 'Activo'
+                    
+                    # Manejar horas
+                    hora_inicio = str(row_dict.get('HORA_INICIO', '')) if pd.notna(row_dict.get('HORA_INICIO', '')) else None
+                    hora_fin = str(row_dict.get('HORA_FIN', '')) if pd.notna(row_dict.get('HORA_FIN', '')) else None
+                    
+                    if hora_inicio == '' or hora_inicio == 'nan':
+                        hora_inicio = None
+                    if hora_fin == '' or hora_fin == 'nan':
+                        hora_fin = None
+                    
+                    # Verificar si ya existe un empleado con esta cédula
+                    cursor.execute("SELECT COUNT(*) FROM empleados WHERE cedula = ?", (cc,))
+                    if cursor.fetchone()[0] > 0:
+                        print(f"⚠️ Empleado con CC {cc} ya existe, omitiendo...")
+                        continue
+                    
+                    cursor.execute('''
+                        INSERT INTO empleados 
+                        (numero, cargo, nombre_completo, cedula, departamento, estado, hora_inicio, hora_fin)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        nuevo_numero,
+                        cargo,
+                        nombre,
+                        cc,
+                        departamento,
+                        estado,
+                        hora_inicio,
+                        hora_fin
+                    ))
+                    
+                    if cursor.rowcount > 0:
+                        cambios_realizados += 1
+                        print(f"✅ Nuevo empleado insertado: N°={nuevo_numero}, CC={cc}")
+                        
+                except Exception as e:
+                    print(f"❌ Error al insertar nuevo empleado: {str(e)}")
+                    continue
         
         conn.commit()
         conn.close()
         
+        # Actualizar session state
         st.session_state.empleados_df = get_empleados()
         
         return cambios_realizados, []
         
     except Exception as e:
-        print(f"❌ Error al guardar empleados: {str(e)}")
+        print(f"❌ Error general al guardar empleados: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         return 0, []
 
 def guardar_usuarios(edited_df, original_df):
@@ -1717,6 +1789,7 @@ def pagina_empleados():
     else:
         df_editable = st.session_state.empleados_df.copy()
         
+        # Asegurar que tenemos las columnas necesarias
         df_display = df_editable.rename(columns={
             'id': 'ID_OCULTO',
             'numero': 'N°',
@@ -1730,8 +1803,20 @@ def pagina_empleados():
             'created_at': 'FECHA_REGISTRO'
         })
         
+        # Asegurar que todas las columnas tengan valores no nulos
+        df_display = df_display.fillna({
+            'CARGO': '',
+            'APELLIDOS Y NOMBRES': '',
+            'CC': '',
+            'DEPARTAMENTO': '',
+            'ESTADO': 'Activo',
+            'HORA_INICIO': '',
+            'HORA_FIN': '',
+            'FECHA_REGISTRO': ''
+        })
+        
         column_order = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 
-                       'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO']
+                       'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO', 'ID_OCULTO']
         
         column_config = {
             "N°": st.column_config.NumberColumn("N°", width="small", disabled=True),
@@ -1753,7 +1838,7 @@ def pagina_empleados():
         }
         
         edited_df = st.data_editor(
-            df_display[column_order + ['ID_OCULTO']],
+            df_display[column_order],
             column_config=column_config,
             hide_index=True,
             use_container_width=True,
@@ -1765,7 +1850,7 @@ def pagina_empleados():
         with col1:
             if st.button("💾 Guardar Cambios", use_container_width=True, key="btn_guardar_empleados"):
                 try:
-                    cambios = guardar_empleados(edited_df)
+                    cambios, errores = guardar_empleados(edited_df)
                     if cambios > 0:
                         st.success(f"✅ {cambios} cambios guardados correctamente")
                         # Crear backup automático
@@ -1773,9 +1858,15 @@ def pagina_empleados():
                         st.info("📦 Backup automático creado")
                         st.rerun()
                     else:
-                        st.warning("⚠️ No se realizaron cambios")
+                        if errores:
+                            for error in errores:
+                                st.error(error)
+                        else:
+                            st.warning("⚠️ No se realizaron cambios")
                 except Exception as e:
                     st.error(f"❌ Error al guardar: {str(e)}")
+                    import traceback
+                    st.error(f"Detalles: {traceback.format_exc()}")
         
         with col2:
             if st.button("🔄 Recargar desde BD", use_container_width=True, key="btn_recargar_empleados"):
@@ -1784,7 +1875,8 @@ def pagina_empleados():
                 st.rerun()
         
         with col3:
-            csv = df_display[column_order].to_csv(index=False)
+            csv = df_display[['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 
+                             'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO']].to_csv(index=False)
             st.download_button(
                 label="📥 Exportar CSV",
                 data=csv,
@@ -1898,7 +1990,8 @@ def pagina_configuracion():
         st.markdown(f"**📊 Total de códigos:** {len(codigos_df)}")
         
         # Mostrar vista previa de colores
-        with st.expander("🎨 Vista previa de colores actuales", expanded=False):
+        st.markdown("#### 🎨 Códigos Actuales")
+        if not codigos_df.empty:
             cols = st.columns(4)
             for idx, (_, row) in enumerate(codigos_df.iterrows()):
                 with cols[idx % 4]:
@@ -1908,200 +2001,234 @@ def pagina_configuracion():
                                  margin-right: 10px; border: 1px solid #ccc; border-radius: 3px;"></div>
                         <div>
                             <strong>{row['codigo']}</strong><br>
-                            <small style="color: #666;">{row['color']}</small>
+                            <small style="color: #666;">{row['nombre']}</small><br>
+                            <small style="color: #666;">{row['horas']}h - {row['color']}</small>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
         
-        # Agregar nuevo código
-        st.markdown("### ➕ Agregar Nuevo Código")
+        st.markdown("---")
+        
+        # Agregar nuevo código - USANDO FORMULARIO SIMPLE
+        st.markdown("#### ➕ Agregar Nuevo Código")
         with st.form("form_nuevo_codigo", clear_on_submit=True):
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2 = st.columns(2)
             
             with col1:
                 nuevo_codigo = st.text_input("Código*", placeholder="Ej: 30, NOCHE, LIBRE")
-            with col2:
                 nuevo_nombre = st.text_input("Descripción*", placeholder="Ej: Turno Noche 10PM-6AM")
-            with col3:
-                nuevo_color = st.color_picker("Color", value="#FF6B6B")
-            with col4:
+            
+            with col2:
+                # Usar text input para color con valor por defecto
+                nuevo_color = st.text_input("Color HEX*", value="#FF6B6B", placeholder="#FF6B6B")
                 nuevo_horas = st.number_input("Horas*", min_value=0, max_value=24, value=8)
             
-            submitted = st.form_submit_button("➕ Agregar Código", use_container_width=True)
+            # Mostrar vista previa del color
+            if nuevo_color:
+                st.markdown(f"""
+                <div style="display: flex; align-items: center; margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                    <div style="width: 50px; height: 50px; background-color: {nuevo_color}; 
+                             margin-right: 15px; border: 2px solid #ccc; border-radius: 5px;"></div>
+                    <div>
+                        <strong>Vista previa:</strong><br>
+                        Código: <strong>{nuevo_codigo.upper() if nuevo_codigo else '[Nuevo]'}</strong><br>
+                        Descripción: {nuevo_nombre if nuevo_nombre else '[Sin descripción]'}<br>
+                        Color: {nuevo_color} | Horas: {nuevo_horas}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            submitted = st.form_submit_button("➕ Agregar Nuevo Código", use_container_width=True, type="primary")
             
             if submitted:
-                if not all([nuevo_codigo.strip(), nuevo_nombre.strip()]):
+                if not all([nuevo_codigo.strip(), nuevo_nombre.strip(), nuevo_color.strip()]):
                     st.error("❌ Los campos con * son obligatorios")
                 else:
-                    # Verificar si el código ya existe
-                    if nuevo_codigo.upper() in codigos_df['codigo'].str.upper().values:
-                        st.error(f"❌ El código '{nuevo_codigo}' ya existe")
+                    # Validar formato de color
+                    if not nuevo_color.startswith('#'):
+                        nuevo_color = '#' + nuevo_color
+                    
+                    # Validar que sea un color HEX válido
+                    import re
+                    hex_pattern = re.compile(r'^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$')
+                    if not hex_pattern.match(nuevo_color):
+                        st.error("❌ Formato de color inválido. Usa formato HEX (#RRGGBB o #RGB)")
                     else:
-                        try:
-                            conn = get_connection()
-                            cursor = conn.cursor()
-                            
-                            cursor.execute(
-                                "INSERT INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
-                                (nuevo_codigo.upper().strip(), 
-                                 nuevo_nombre.strip(), 
-                                 nuevo_color.upper(), 
-                                 int(nuevo_horas))
-                            )
-                            
-                            conn.commit()
-                            conn.close()
-                            
-                            st.success(f"✅ Código '{nuevo_codigo}' agregado correctamente")
-                            st.session_state.codigos_turno = get_codigos_turno()
-                            crear_backup_automatico()
-                            st.rerun()
-                            
-                        except Exception as e:
-                            st.error(f"❌ Error al agregar código: {str(e)}")
+                        # Verificar si el código ya existe
+                        if nuevo_codigo.upper() in codigos_df['codigo'].str.upper().values:
+                            st.error(f"❌ El código '{nuevo_codigo}' ya existe")
+                        else:
+                            try:
+                                conn = get_connection()
+                                cursor = conn.cursor()
+                                
+                                cursor.execute(
+                                    "INSERT INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
+                                    (nuevo_codigo.upper().strip(), 
+                                     nuevo_nombre.strip(), 
+                                     nuevo_color.upper(), 
+                                     int(nuevo_horas))
+                                )
+                                
+                                conn.commit()
+                                conn.close()
+                                
+                                st.success(f"✅ Código '{nuevo_codigo}' agregado correctamente")
+                                st.session_state.codigos_turno = get_codigos_turno()
+                                crear_backup_automatico()
+                                st.rerun()
+                                
+                            except Exception as e:
+                                st.error(f"❌ Error al agregar código: {str(e)}")
         
         st.markdown("---")
-        st.markdown("### 📋 Editar Códigos Existentes")
         
+        # Editar códigos existentes - USANDO INTERFAZ SIMPLE
         if not codigos_df.empty:
-            # Crear una copia para editar
-            df_editable = codigos_df.copy()
+            st.markdown("#### ✏️ Editar Códigos Existentes")
             
-            # Configuración simple de columnas sin tipos específicos
-            edited_df = st.data_editor(
-                df_editable,
-                column_config={
-                    "codigo": st.column_config.TextColumn("Código", disabled=True),
-                    "nombre": st.column_config.TextColumn("Descripción"),
-                    "color": st.column_config.TextColumn("Color HEX"),
-                    "horas": st.column_config.NumberColumn("Horas", min_value=0, max_value=24)
-                },
-                num_rows="fixed",
-                use_container_width=True,
-                key="editor_codigos"
-            )
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("💾 Guardar Cambios", use_container_width=True, type="primary"):
-                    try:
-                        conn = get_connection()
-                        cursor = conn.cursor()
-                        
-                        # Actualizar todos los códigos
-                        for _, row in edited_df.iterrows():
-                            cursor.execute(
-                                "UPDATE codigos_turno SET nombre = ?, color = ?, horas = ? WHERE codigo = ?",
-                                (str(row['nombre']).strip(), 
-                                 str(row['color']).strip().upper(), 
-                                 int(row['horas']), 
-                                 str(row['codigo']))
-                            )
-                        
-                        conn.commit()
-                        conn.close()
-                        
-                        st.session_state.codigos_turno = get_codigos_turno()
-                        st.success("✅ Cambios guardados correctamente")
-                        crear_backup_automatico()
-                        st.rerun()
-                        
-                    except Exception as e:
-                        st.error(f"❌ Error al guardar cambios: {str(e)}")
-            
-            with col2:
-                if st.button("🗑️ Eliminar Código Seleccionado", use_container_width=True, type="secondary"):
-                    st.warning("⚠️ Selecciona el código a eliminar:")
+            for idx, row in codigos_df.iterrows():
+                with st.expander(f"📝 {row['codigo']}: {row['nombre']}", expanded=False):
+                    col_edit1, col_edit2 = st.columns(2)
                     
-                    codigos_lista = edited_df['codigo'].tolist()
-                    codigo_a_eliminar = st.selectbox("Código a eliminar:", codigos_lista)
+                    with col_edit1:
+                        nuevo_nombre_edit = st.text_input(
+                            "Descripción",
+                            value=row['nombre'],
+                            key=f"nombre_{row['codigo']}"
+                        )
+                        nuevo_color_edit = st.text_input(
+                            "Color HEX",
+                            value=row['color'],
+                            key=f"color_{row['codigo']}"
+                        )
                     
-                    if st.button("✅ Confirmar Eliminación", key="confirmar_eliminar"):
-                        try:
-                            conn = get_connection()
-                            cursor = conn.cursor()
-                            
-                            # Eliminar el código
-                            cursor.execute("DELETE FROM codigos_turno WHERE codigo = ?", (codigo_a_eliminar,))
-                            
-                            # También eliminar turnos asociados
-                            cursor.execute("UPDATE malla_turnos SET codigo_turno = NULL WHERE codigo_turno = ?", 
-                                         (codigo_a_eliminar,))
-                            
-                            conn.commit()
-                            conn.close()
-                            
-                            st.success(f"✅ Código '{codigo_a_eliminar}' eliminado correctamente")
-                            st.session_state.codigos_turno = get_codigos_turno()
-                            crear_backup_automatico()
-                            st.rerun()
-                            
-                        except Exception as e:
-                            st.error(f"❌ Error al eliminar código: {str(e)}")
+                    with col_edit2:
+                        nuevo_horas_edit = st.number_input(
+                            "Horas",
+                            min_value=0,
+                            max_value=24,
+                            value=int(row['horas']),
+                            key=f"horas_{row['codigo']}"
+                        )
+                    
+                    col_btn1, col_btn2 = st.columns(2)
+                    with col_btn1:
+                        if st.button("💾 Guardar Cambios", key=f"guardar_{row['codigo']}", use_container_width=True):
+                            try:
+                                conn = get_connection()
+                                cursor = conn.cursor()
+                                
+                                cursor.execute(
+                                    "UPDATE codigos_turno SET nombre = ?, color = ?, horas = ? WHERE codigo = ?",
+                                    (nuevo_nombre_edit.strip(),
+                                     nuevo_color_edit.strip().upper(),
+                                     int(nuevo_horas_edit),
+                                     row['codigo'])
+                                )
+                                
+                                conn.commit()
+                                conn.close()
+                                
+                                st.success(f"✅ Código '{row['codigo']}' actualizado")
+                                st.session_state.codigos_turno = get_codigos_turno()
+                                crear_backup_automatico()
+                                st.rerun()
+                                
+                            except Exception as e:
+                                st.error(f"❌ Error al actualizar: {str(e)}")
+                    
+                    with col_btn2:
+                        if st.button("🗑️ Eliminar", key=f"eliminar_{row['codigo']}", use_container_width=True, type="secondary"):
+                            st.warning(f"⚠️ ¿Eliminar el código '{row['codigo']}'?")
+                            if st.button(f"✅ Confirmar Eliminación de '{row['codigo']}'", key=f"confirmar_eliminar_{row['codigo']}"):
+                                try:
+                                    conn = get_connection()
+                                    cursor = conn.cursor()
+                                    
+                                    # Eliminar el código
+                                    cursor.execute("DELETE FROM codigos_turno WHERE codigo = ?", (row['codigo'],))
+                                    
+                                    # También eliminar turnos asociados
+                                    cursor.execute("UPDATE malla_turnos SET codigo_turno = NULL WHERE codigo_turno = ?", 
+                                                 (row['codigo'],))
+                                    
+                                    conn.commit()
+                                    conn.close()
+                                    
+                                    st.success(f"✅ Código '{row['codigo']}' eliminado")
+                                    st.session_state.codigos_turno = get_codigos_turno()
+                                    crear_backup_automatico()
+                                    st.rerun()
+                                    
+                                except Exception as e:
+                                    st.error(f"❌ Error al eliminar: {str(e)}")
         
         st.markdown("---")
-        st.markdown("### 🔙 Opciones de Restauración")
         
-        col_res1, col_res2 = st.columns(2)
-        with col_res1:
-            if st.button("🔄 Restaurar Valores por Defecto", use_container_width=True):
-                st.warning("""
-                ⚠️ **ADVERTENCIA:**
-                - Se perderán todos los códigos personalizados
-                - Se restaurarán los códigos predeterminados
-                - Se mantendrán los turnos asignados (los códigos eliminados quedarán vacíos)
-                """)
-                
-                if st.checkbox("Confirmo que quiero restaurar los valores predeterminados"):
-                    try:
-                        conn = get_connection()
-                        cursor = conn.cursor()
-                        
-                        cursor.execute("DELETE FROM codigos_turno")
-                        
-                        codigos_default = [
-                            ("20", "10 AM - 7 PM", "#FF6B6B", 8),
-                            ("15", "8 AM - 5 PM", "#4ECDC4", 8),
-                            ("70", "9:00 AM - 7:30 PM", "#FFD166", 9),
-                            ("155", "11 AM - 7 PM", "#06D6A0", 7),
-                            ("151", "8 AM - 4 PM", "#118AB2", 7),
-                            ("177", "1:30 PM - 8:30 PM", "#EF476F", 7),
-                            ("149", "7 AM - 3 PM", "#073B4C", 7),
-                            ("26", "11 AM - 8:30 PM", "#7209B7", 9),
-                            ("158", "12:30 PM - 8:30 PM", "#F15BB5", 10),
-                            ("214", "1 PM - 8:30 PM", "#00BBF9", 8),
-                            ("VC", "Vacaciones", "#9B5DE5", 0),
-                            ("CP", "Cumpleaños", "#00F5D4", 0),
-                            ("PA", "Permiso Administrativo", "#FF9E00", 0),
-                            ("-1", "Ausente", "#E0E0E0", 0)
-                        ]
-                        
-                        cursor.executemany(
-                            "INSERT INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
-                            codigos_default
-                        )
-                        
-                        conn.commit()
-                        conn.close()
-                        
-                        st.session_state.codigos_turno = get_codigos_turno()
-                        st.success("✅ Valores por defecto restaurados")
-                        crear_backup_automatico()
-                        st.rerun()
-                        
-                    except Exception as e:
-                        st.error(f"❌ Error al restaurar: {str(e)}")
+        # Restaurar valores por defecto
+        st.markdown("#### 🔙 Restaurar Valores por Defecto")
         
-        with col_res2:
-            if not codigos_df.empty:
-                csv = codigos_df.to_csv(index=False)
-                st.download_button(
-                    label="📥 Exportar Códigos (CSV)",
-                    data=csv,
-                    file_name="codigos_turno.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
+        if st.button("🔄 Restaurar Códigos Predeterminados", use_container_width=True):
+            st.warning("""
+            ⚠️ **ADVERTENCIA:**
+            - Se perderán todos los códigos personalizados
+            - Se restaurarán los códigos predeterminados
+            - Los turnos con códigos eliminados quedarán vacíos
+            """)
+            
+            if st.checkbox("Confirmo que quiero restaurar los valores predeterminados"):
+                try:
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    
+                    cursor.execute("DELETE FROM codigos_turno")
+                    
+                    codigos_default = [
+                        ("20", "10 AM - 7 PM", "#FF6B6B", 8),
+                        ("15", "8 AM - 5 PM", "#4ECDC4", 8),
+                        ("70", "9:00 AM - 7:30 PM", "#FFD166", 9),
+                        ("155", "11 AM - 7 PM", "#06D6A0", 7),
+                        ("151", "8 AM - 4 PM", "#118AB2", 7),
+                        ("177", "1:30 PM - 8:30 PM", "#EF476F", 7),
+                        ("149", "7 AM - 3 PM", "#073B4C", 7),
+                        ("26", "11 AM - 8:30 PM", "#7209B7", 9),
+                        ("158", "12:30 PM - 8:30 PM", "#F15BB5", 10),
+                        ("214", "1 PM - 8:30 PM", "#00BBF9", 8),
+                        ("VC", "Vacaciones", "#9B5DE5", 0),
+                        ("CP", "Cumpleaños", "#00F5D4", 0),
+                        ("PA", "Permiso Administrativo", "#FF9E00", 0),
+                        ("-1", "Ausente", "#E0E0E0", 0)
+                    ]
+                    
+                    cursor.executemany(
+                        "INSERT INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
+                        codigos_default
+                    )
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                    st.session_state.codigos_turno = get_codigos_turno()
+                    st.success("✅ Valores por defecto restaurados")
+                    crear_backup_automatico()
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"❌ Error al restaurar: {str(e)}")
+        
+        # Exportar códigos
+        if not codigos_df.empty:
+            st.markdown("---")
+            st.markdown("#### 📤 Exportar Códigos")
+            csv = codigos_df.to_csv(index=False)
+            st.download_button(
+                label="📥 Descargar CSV",
+                data=csv,
+                file_name="codigos_turno.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
     
     with tab2:
         st.markdown("### Configuración General")
