@@ -1910,9 +1910,10 @@ def pagina_configuracion():
                 required=True,
                 help="Descripción del turno (ej: 10 AM - 7 PM)"
             ),
-            "color": st.column_config.ColorPickerColumn(
-                "Color",
-                help="Color para el código",
+            "color": st.column_config.TextColumn(
+                "Color (HEX)",
+                width="small",
+                help="Color en formato HEX (#RRGGBB)",
                 required=True
             ),
             "horas": st.column_config.NumberColumn(
@@ -1925,16 +1926,31 @@ def pagina_configuracion():
         }
         
         # Botón para agregar fila vacía antes del editor
-        if st.button("➕ Agregar Nuevo Código", key="btn_agregar_codigo"):
-            # Agregar una fila vacía al DataFrame
-            nueva_fila = pd.DataFrame([{
-                'codigo': '',
-                'nombre': '',
-                'color': '#FFFFFF',
-                'horas': 0
-            }])
-            codigos_df = pd.concat([codigos_df, nueva_fila], ignore_index=True)
-            st.session_state.codigos_temp = codigos_df
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.button("➕ Agregar Nuevo Código", key="btn_agregar_codigo", use_container_width=True):
+                # Agregar una fila vacía al DataFrame
+                nueva_fila = pd.DataFrame([{
+                    'codigo': '',
+                    'nombre': '',
+                    'color': '#FFFFFF',
+                    'horas': 0
+                }])
+                codigos_df = pd.concat([codigos_df, nueva_fila], ignore_index=True)
+                st.session_state.codigos_temp = codigos_df
+                st.rerun()
+        
+        with col_btn2:
+            if st.button("🎨 Ver Colores Actuales", key="btn_ver_colores", use_container_width=True):
+                st.info("**Colores actuales en uso:**")
+                for idx, row in codigos_df.iterrows():
+                    st.markdown(f"""
+                    <div style="display: flex; align-items: center; margin: 5px 0;">
+                        <div style="width: 20px; height: 20px; background-color: {row['color']}; 
+                                 margin-right: 10px; border: 1px solid #ccc;"></div>
+                        <span><strong>{row['codigo']}</strong>: {row['nombre']} - {row['color']}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
         
         # Usar el DataFrame temporal si existe
         if 'codigos_temp' in st.session_state:
@@ -1950,6 +1966,12 @@ def pagina_configuracion():
             key="editor_codigos"
         )
         
+        st.markdown("""
+        **💡 Tip para colores:** Usa formato HEX (#RRGGBB) o nombres CSS. 
+        Ejemplos: `#FF0000` (rojo), `#00FF00` (verde), `#0000FF` (azul), 
+        `#FFFF00` (amarillo), `#FF00FF` (magenta), `#00FFFF` (cian)
+        """)
+        
         st.markdown("---")
         st.markdown("### 💾 Acciones")
         
@@ -1959,16 +1981,27 @@ def pagina_configuracion():
             if st.button("💾 Guardar Códigos", use_container_width=True, type="primary"):
                 try:
                     # Validar que no haya códigos duplicados
-                    codigos_lista = edited_codigos['codigo'].dropna().astype(str).tolist()
+                    codigos_lista = []
+                    for codigo in edited_codigos['codigo']:
+                        if pd.notna(codigo):
+                            codigo_str = str(codigo).strip().upper()
+                            if codigo_str:
+                                codigos_lista.append(codigo_str)
+                    
                     if len(codigos_lista) != len(set(codigos_lista)):
                         st.error("❌ Hay códigos duplicados. Cada código debe ser único.")
                         return
                     
                     # Validar que no haya celdas vacías en campos requeridos
-                    campos_requeridos = ['codigo', 'nombre', 'color']
-                    for campo in campos_requeridos:
-                        if edited_codigos[campo].isna().any():
-                            st.error(f"❌ Hay filas con el campo '{campo}' vacío.")
+                    for idx, row in edited_codigos.iterrows():
+                        if pd.isna(row['codigo']) or str(row['codigo']).strip() == '':
+                            st.error(f"❌ Fila {idx+1}: El campo 'Código' no puede estar vacío.")
+                            return
+                        if pd.isna(row['nombre']) or str(row['nombre']).strip() == '':
+                            st.error(f"❌ Fila {idx+1}: El campo 'Descripción' no puede estar vacío.")
+                            return
+                        if pd.isna(row['color']) or str(row['color']).strip() == '':
+                            st.error(f"❌ Fila {idx+1}: El campo 'Color' no puede estar vacío.")
                             return
                     
                     conn = get_connection()
@@ -1978,12 +2011,22 @@ def pagina_configuracion():
                     cursor.execute("DELETE FROM codigos_turno")
                     
                     # Insertar todos los códigos
-                    for _, row in edited_codigos.iterrows():
+                    for idx, row in edited_codigos.iterrows():
                         if pd.notna(row['codigo']) and pd.notna(row['nombre']):
                             # Asegurar que el color tenga formato HEX
                             color = str(row['color']).strip()
                             if not color.startswith('#'):
                                 color = '#' + color
+                            
+                            # Asegurar formato HEX válido
+                            if len(color) == 4:  # Formato corto #RGB
+                                color = f'#{color[1]}{color[1]}{color[2]}{color[2]}{color[3]}{color[3]}'
+                            elif len(color) == 7:  # Formato largo #RRGGBB
+                                pass  # Ya está bien
+                            else:
+                                st.error(f"❌ Fila {idx+1}: Formato de color inválido: {color}")
+                                conn.close()
+                                return
                             
                             cursor.execute(
                                 "INSERT INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
@@ -1991,7 +2034,7 @@ def pagina_configuracion():
                                     str(row['codigo']).strip().upper(),
                                     str(row['nombre']).strip(),
                                     color,
-                                    int(row['horas'])
+                                    int(row['horas']) if pd.notna(row['horas']) else 0
                                 )
                             )
                     
@@ -2010,13 +2053,15 @@ def pagina_configuracion():
                     # Crear backup automático
                     crear_backup_automatico()
                     
-                    st.info("🔄 La página se recargará en 2 segundos...")
-                    time.sleep(2)
+                    st.info("🔄 La página se recargará en 3 segundos...")
+                    time.sleep(3)
                     st.rerun()
                     
+                except ValueError as ve:
+                    st.error(f"❌ Error de valor: {str(ve)}")
                 except Exception as e:
                     st.error(f"❌ Error al guardar: {str(e)}")
-                    st.error("Verifica que todos los campos requeridos estén completos.")
+                    st.error("Verifica que todos los campos estén completos y en el formato correcto.")
         
         with col2:
             if st.button("🔄 Recargar Códigos", use_container_width=True):
@@ -2028,7 +2073,8 @@ def pagina_configuracion():
         
         with col3:
             if st.button("🔙 Restaurar Default", use_container_width=True):
-                if st.checkbox("¿Confirmar restauración a valores por defecto?"):
+                st.warning("⚠️ Esto reemplazará todos los códigos actuales por los valores predeterminados.")
+                if st.checkbox("Confirmo que quiero restaurar los valores predeterminados"):
                     try:
                         conn = get_connection()
                         cursor = conn.cursor()
@@ -2069,8 +2115,8 @@ def pagina_configuracion():
                         
                         st.success("✅ Valores por defecto restaurados")
                         crear_backup_automatico()
-                        st.info("🔄 La página se recargará en 2 segundos...")
-                        time.sleep(2)
+                        st.info("🔄 La página se recargará en 3 segundos...")
+                        time.sleep(3)
                         st.rerun()
                         
                     except Exception as e:
@@ -2088,7 +2134,6 @@ def pagina_configuracion():
                 )
     
     with tab2:
-        # ... (el resto del código de la pestaña General permanece igual)
         st.markdown("### Configuración General")
         
         config = st.session_state.configuracion
