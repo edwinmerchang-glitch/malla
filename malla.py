@@ -477,16 +477,19 @@ def get_malla_turnos(mes, ano):
     return df_base
 
 def get_turnos_empleado_mes(empleado_id, mes, ano):
-    """Obtener todos los turnos de un empleado para un mes específico"""
+    """Obtener todos los turnos de un empleado para un mes específico - VERSIÓN ROBUSTA"""
     try:
         conn = get_connection()
         cursor = conn.cursor()
         
+        # Verificar que el empleado existe
         cursor.execute('SELECT id FROM empleados WHERE id = ?', (empleado_id,))
         if not cursor.fetchone():
+            print(f"⚠️ Empleado con ID {empleado_id} no encontrado")
             conn.close()
             return {}
         
+        # Obtener turnos
         cursor.execute('''
             SELECT dia, codigo_turno 
             FROM malla_turnos 
@@ -497,17 +500,28 @@ def get_turnos_empleado_mes(empleado_id, mes, ano):
         turnos = cursor.fetchall()
         conn.close()
         
+        # Crear diccionario con todos los días del mes
+        num_dias = calendar.monthrange(ano, mes)[1]
         turnos_dict = {}
+        
+        # Inicializar todos los días como vacíos
+        for dia in range(1, num_dias + 1):
+            turnos_dict[dia] = ""
+        
+        # Llenar con datos de la BD
         for dia, codigo in turnos:
-            if codigo is not None and str(codigo).strip() != '':
-                turnos_dict[int(dia)] = str(codigo).strip()
-            else:
-                turnos_dict[int(dia)] = ""
+            if dia and 1 <= dia <= num_dias:
+                if codigo is not None and str(codigo).strip() != '':
+                    turnos_dict[int(dia)] = str(codigo).strip()
+                else:
+                    turnos_dict[int(dia)] = ""
         
         return turnos_dict
         
     except Exception as e:
-        print(f"Error en get_turnos_empleado_mes: {str(e)}")
+        print(f"❌ Error en get_turnos_empleado_mes: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         return {}
 
 # ============================================================================
@@ -1286,6 +1300,11 @@ def generar_calendario_simple(mes, ano, turnos_dict):
                     dia_num = num_dia_celda
                     codigo = turnos_dict.get(dia_num, "")
                     
+                    # INICIALIZAR VARIABLES PARA EVITAR UnboundLocalError
+                    nombre_turno = ""
+                    tiene_turno = False
+                    codigo_str = ""
+                    
                     if codigo and str(codigo).strip() != "":
                         codigo_str = str(codigo).strip()
                         turno_info = st.session_state.codigos_turno.get(codigo_str, 
@@ -1297,6 +1316,7 @@ def generar_calendario_simple(mes, ano, turnos_dict):
                         color = "#ffffff"
                         tiene_turno = False
                         codigo_str = ""
+                        nombre_turno = ""
                     
                     dia_semana_actual = (dia_inicio_semana + dia_num - 1) % 7
                     hoy = obtener_hora_colombia()
@@ -1316,6 +1336,7 @@ def generar_calendario_simple(mes, ano, turnos_dict):
                         borde_dia = "#FF5722"
                         estilo_numero += " text-shadow: 0 0 1px #FF5722;"
                     
+                    # Acortar nombre del turno si es muy largo
                     if nombre_turno and len(nombre_turno) > 14:
                         if " " in nombre_turno[:14]:
                             partes = nombre_turno.split(" ")
@@ -2810,43 +2831,75 @@ def pagina_calendario():
     
     col1, col2, col3 = st.columns([2, 2, 1])
     with col1:
-        mes_seleccionado = st.selectbox("Mes:", nombres_meses, 
-                                       index=st.session_state.get('calendario_mes', obtener_hora_colombia().month) - 1)
+        # Usar índice seguro - si el mes guardado no existe, usar mes actual
+        mes_actual = obtener_hora_colombia().month
+        mes_guardado = st.session_state.get('calendario_mes', mes_actual)
+        
+        # Asegurar que el índice esté dentro del rango
+        index_mes = min(max(mes_guardado - 1, 0), 11)
+        mes_seleccionado = st.selectbox("Mes:", nombres_meses, index=index_mes)
         mes_numero = nombres_meses.index(mes_seleccionado) + 1
     
     with col2:
+        ano_actual = obtener_hora_colombia().year
         ano = st.number_input("Año:", min_value=2023, max_value=2030, 
-                             value=st.session_state.get('calendario_ano', obtener_hora_colombia().year))
+                             value=st.session_state.get('calendario_ano', ano_actual))
     
     with col3:
+        st.markdown("<br>", unsafe_allow_html=True)
         if st.button("📅 Generar Calendario", use_container_width=True, type="primary"):
             st.session_state.calendario_mes = mes_numero
             st.session_state.calendario_ano = ano
             st.rerun()
     
+    # Mostrar información del empleado
+    col_info1, col_info2 = st.columns(2)
+    with col_info1:
+        st.markdown(f"""
+        <div class="info-card">
+            <h4 style="margin-top: 0;">👤 Mi Información</h4>
+            <p><strong>Nombre:</strong> {empleado_info.get('nombre_completo', 'N/A')}</p>
+            <p><strong>Cargo:</strong> {empleado_info.get('cargo', 'N/A')}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col_info2:
+        st.markdown(f"""
+        <div class="info-card">
+            <h4 style="margin-top: 0;">💼 Datos Laborales</h4>
+            <p><strong>Departamento:</strong> {empleado_info.get('departamento', 'N/A')}</p>
+            <p><strong>Estado:</strong> {empleado_info.get('estado', 'N/A')}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Generar calendario solo si tenemos los parámetros
     if 'calendario_mes' in st.session_state and 'calendario_ano' in st.session_state:
-        turnos_dict = get_turnos_empleado_mes(empleado_info['id'], mes_numero, ano)
-        
-        col_info1, col_info2 = st.columns(2)
-        with col_info1:
-            st.markdown(f"""
-            <div class="info-card">
-                <h4 style="margin-top: 0;">👤 Mi Información</h4>
-                <p><strong>Nombre:</strong> {empleado_info.get('nombre_completo', 'N/A')}</p>
-                <p><strong>Cargo:</strong> {empleado_info.get('cargo', 'N/A')}</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col_info2:
-            st.markdown(f"""
-            <div class="info-card">
-                <h4 style="margin-top: 0;">💼 Datos Laborales</h4>
-                <p><strong>Departamento:</strong> {empleado_info.get('departamento', 'N/A')}</p>
-                <p><strong>Estado:</strong> {empleado_info.get('estado', 'N/A')}</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        generar_calendario_simple(mes_numero, ano, turnos_dict)
+        try:
+            turnos_dict = get_turnos_empleado_mes(empleado_info.get('id'), mes_numero, ano)
+            
+            # Verificar si hay turnos
+            turnos_con_codigo = {dia: codigo for dia, codigo in turnos_dict.items() 
+                                if codigo and str(codigo).strip() != ''}
+            
+            if not turnos_con_codigo:
+                st.info(f"ℹ️ No tienes turnos asignados para {mes_seleccionado} {ano}.")
+                
+                # Mostrar calendario vacío de todos modos
+                generar_calendario_simple(mes_numero, ano, {})
+            else:
+                st.success(f"✅ Tienes {len(turnos_con_codigo)} turnos asignados en {mes_seleccionado}")
+                generar_calendario_simple(mes_numero, ano, turnos_dict)
+                
+        except Exception as e:
+            st.error(f"❌ Error al generar calendario: {str(e)}")
+            import traceback
+            st.error(f"Detalles: {traceback.format_exc()}")
+            
+            # Intentar generar calendario vacío como respaldo
+            try:
+                generar_calendario_simple(mes_numero, ano, {})
+            except:
+                st.error("No se pudo generar el calendario")
 
 def pagina_mi_info():
     """Página de información personal del empleado"""
