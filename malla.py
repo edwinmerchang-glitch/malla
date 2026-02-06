@@ -824,7 +824,7 @@ def guardar_malla_turnos_con_backup(df_malla, mes, ano):
 # FUNCIONES DE AUTENTICACIÓN
 # ============================================================================
 def login(username, password):
-    """Autenticar usuario desde base de datos"""
+    """Autenticar usuario desde base de datos - VERSIÓN MEJORADA"""
     conn = get_connection()
     cursor = conn.cursor()
     
@@ -848,24 +848,51 @@ def login(username, password):
             if empleados_df.empty:
                 st.session_state.empleado_actual = None
             else:
+                # Buscar coincidencia por nombre (más flexible)
                 nombre_buscado = nombre_usuario.strip().upper()
                 
+                # Primero: búsqueda exacta
                 empleado_encontrado = empleados_df[
                     empleados_df['nombre_completo'].str.strip().str.upper() == nombre_buscado
                 ]
                 
+                # Si no se encuentra, buscar por coincidencias parciales
                 if empleado_encontrado.empty:
-                    def buscar_coincidencia(nombre_empleado):
-                        nombre_emp = str(nombre_empleado).upper()
-                        return (nombre_buscado in nombre_emp or nombre_emp in nombre_buscado)
+                    # Separar nombre en partes para búsqueda más flexible
+                    partes_nombre = nombre_buscado.split()
                     
-                    mask = empleados_df['nombre_completo'].apply(buscar_coincidencia)
+                    def buscar_por_partes(nombre_empleado):
+                        nombre_emp = str(nombre_empleado).upper()
+                        # Verificar si alguna parte del nombre del usuario está en el nombre del empleado
+                        for parte in partes_nombre:
+                            if parte and parte in nombre_emp:
+                                return True
+                        return False
+                    
+                    mask = empleados_df['nombre_completo'].apply(buscar_por_partes)
+                    empleado_encontrado = empleados_df[mask]
+                
+                # Si aún no se encuentra, buscar por coincidencia inversa
+                if empleado_encontrado.empty:
+                    def buscar_inversa(nombre_empleado):
+                        nombre_emp = str(nombre_empleado).upper()
+                        partes_empleado = nombre_emp.split()
+                        for parte in partes_empleado:
+                            if parte and parte in nombre_buscado:
+                                return True
+                        return False
+                    
+                    mask = empleados_df['nombre_completo'].apply(buscar_inversa)
                     empleado_encontrado = empleados_df[mask]
                 
                 if not empleado_encontrado.empty:
                     st.session_state.empleado_actual = empleado_encontrado.iloc[0].to_dict()
+                    print(f"✅ Empleado asociado: {st.session_state.empleado_actual.get('nombre_completo')}")
+                    print(f"   ID: {st.session_state.empleado_actual.get('id')}")
+                    print(f"   CC: {st.session_state.empleado_actual.get('cedula')}")
                 else:
                     st.session_state.empleado_actual = None
+                    print(f"⚠️ No se encontró empleado para usuario: {nombre_usuario}")
             
             st.session_state.auth = {
                 'is_authenticated': True,
