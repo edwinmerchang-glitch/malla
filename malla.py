@@ -1059,20 +1059,20 @@ def pagina_login():
                         st.error("❌ Usuario o contraseña incorrectos")
             
             # Credenciales de prueba
-            with st.expander("🔑 Credenciales de prueba"):
-                st.markdown("""
-                **Administrador:**
-                - Usuario: `admin`
-                - Contraseña: `admin123`
-                
-                **Supervisor:**
-                - Usuario: `supervisor`
-                - Contraseña: `super123`
-                
-                **Empleado:**
-                - Usuario: `empleado`
-                - Contraseña: `empleado123`
-                """)
+            #with st.expander("🔑 Credenciales de prueba"):
+            #    st.markdown("""
+            #    **Administrador:**
+            #    - Usuario: `admin`
+            #    - Contraseña: `admin123`
+            #    
+            #    **Supervisor:**
+            #    - Usuario: `supervisor`
+            #    - Contraseña: `super123`
+            #    
+            #    **Empleado:**
+            #    - Usuario: `empleado`
+            #    - Contraseña: `empleado123`
+            #    """)
 
 # ============================================================================
 # COMPONENTES DE INTERFAZ
@@ -1268,8 +1268,57 @@ def mostrar_leyenda():
             </div>
             """, unsafe_allow_html=True)
 
+def extraer_horas_desde_codigo(codigo):
+    """Extrae las horas de un código de turno si están disponibles"""
+    if not codigo or codigo == "":
+        return ""
+    
+    # Verificar si tenemos información del código en session_state
+    if 'codigos_turno' in st.session_state:
+        turno_info = st.session_state.codigos_turno.get(str(codigo), {})
+        nombre = turno_info.get("nombre", "")
+        
+        # Buscar patrones de hora en el nombre
+        import re
+        
+        # Patrones comunes para horas:
+        # 1. Formato "10 AM - 7 PM"
+        # 2. Formato "8:00 AM - 5:00 PM"
+        # 3. Formato "9:00 AM - 7:30 PM"
+        # 4. Formato "11 AM - 7 PM"
+        
+        # Intentar extraer horas del formato
+        patrones = [
+            r'(\d{1,2}:\d{2}\s*[AP]M?\s*[-–]\s*\d{1,2}:\d{2}\s*[AP]M?)',  # 9:00 AM - 7:30 PM
+            r'(\d{1,2}\s*[AP]M?\s*[-–]\s*\d{1,2}\s*[AP]M?)',  # 10 AM - 7 PM
+            r'(\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2})',  # 08:00-17:00
+            r'(\d{1,2}\s*[-–]\s*\d{1,2})',  # 8-5
+        ]
+        
+        for patron in patrones:
+            match = re.search(patron, nombre, re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
+        
+        # Si no encuentra patrón, devolver el nombre completo
+        if nombre:
+            # Si el nombre contiene "Vacaciones", "Cumpleaños", etc.
+            palabras_especiales = ["Vacaciones", "Cumpleaños", "Permiso", "Ausente"]
+            for palabra in palabras_especiales:
+                if palabra.lower() in nombre.lower():
+                    return palabra
+            
+            # Si tiene horas numéricas en el nombre
+            if "horas" in nombre.lower():
+                return nombre
+        
+        # Si no hay nombre específico, devolver el código
+        return str(codigo)
+    
+    return str(codigo)  # Si no hay info, devolver el código
+
 def generar_calendario_simple(mes, ano, turnos_dict):
-    """Versión minimalista pero funcional"""
+    """Versión minimalista pero funcional - MODIFICADA PARA MOSTRAR HORAS"""
     nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
                     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     
@@ -1297,36 +1346,76 @@ def generar_calendario_simple(mes, ano, turnos_dict):
         codigo = turnos_dict.get(dia, "")
         color_fondo = "#ffffff"
         hora_info = ""
+        texto_mostrar = ""
         
-        if codigo:
+        if codigo and str(codigo).strip() != "":
             codigo_str = str(codigo).strip()
+            
+            # Obtener información del turno
             if 'codigos_turno' in st.session_state:
                 turno_info = st.session_state.codigos_turno.get(codigo_str, {})
                 color_fondo = turno_info.get("color", "#e0e0e0")
                 nombre = turno_info.get("nombre", "")
                 
-                # Extraer hora
-                import re
-                match = re.search(r'(\d{1,2}[:.]?\d{0,2})\s*[-–]\s*(\d{1,2}[:.]?\d{0,2})', nombre)
-                if match:
-                    hora_info = f"{match.group(1)}-{match.group(2)}"
+                # Extraer hora usando la nueva función
+                hora_info = extraer_horas_desde_codigo(codigo_str)
+                
+                # Si no se pudo extraer hora, mostrar el código
+                if not hora_info or hora_info == str(codigo_str):
+                    texto_mostrar = codigo_str
+                else:
+                    texto_mostrar = hora_info
+            else:
+                texto_mostrar = codigo_str
+                color_fondo = "#e0e0e0"
+        else:
+            texto_mostrar = "-"
+            color_fondo = "#f8f9fa"
+        
+        # Ajustar tamaño de texto según la longitud
+        font_size = "0.85em" if len(texto_mostrar) > 10 else "1em"
         
         html += f'''
         <div style="background: {color_fondo}; border-radius: 6px; padding: 10px; min-height: 100px; 
                     display: flex; flex-direction: column; justify-content: space-between; border: 1px solid #e0e0e0;">
-            <div style="font-weight: bold; font-size: 1.2em;">{dia}</div>
-            <div style="text-align: center;">
+            <div style="font-weight: bold; font-size: 1.2em; text-align: right;">{dia}</div>
+            <div style="text-align: center; height: 100%; display: flex; flex-direction: column; justify-content: center;">
         '''
         
-        if codigo:
-            html += f'<div style="font-weight: bold; font-size: 1.3em; margin: 5px 0;">{codigo}</div>'
-            if hora_info:
-                html += f'<div style="font-size: 0.75em; margin-top: 5px; line-height: 1.2;">{hora_info}</div>'
+        if codigo and str(codigo).strip() != "":
+            html += f'''
+            <div style="font-weight: bold; font-size: {font_size}; margin: 5px 0; line-height: 1.3; word-break: break-word;">
+                {texto_mostrar}
+            </div>
+            '''
+            
+            # Mostrar código pequeño en la parte inferior si estamos mostrando hora
+            if texto_mostrar != codigo_str and codigo_str:
+                html += f'<div style="font-size: 0.7em; opacity: 0.7; margin-top: 5px;">[{codigo_str}]</div>'
+        else:
+            html += f'<div style="font-size: 1em; color: #999;">-</div>'
         
         html += '</div></div>'
     
     html += '</div>'
     st.markdown(html, unsafe_allow_html=True)
+    
+    # Añadir leyenda si hay turnos
+    if any(turnos_dict.values()):
+        with st.expander("📝 Notas", expanded=False):
+            st.markdown("""
+            **Formato del calendario:**
+            - Número grande: Día del mes
+            - Texto principal: Horario del turno (si disponible)
+            - Texto pequeño `[XX]`: Código del turno
+            - Fondo coloreado: Tipo de turno según la leyenda
+            
+            **Para códigos sin horario específico:**
+            - `VC`: Vacaciones
+            - `CP`: Cumpleaños  
+            - `PA`: Permiso Administrativo
+            - `-1`: Ausente
+            """)
 # ============================================================================
 # PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
 # ============================================================================
