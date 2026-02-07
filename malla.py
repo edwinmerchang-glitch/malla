@@ -1308,18 +1308,13 @@ def generar_calendario_simple(mes, ano, turnos_dict):
         hora_info = ""
         
         if codigo and str(codigo).strip() != "":
-            codigo_str = str(codigo).strip()
-            if 'codigos_turno' in st.session_state:
-                turno_info = st.session_state.codigos_turno.get(codigo_str, {})
-                color_fondo = turno_info.get("color", "#e0e0e0")
-                nombre = turno_info.get("nombre", "")
-                
-                # Extraer hora
-                import re
-                if nombre:
-                    match = re.search(r'(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})', nombre)
-                    if match:
-                        hora_info = f"{match.group(1)}-{match.group(2)}"
+    codigo_str = str(codigo).strip()
+    if 'codigos_turno' in st.session_state:
+        turno_info = st.session_state.codigos_turno.get(codigo_str, {})
+        color_fondo = turno_info.get("color", "#e0e0e0")
+        nombre = turno_info.get("nombre", "")
+        hora_info = nombre   # ← AQUÍ mostramos directamente el horario
+
         
         # Color del número
         dia_semana_actual = (espacios_vacios + dia - 1) % 7
@@ -1334,9 +1329,10 @@ def generar_calendario_simple(mes, ano, turnos_dict):
         """
         
         if codigo:
-            html += f'<div style="font-weight: bold; font-size: 1.3em;">{codigo}</div>'
-            if hora_info:
-                html += f'<div style="font-size: 0.7em; margin-top: 5px;">{hora_info}</div>'
+    html += f'<div style="font-weight: bold; font-size: 1.3em;">{codigo}</div>'
+    if hora_info:
+        html += f'<div style="font-size: 0.75em; margin-top: 5px; line-height: 1.2;">{hora_info}</div>'
+
         
         html += '</div></div>'
     
