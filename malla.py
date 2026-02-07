@@ -2010,79 +2010,90 @@ def pagina_configuracion():
         
         st.markdown("---")
         
-        # Agregar nuevo código - USANDO FORMULARIO SIMPLE
-        st.markdown("#### ➕ Agregar Nuevo Código")
-        with st.form("form_nuevo_codigo", clear_on_submit=True):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                nuevo_codigo = st.text_input("Código*", placeholder="Ej: 30, NOCHE, LIBRE")
-                nuevo_nombre = st.text_input("Descripción*", placeholder="Ej: Turno Noche 10PM-6AM")
-            
-            with col2:
-                # Usar text input para color con valor por defecto
-                nuevo_color = st.text_input("Color HEX*", value="#FF6B6B", placeholder="#FF6B6B")
-                nuevo_horas = st.number_input("Horas*", min_value=0, max_value=24, value=8)
-            
-            # Mostrar vista previa del color
-            if nuevo_color:
-                st.markdown(f"""
-                <div style="display: flex; align-items: center; margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                    <div style="width: 50px; height: 50px; background-color: {nuevo_color}; 
-                             margin-right: 15px; border: 2px solid #ccc; border-radius: 5px;"></div>
-                    <div>
-                        <strong>Vista previa:</strong><br>
-                        Código: <strong>{nuevo_codigo.upper() if nuevo_codigo else '[Nuevo]'}</strong><br>
-                        Descripción: {nuevo_nombre if nuevo_nombre else '[Sin descripción]'}<br>
-                        Color: {nuevo_color} | Horas: {nuevo_horas}
-                    </div>
+        # Agregar nuevo código - CON SELECTOR DE COLOR
+st.markdown("#### ➕ Agregar Nuevo Código")
+with st.form("form_nuevo_codigo", clear_on_submit=True):
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        nuevo_codigo = st.text_input("Código*", placeholder="Ej: 30, NOCHE, LIBRE")
+        nuevo_nombre = st.text_input("Descripción*", placeholder="Ej: Turno Noche 10PM-6AM")
+    
+    with col2:
+        # Usar color picker en lugar de text input
+        nuevo_color = st.color_picker("Seleccionar Color*", value="#FF6B6B")
+        nuevo_horas = st.number_input("Horas*", min_value=0, max_value=24, value=8)
+    
+    # Mostrar vista previa del color con mejor formato
+    st.markdown("---")
+    st.markdown("#### 🎨 Vista Previa del Código")
+    
+    col_preview1, col_preview2 = st.columns([1, 3])
+    
+    with col_preview1:
+        # Mostrar muestra grande del color
+        st.markdown(f"""
+        <div style="width: 100px; height: 100px; background-color: {nuevo_color}; 
+                    border-radius: 10px; border: 3px solid #ccc; margin: 0 auto;">
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown(f"**Color:** {nuevo_color}")
+    
+    with col_preview2:
+        # Mostrar tarjeta de vista previa completa
+        st.markdown(f"""
+        <div style="background-color: #f8f9fa; border-radius: 10px; padding: 15px; border: 1px solid #ddd;">
+            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                <div style="width: 30px; height: 30px; background-color: {nuevo_color}; 
+                         border-radius: 5px; margin-right: 10px; border: 1px solid #aaa;"></div>
+                <div>
+                    <h4 style="margin: 0; color: #333;">Código: <strong>{nuevo_codigo.upper() if nuevo_codigo else '[Nuevo]'}</strong></h4>
+                    <p style="margin: 5px 0 0 0; color: #666;">{nuevo_nombre if nuevo_nombre else '[Sin descripción]'}</p>
                 </div>
-                """, unsafe_allow_html=True)
-            
-            submitted = st.form_submit_button("➕ Agregar Nuevo Código", use_container_width=True, type="primary")
-            
-            if submitted:
-                if not all([nuevo_codigo.strip(), nuevo_nombre.strip(), nuevo_color.strip()]):
-                    st.error("❌ Los campos con * son obligatorios")
-                else:
-                    # Validar formato de color
-                    if not nuevo_color.startswith('#'):
-                        nuevo_color = '#' + nuevo_color
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
+                <div>
+                    <strong>Horas:</strong> {nuevo_horas} horas
+                </div>
+                <div>
+                    <strong>Color HEX:</strong> {nuevo_color.upper()}
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    submitted = st.form_submit_button("➕ Agregar Nuevo Código", use_container_width=True, type="primary")
+    
+    if submitted:
+        if not all([nuevo_codigo.strip(), nuevo_nombre.strip()]):
+            st.error("❌ Los campos con * son obligatorios")
+        else:
+            # Verificar si el código ya existe
+            if nuevo_codigo.upper() in codigos_df['codigo'].str.upper().values:
+                st.error(f"❌ El código '{nuevo_codigo}' ya existe")
+            else:
+                try:
+                    conn = get_connection()
+                    cursor = conn.cursor()
                     
-                    # Validar que sea un color HEX válido
-                    import re
-                    hex_pattern = re.compile(r'^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$')
-                    if not hex_pattern.match(nuevo_color):
-                        st.error("❌ Formato de color inválido. Usa formato HEX (#RRGGBB o #RGB)")
-                    else:
-                        # Verificar si el código ya existe
-                        if nuevo_codigo.upper() in codigos_df['codigo'].str.upper().values:
-                            st.error(f"❌ El código '{nuevo_codigo}' ya existe")
-                        else:
-                            try:
-                                conn = get_connection()
-                                cursor = conn.cursor()
-                                
-                                cursor.execute(
-                                    "INSERT INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
-                                    (nuevo_codigo.upper().strip(), 
-                                     nuevo_nombre.strip(), 
-                                     nuevo_color.upper(), 
-                                     int(nuevo_horas))
-                                )
-                                
-                                conn.commit()
-                                conn.close()
-                                
-                                st.success(f"✅ Código '{nuevo_codigo}' agregado correctamente")
-                                st.session_state.codigos_turno = get_codigos_turno()
-                                crear_backup_automatico()
-                                st.rerun()
-                                
-                            except Exception as e:
-                                st.error(f"❌ Error al agregar código: {str(e)}")
-        
-        st.markdown("---")
+                    cursor.execute(
+                        "INSERT INTO codigos_turno (codigo, nombre, color, horas) VALUES (?, ?, ?, ?)",
+                        (nuevo_codigo.upper().strip(), 
+                         nuevo_nombre.strip(), 
+                         nuevo_color.upper(), 
+                         int(nuevo_horas))
+                    )
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                    st.success(f"✅ Código '{nuevo_codigo}' agregado correctamente")
+                    st.session_state.codigos_turno = get_codigos_turno()
+                    crear_backup_automatico()
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"❌ Error al agregar código: {str(e)}")
         
         # Editar códigos existentes - USANDO INTERFAZ SIMPLE
         if not codigos_df.empty:
