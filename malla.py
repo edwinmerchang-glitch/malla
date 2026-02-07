@@ -1269,54 +1269,197 @@ def mostrar_leyenda():
             """, unsafe_allow_html=True)
 
 def generar_calendario_simple(mes, ano, turnos_dict):
-    """Versión alternativa más simple"""
+    """Generar calendario simple - VERSIÓN MEJORADA CON HORAS"""
     nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
                     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     
+    num_dias = calendar.monthrange(ano, mes)[1]
+    
     st.markdown(f"### 📅 {nombres_meses[mes-1]} {ano}")
     
-    # Crear calendario usando st.columns de manera diferente
-    num_dias = calendar.monthrange(ano, mes)[1]
-    dias_semana = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
-    
-    # Mostrar encabezados
+    # Encabezados de días de la semana
+    dias_semana = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"]
     cols = st.columns(7)
+    
     for idx, dia in enumerate(dias_semana):
         with cols[idx]:
-            st.markdown(f"**{dia}**")
+            estilo_header = "text-align: center; font-weight: bold; padding: 8px;"
+            if idx == 0:  # Domingo
+                st.markdown(f"<div style='{estilo_header} color: #d32f2f;'>DOM</div>", unsafe_allow_html=True)
+            elif idx == 6:  # Sábado
+                st.markdown(f"<div style='{estilo_header} color: #1976d2;'>SÁB</div>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<div style='{estilo_header}'>{dia}</div>", unsafe_allow_html=True)
     
-    # Mostrar días
+    # Calcular el primer día
     primer_dia = date(ano, mes, 1)
-    dia_semana = primer_dia.weekday()  # 0=Lunes
-    espacios_vacios = (dia_semana + 1) % 7  # 0=Domingo
+    dia_semana = primer_dia.weekday()  # 0=Lunes, 6=Domingo
+    espacios_vacios = (dia_semana + 1) % 7  # Convertir a 0=Domingo
     
+    # Obtener información de horas de turno para optimizar
+    horas_cache = {}
+    if 'codigos_turno' in st.session_state:
+        for codigo, info in st.session_state.codigos_turno.items():
+            if codigo and codigo != "":
+                horas_cache[codigo] = info.get("horas", 0)
+    
+    # Generar calendario
     dia_actual = 1
-    for fila in range(6):
+    for fila in range(6):  # Máximo 6 filas
+        if dia_actual > num_dias:
+            break
+            
         cols = st.columns(7)
+        
         for col in range(7):
             with cols[col]:
-                if (fila == 0 and col < espacios_vacios) or dia_actual > num_dias:
-                    st.write("")
+                # Días vacíos al inicio
+                if fila == 0 and col < espacios_vacios:
+                    st.markdown("<div style='height: 100px;'></div>", unsafe_allow_html=True)
+                elif dia_actual > num_dias:
+                    st.markdown("<div style='height: 100px;'></div>", unsafe_allow_html=True)
                 else:
+                    # Obtener código del turno
                     codigo = turnos_dict.get(dia_actual, "")
-                    color = "#ffffff"
+                    
+                    # Obtener información del turno
+                    color = "#f8f9fa"  # Color de fondo por defecto más claro
+                    nombre_turno = ""
+                    horas = 0
                     
                     if codigo and str(codigo).strip() != "":
                         codigo_str = str(codigo).strip()
+                        
+                        # Obtener color, nombre y horas del turno
                         if 'codigos_turno' in st.session_state:
                             turno_info = st.session_state.codigos_turno.get(codigo_str, {})
                             color = turno_info.get("color", "#e0e0e0")
+                            nombre_turno = turno_info.get("nombre", f"Turno {codigo_str}")
+                            horas = turno_info.get("horas", 0)
+                        else:
+                            # Colores por defecto si no hay configuración
+                            colores_default = {
+                                "20": "#FF6B6B", "15": "#4ECDC4", "70": "#FFD166",
+                                "155": "#06D6A0", "151": "#118AB2", "177": "#EF476F",
+                                "149": "#073B4C", "26": "#7209B7", "158": "#F15BB5",
+                                "214": "#00BBF9", "VC": "#9B5DE5", "CP": "#00F5D4",
+                                "PA": "#FF9E00", "-1": "#E0E0E0"
+                            }
+                            color = colores_default.get(codigo_str, "#e0e0e0")
+                            nombre_turno = f"Turno {codigo_str}"
                     
-                    st.markdown(f"""
-                    <div style="background-color: {color}; 
-                                padding: 8px; 
-                                border-radius: 5px;
-                                text-align: center;
-                                border: 1px solid #ddd;">
-                        <strong>{dia_actual}</strong><br>
-                        <small>{codigo if codigo else ''}</small>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    # Determinar si es fin de semana
+                    dia_semana_actual = (espacios_vacios + dia_actual - 1) % 7
+                    es_domingo = (dia_semana_actual == 0)
+                    es_sabado = (dia_semana_actual == 6)
+                    
+                    # Estilos base del día
+                    estilo_base = f"""
+                    background-color: {color};
+                    border-radius: 8px;
+                    padding: 8px;
+                    text-align: center;
+                    height: 100px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                    align-items: center;
+                    border: 1px solid #e0e0e0;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    """
+                    
+                    # Color del texto del número del día
+                    color_numero = "#000000"
+                    if es_domingo:
+                        color_numero = "#d32f2f"
+                    elif es_sabado:
+                        color_numero = "#1976d2"
+                    
+                    # Construir el HTML del día completo
+                    html_dia = f"""
+                    <div style="{estilo_base}">
+                        <div style="display: flex; justify-content: space-between; width: 100%;">
+                            <div style="font-weight: bold; font-size: 1.0em; color: {color_numero};">
+                                {dia_actual}
+                            </div>
+                            {f'<div style="font-size: 0.8em; color: {color_numero};">{dia_semana_actual+1}</div>' if st.session_state.configuracion.get('mostrar_num_dia_semana', False) else ''}
+                        </div>
+                    """
+                    
+                    # Agregar código y nombre si existe
+                    if codigo and str(codigo).strip() != "":
+                        # Mostrar código
+                        html_dia += f"""
+                        <div style="font-weight: bold; font-size: 1.2em; color: #222; margin: 2px 0;">
+                            {codigo}
+                        </div>
+                        """
+                        
+                        # Mostrar horas (si tiene)
+                        if horas > 0:
+                            html_dia += f"""
+                            <div style="background-color: rgba(0,0,0,0.1); 
+                                      border-radius: 12px; 
+                                      padding: 2px 6px;
+                                      font-size: 0.75em; 
+                                      font-weight: bold;
+                                      color: #333;
+                                      margin: 2px 0;">
+                                {horas}h
+                            </div>
+                            """
+                        else:
+                            # Mostrar "Especial" para turnos sin horas (vacaciones, permisos, etc.)
+                            html_dia += """
+                            <div style="font-size: 0.7em; 
+                                      color: #666; 
+                                      font-style: italic;
+                                      margin: 2px 0;">
+                                Especial
+                            </div>
+                            """
+                        
+                        # Mostrar hora del turno si hay información
+                        if nombre_turno:
+                            # Extraer horas del nombre si es posible
+                            import re
+                            hora_match = re.search(r'(\d{1,2}[:.]?\d{0,2}\s*[APMapm]{0,2})\s*[-–]\s*(\d{1,2}[:.]?\d{0,2}\s*[APMapm]{0,2})', nombre_turno)
+                            
+                            if hora_match:
+                                hora_inicio = hora_match.group(1).strip()
+                                hora_fin = hora_match.group(2).strip()
+                                hora_display = f"{hora_inicio}-{hora_fin}"
+                            else:
+                                # Si no encuentra formato de hora, mostrar nombre corto
+                                hora_display = nombre_turno[:12] + "..." if len(nombre_turno) > 12 else nombre_turno
+                            
+                            html_dia += f"""
+                            <div style="font-size: 0.65em; 
+                                      color: #444; 
+                                      background-color: rgba(255,255,255,0.7);
+                                      border-radius: 4px;
+                                      padding: 1px 4px;
+                                      margin-top: 2px;
+                                      white-space: nowrap;
+                                      overflow: hidden;
+                                      text-overflow: ellipsis;
+                                      max-width: 100%;">
+                                {hora_display}
+                            </div>
+                            """
+                    else:
+                        # Si no hay turno
+                        html_dia += """
+                        <div style="font-size: 0.8em; color: #888; font-style: italic; margin: auto 0;">
+                            Sin turno
+                        </div>
+                        """
+                    
+                    html_dia += "</div>"
+                    
+                    # Mostrar el día
+                    st.markdown(html_dia, unsafe_allow_html=True)
+                    
                     dia_actual += 1
 
 # ============================================================================
