@@ -2935,7 +2935,7 @@ def main():
     footer_text = f"""
     <div style='text-align: center; color: #6c757d; padding: 20px;'>
     📊 Creado por Edwin Merchán | © 2026 | Versión 2.0 | 
-    Hora Colombia: {hora_colombia.strftime('%H:%M')} UTC-5
+    Hora Colombia: {hora_colombia.strftime('%H:%M')}
     """
     
     if IS_STREAMLIT_CLOUD:
