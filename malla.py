@@ -2011,9 +2011,9 @@ def pagina_configuracion():
         st.markdown("---")
         
         # Agregar nuevo código - CON SELECTOR DE COLOR
-st.markdown("#### ➕ Agregar Nuevo Código")
-with st.form("form_nuevo_codigo", clear_on_submit=True):
-    col1, col2 = st.columns(2)
+	st.markdown("#### ➕ Agregar Nuevo Código")
+	with st.form("form_nuevo_codigo", clear_on_submit=True):
+   	 col1, col2 = st.columns(2)
     
     with col1:
         nuevo_codigo = st.text_input("Código*", placeholder="Ej: 30, NOCHE, LIBRE")
