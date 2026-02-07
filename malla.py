@@ -1268,55 +1268,6 @@ def mostrar_leyenda():
             </div>
             """, unsafe_allow_html=True)
 
-def extraer_horas_desde_codigo(codigo):
-    """Extrae las horas de un código de turno si están disponibles"""
-    if not codigo or codigo == "":
-        return ""
-    
-    # Verificar si tenemos información del código en session_state
-    if 'codigos_turno' in st.session_state:
-        turno_info = st.session_state.codigos_turno.get(str(codigo), {})
-        nombre = turno_info.get("nombre", "")
-        
-        # Buscar patrones de hora en el nombre
-        import re
-        
-        # Patrones comunes para horas:
-        # 1. Formato "10 AM - 7 PM"
-        # 2. Formato "8:00 AM - 5:00 PM"
-        # 3. Formato "9:00 AM - 7:30 PM"
-        # 4. Formato "11 AM - 7 PM"
-        
-        # Intentar extraer horas del formato
-        patrones = [
-            r'(\d{1,2}:\d{2}\s*[AP]M?\s*[-–]\s*\d{1,2}:\d{2}\s*[AP]M?)',  # 9:00 AM - 7:30 PM
-            r'(\d{1,2}\s*[AP]M?\s*[-–]\s*\d{1,2}\s*[AP]M?)',  # 10 AM - 7 PM
-            r'(\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2})',  # 08:00-17:00
-            r'(\d{1,2}\s*[-–]\s*\d{1,2})',  # 8-5
-        ]
-        
-        for patron in patrones:
-            match = re.search(patron, nombre, re.IGNORECASE)
-            if match:
-                return match.group(1).strip()
-        
-        # Si no encuentra patrón, devolver el nombre completo
-        if nombre:
-            # Si el nombre contiene "Vacaciones", "Cumpleaños", etc.
-            palabras_especiales = ["Vacaciones", "Cumpleaños", "Permiso", "Ausente"]
-            for palabra in palabras_especiales:
-                if palabra.lower() in nombre.lower():
-                    return palabra
-            
-            # Si tiene horas numéricas en el nombre
-            if "horas" in nombre.lower():
-                return nombre
-        
-        # Si no hay nombre específico, devolver el código
-        return str(codigo)
-    
-    return str(codigo)  # Si no hay info, devolver el código
-
 def generar_calendario_simple(mes, ano, turnos_dict):
     """Versión minimalista pero funcional - MODIFICADA PARA MOSTRAR HORAS"""
     nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
