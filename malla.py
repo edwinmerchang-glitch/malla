@@ -1477,6 +1477,7 @@ def generar_calendario_simple(mes, ano, turnos_dict):
     if any(codigo and str(codigo).strip() != "" for codigo in turnos_dict.values()):
         with st.expander("🎨 Leyenda de Códigos", expanded=False):
             mostrar_leyenda()
+)
 # ============================================================================
 # PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
 # ============================================================================
