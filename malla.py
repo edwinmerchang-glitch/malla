@@ -1330,7 +1330,7 @@ def extraer_horas_desde_codigo(codigo):
     return codigo_str
 
 def generar_calendario_simple(mes, ano, turnos_dict):
-    """Versión ultra-simple y robusta"""
+    """Versión usando solo Streamlit nativo"""
     nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
                     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     
@@ -1339,49 +1339,59 @@ def generar_calendario_simple(mes, ano, turnos_dict):
     num_dias = calendar.monthrange(ano, mes)[1]
     primer_dia = date(ano, mes, 1)
     dia_semana = primer_dia.weekday()
-    espacios_vacios = (dia_semana + 1) % 7
     
-    # Crear calendario con HTML básico pero correcto
-    html = '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 15px;">'
+    # Crear columnas para los días de la semana
+    cols = st.columns(7)
+    dias_semana = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"]
+    for i, col in enumerate(cols):
+        with col:
+            st.markdown(f"**{dias_semana[i]}**")
     
-    # Días de semana
-    for dia in ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"]:
-        html += f'<div style="text-align: center; font-weight: bold; padding: 8px; background: #f5f5f5; border-radius: 4px;">{dia}</div>'
-    
-    # Espacios vacíos
-    for _ in range(espacios_vacios):
-        html += '<div></div>'
+    # Espacios vacíos al inicio
+    for i in range((dia_semana + 1) % 7):
+        with cols[i]:
+            st.write("")
     
     # Días del mes
     for dia in range(1, num_dias + 1):
-        codigo = turnos_dict.get(dia, "")
-        color = "#f8f9fa"
-        texto = "-"
-        codigo_mostrar = ""
+        col_idx = ((dia_semana + dia) % 7) - 1
+        if col_idx == -1:
+            col_idx = 6
         
-        if codigo and str(codigo).strip() not in ["", "0"]:
-            codigo_str = str(codigo).strip()
-            if 'codigos_turno' in st.session_state and codigo_str in st.session_state.codigos_turno:
-                info = st.session_state.codigos_turno[codigo_str]
-                color = info.get("color", "#e0e0e0")
-                texto = info.get("nombre", codigo_str)
-                codigo_mostrar = codigo_str
-        
-        html += f'''
-        <div style="background: {color}; border-radius: 6px; padding: 10px; min-height: 100px; border: 1px solid #e0e0e0;">
-            <div style="font-weight: bold; font-size: 1.2em; text-align: right;">{dia}</div>
-            <div style="text-align: center; margin-top: 20px;">
-                <div style="font-weight: bold; font-size: 0.9em;">{texto}</div>
-        '''
-        
-        if codigo_mostrar:
-            html += f'<div style="font-size: 0.7em; opacity: 0.7; margin-top: 5px;">[{codigo_mostrar}]</div>'
-        
-        html += '</div></div>'
-    
-    html += '</div>'
-    
-    st.markdown(html, unsafe_allow_html=True)
+        with cols[col_idx]:
+            codigo = turnos_dict.get(dia, "")
+            
+            if codigo and str(codigo).strip() not in ["", "0"]:
+                codigo_str = str(codigo).strip()
+                if 'codigos_turno' in st.session_state and codigo_str in st.session_state.codigos_turno:
+                    info = st.session_state.codigos_turno[codigo_str]
+                    color = info.get("color", "#e0e0e0")
+                    texto = info.get("nombre", codigo_str)
+                    
+                    st.markdown(f"""
+                    <div style="background-color: {color}; padding: 10px; border-radius: 5px; 
+                                margin-bottom: 5px; text-align: center;">
+                        <div style="font-weight: bold;">{dia}</div>
+                        <div style="font-size: 0.8em;">{texto}</div>
+                        <div style="font-size: 0.7em; opacity: 0.7;">[{codigo_str}]</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; 
+                                margin-bottom: 5px; text-align: center;">
+                        <div style="font-weight: bold;">{dia}</div>
+                        <div style="font-size: 0.8em;">{codigo_str}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; 
+                            margin-bottom: 5px; text-align: center;">
+                    <div style="font-weight: bold;">{dia}</div>
+                    <div style="font-size: 0.8em; color: #999;">-</div>
+                </div>
+                """, unsafe_allow_html=True)
 # ============================================================================
 # PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
 # ============================================================================
