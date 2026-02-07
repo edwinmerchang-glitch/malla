@@ -1025,13 +1025,13 @@ def pagina_login():
     st.markdown("<h1 class='main-header'>🔐 Malla de Turnos Locatel Restrepo</h1>", unsafe_allow_html=True)
     
     # Mostrar advertencia de Streamlit Cloud
-    if IS_STREAMLIT_CLOUD:
-        st.markdown("""
-        <div class="streamlit-cloud-warning">
-        ⚠️ MODO STREAMLIT CLOUD ACTIVADO<br>
-        <small>Los datos se guardan en almacenamiento temporal. Exporta tus datos regularmente.</small>
-        </div>
-        """, unsafe_allow_html=True)
+    #if IS_STREAMLIT_CLOUD:
+    #   st.markdown("""
+    #    <div class="streamlit-cloud-warning">
+    #    ⚠️ MODO STREAMLIT CLOUD ACTIVADO<br>
+    #    <small>Los datos se guardan en almacenamiento temporal. Exporta tus datos regularmente.</small>
+    #    </div>
+    #    """, unsafe_allow_html=True)
     
     with st.container():
         col1, col2, col3 = st.columns([1, 2, 1])
@@ -1335,13 +1335,13 @@ def pagina_malla():
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
     
     # Advertencia de Streamlit Cloud
-    if IS_STREAMLIT_CLOUD:
-        st.warning("""
-        ⚠️ **STREAMLIT CLOUD - IMPORTANTE**
-        - Los datos se guardan en almacenamiento temporal
-        - Exporta regularmente usando la opción de Backup
-        - Se crean backups automáticos al guardar
-        """)
+    #if IS_STREAMLIT_CLOUD:
+    #    st.warning("""
+    #    ⚠️ **STREAMLIT CLOUD - IMPORTANTE**
+    #    - Los datos se guardan en almacenamiento temporal
+    #    - Exporta regularmente usando la opción de Backup
+    #    - Se crean backups automáticos al guardar
+    #    """)
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -1467,23 +1467,23 @@ def pagina_backup():
     st.markdown("<h1 class='main-header'>📦 Sistema de Backup y Restauración</h1>", unsafe_allow_html=True)
     
     # Información importante para Streamlit Cloud
-    if IS_STREAMLIT_CLOUD:
-        st.markdown("""
-        <div class="streamlit-cloud-warning">
-        ⚠️ **INFORMACIÓN IMPORTANTE - STREAMLIT CLOUD**
-        
-        **Cómo funciona el almacenamiento:**
-        1. Los datos se guardan en almacenamiento temporal del servidor
-        2. Se mantienen mientras la app esté activa
-        3. Pueden borrarse después de ~24h de inactividad
-        
-        **Recomendaciones:**
-        - ✅ Exporta tus datos regularmente (JSON o CSV)
-        - ✅ Descarga backups frecuentemente
-        - ✅ Mantén la app activa usándola diariamente
-        - ❌ No confíes solo en el almacenamiento temporal
-        </div>
-        """, unsafe_allow_html=True)
+    #if IS_STREAMLIT_CLOUD:
+    #    st.markdown("""
+    #    <div class="streamlit-cloud-warning">
+    #    ⚠️ **INFORMACIÓN IMPORTANTE - STREAMLIT CLOUD**
+    #    
+    #    **Cómo funciona el almacenamiento:**
+    #    1. Los datos se guardan en almacenamiento temporal del servidor
+    #    2. Se mantienen mientras la app esté activa
+    #    3. Pueden borrarse después de ~24h de inactividad
+    #    
+    #    **Recomendaciones:**
+    #    - ✅ Exporta tus datos regularmente (JSON o CSV)
+    #    - ✅ Descarga backups frecuentemente
+    #    - ✅ Mantén la app activa usándola diariamente
+    #    - ❌ No confíes solo en el almacenamiento temporal
+    #    </div>
+    #   """, unsafe_allow_html=True)
     
     tab1, tab2 = st.tabs(["🗄️ Backups DB", "📄 Exportar/Importar JSON"])
     
@@ -1756,12 +1756,12 @@ def pagina_empleados():
     st.markdown("<h1 class='main-header'>👥 Gestión de Empleados</h1>", unsafe_allow_html=True)
     
     # Advertencia de Streamlit Cloud
-    if IS_STREAMLIT_CLOUD:
-        st.warning("""
-        ⚠️ **STREAMLIT CLOUD**
-        - Exporta la lista de empleados regularmente
-        - Los datos se guardan automáticamente en backups
-        """)
+    #if IS_STREAMLIT_CLOUD:
+    #    st.warning("""
+    #    ⚠️ **STREAMLIT CLOUD**
+    #    - Exporta la lista de empleados regularmente
+    #    - Los datos se guardan automáticamente en backups
+    #    """)
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
