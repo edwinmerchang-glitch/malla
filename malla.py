@@ -2618,7 +2618,7 @@ def pagina_mis_turnos():
         return
     
     try:
-        # Obtener turnos - CORREGIDO: usar get_turnos_empleado_mes en lugar de get_turnos_empleado_mes_mejorado
+        # Obtener turnos
         turnos_dict = get_turnos_empleado_mes(empleado_id, mes_numero, ano)
         
         # Filtrar solo días con códigos válidos (no None ni vacíos)
@@ -2676,30 +2676,28 @@ def pagina_mis_turnos():
                 porcentaje = (len(turnos_con_codigo) / num_dias) * 100
                 st.metric("Cobertura", f"{porcentaje:.1f}%")
             
-            # Mostrar tabla detallada
-            # Mostrar tabla detallada
-st.markdown("#### 📋 Lista de Turnos")
-
-df_turnos = pd.DataFrame(turnos_detallados)
-
-# Crear tabla con colores - VERSIÓN CORREGIDA
-def aplicar_color_fila(row):
-    # Obtener el color de la fila original
-    color = df_turnos.loc[row.name, 'Color'] if row.name in df_turnos.index else '#FFFFFF'
-    return [f'background-color: {color}' for _ in row]
-
-# Primero seleccionar solo las columnas que queremos mostrar
-df_display = df_turnos[['Día', 'Código', 'Turno', 'Horas']].copy()
-
-# Aplicar el estilo al DataFrame de visualización
-styled_df = df_display.style.apply(aplicar_color_fila, axis=1)
-
-# Mostrar el DataFrame
-st.dataframe(
-    styled_df,
-    use_container_width=True,
-    hide_index=True
-)
+            # Mostrar tabla detallada - VERSIÓN CORREGIDA
+            st.markdown("#### 📋 Lista de Turnos")
+            
+            df_turnos = pd.DataFrame(turnos_detallados)
+            
+            # Crear tabla con colores - CORRECCIÓN APLICADA
+            def aplicar_color_fila(row):
+                color = df_turnos.loc[row.name, 'Color'] if row.name in df_turnos.index else '#FFFFFF'
+                return [f'background-color: {color}' for _ in row]
+            
+            # Primero seleccionar solo las columnas que queremos mostrar
+            df_display = df_turnos[['Día', 'Código', 'Turno', 'Horas']].copy()
+            
+            # Aplicar el estilo al DataFrame de visualización
+            styled_df = df_display.style.apply(aplicar_color_fila, axis=1)
+            
+            # Mostrar el DataFrame
+            st.dataframe(
+                styled_df,
+                use_container_width=True,
+                hide_index=True
+            )
             
             # Mostrar leyenda
             with st.expander("🎨 Leyenda de códigos", expanded=False):
