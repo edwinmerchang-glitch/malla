@@ -1268,6 +1268,62 @@ def mostrar_leyenda():
             </div>
             """, unsafe_allow_html=True)
 
+def extraer_horas_desde_codigo(codigo):
+    """
+    Extraer información de horas desde el código del turno.
+    
+    Intenta extraer horas de diferentes maneras:
+    1. De la descripción del código (si contiene horas)
+    2. De las horas configuradas
+    3. Retorna el código si no se puede extraer hora
+    """
+    if not codigo or str(codigo).strip() == "":
+        return ""
+    
+    codigo_str = str(codigo).strip()
+    
+    # Si el código está en la lista de códigos configurados
+    if 'codigos_turno' in st.session_state and codigo_str in st.session_state.codigos_turno:
+        info = st.session_state.codigos_turno[codigo_str]
+        
+        # Primero intentar extraer de la descripción
+        nombre = info.get("nombre", "")
+        
+        # Buscar patrones de hora en la descripción
+        patrones_hora = [
+            r'(\d{1,2}[:.]\d{2}\s*[AP]?M?\s*[-–—]\s*\d{1,2}[:.]\d{2}\s*[AP]?M?)',  # 8:00-17:00
+            r'(\d{1,2}\s*[AP]?M?\s*[-–—]\s*\d{1,2}\s*[AP]?M?)',  # 8 AM - 5 PM
+            r'(\d{1,2}[:.]\d{2}\s*[-–—]\s*\d{1,2}[:.]\d{2})',  # 8.00-17.00
+            r'(\d{1,2}\s*h\s*[-–—]\s*\d{1,2}\s*h)',  # 8h - 17h
+        ]
+        
+        for patron in patrones_hora:
+            match = re.search(patron, nombre, re.IGNORECASE)
+            if match:
+                hora_encontrada = match.group(1)
+                # Limpiar y formatear
+                hora_limpia = re.sub(r'\s+', ' ', hora_encontrada.strip())
+                return hora_limpia
+        
+        # Si no se encuentra patrón de hora, usar las horas configuradas
+        horas = info.get("horas", 0)
+        if horas > 0:
+            return f"{horas}h"
+    
+    # Para códigos especiales
+    codigos_especiales = {
+        "VC": "Vacaciones",
+        "CP": "Cumpleaños",
+        "PA": "Permiso",
+        "-1": "Ausente"
+    }
+    
+    if codigo_str in codigos_especiales:
+        return codigos_especiales[codigo_str]
+    
+    # Si no se puede extraer hora, devolver el código
+    return codigo_str
+
 def generar_calendario_simple(mes, ano, turnos_dict):
     """Versión minimalista pero funcional - MODIFICADA PARA MOSTRAR HORAS"""
     nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
