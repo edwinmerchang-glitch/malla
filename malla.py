@@ -1269,85 +1269,150 @@ def mostrar_leyenda():
             """, unsafe_allow_html=True)
 
 def generar_calendario_simple(mes, ano, turnos_dict):
-    """Versión ultra simple que evita problemas de HTML"""
+    """Generar calendario simple - VERSIÓN FUNCIONANDO"""
     nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
                     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     
     num_dias = calendar.monthrange(ano, mes)[1]
     
+    # Título del mes
     st.markdown(f"### 📅 {nombres_meses[mes-1]} {ano}")
     
-    # Usar columnas de Streamlit sin HTML complejo
-    dias_semana = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"]
-    
-    # Mostrar encabezados
-    cols = st.columns(7)
-    for i, dia in enumerate(dias_semana):
-        with cols[i]:
-            if i == 0:
-                st.markdown(f"<div style='color: #d32f2f;'><strong>{dia}</strong></div>", unsafe_allow_html=True)
-            elif i == 6:
-                st.markdown(f"<div style='color: #1976d2;'><strong>{dia}</strong></div>", unsafe_allow_html=True)
-            else:
-                st.markdown(f"<strong>{dia}</strong>")
-    
-    # Calcular primer día
+    # Calcular el primer día
     primer_dia = date(ano, mes, 1)
-    dia_semana = primer_dia.weekday()
-    espacios_vacios = (dia_semana + 1) % 7
+    dia_semana = primer_dia.weekday()  # 0=Lunes, 6=Domingo
+    espacios_vacios = (dia_semana + 1) % 7  # Convertir a 0=Domingo
     
-    dia_actual = 1
-    for fila in range(6):
-        if dia_actual > num_dias:
-            break
+    # Construir todo el calendario como HTML único
+    html_calendario = f"""
+    <div style="margin: 20px 0;">
+        <h4 style="text-align: center; margin-bottom: 20px;">{nombres_meses[mes-1]} {ano}</h4>
+        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center;">
+    """
+    
+    # Días de la semana
+    dias_semana = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"]
+    for i, dia in enumerate(dias_semana):
+        color = "#d32f2f" if i == 0 else "#1976d2" if i == 6 else "#333333"
+        html_calendario += f"""
+        <div style="font-weight: bold; padding: 10px; background-color: #f0f0f0; color: {color}; border-radius: 5px;">
+            {dia}
+        </div>
+        """
+    
+    # Espacios vacíos al inicio
+    for _ in range(espacios_vacios):
+        html_calendario += """
+        <div style="height: 100px; background-color: #fafafa; border-radius: 5px;"></div>
+        """
+    
+    # Días del mes
+    for dia in range(1, num_dias + 1):
+        codigo = turnos_dict.get(dia, "")
+        
+        # Determinar si es fin de semana
+        dia_semana_actual = (espacios_vacios + dia - 1) % 7
+        es_domingo = (dia_semana_actual == 0)
+        es_sabado = (dia_semana_actual == 6)
+        
+        # Color de fondo y texto
+        if codigo and str(codigo).strip() != "":
+            codigo_str = str(codigo).strip()
+            if 'codigos_turno' in st.session_state:
+                turno_info = st.session_state.codigos_turno.get(codigo_str, {})
+                color_fondo = turno_info.get("color", "#e0e0e0")
+                nombre_turno = turno_info.get("nombre", "")
+                
+                # Extraer hora del nombre
+                hora_info = ""
+                if nombre_turno:
+                    import re
+                    hora_match = re.search(r'(\d{1,2}[:.]?\d{0,2}\s*[APMapm]{0,2})\s*[-–]\s*(\d{1,2}[:.]?\d{0,2}\s*[APMapm]{0,2})', nombre_turno)
+                    if hora_match:
+                        hora_inicio = hora_match.group(1).strip()
+                        hora_fin = hora_match.group(2).strip()
+                        hora_info = f"{hora_inicio}-{hora_fin}"
+                
+                # Color del número del día
+                color_numero = "#000000"
+                if es_domingo:
+                    color_numero = "#d32f2f"
+                elif es_sabado:
+                    color_numero = "#1976d2"
+                
+                html_calendario += f"""
+                <div style="background-color: {color_fondo}; 
+                           border-radius: 8px; 
+                           padding: 8px; 
+                           height: 100px; 
+                           display: flex; 
+                           flex-direction: column; 
+                           justify-content: space-between;
+                           border: 1px solid #ddd;
+                           box-shadow: 0 2px 3px rgba(0,0,0,0.1);">
+                    <div style="font-weight: bold; color: {color_numero}; font-size: 1.1em;">
+                        {dia}
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-weight: bold; font-size: 1.3em; margin: 5px 0;">
+                            {codigo}
+                        </div>
+                        {f'<div style="font-size: 0.8em; color: #333; background: rgba(255,255,255,0.7); padding: 2px 5px; border-radius: 3px; margin-top: 5px;">{hora_info}</div>' if hora_info else ''}
+                    </div>
+                </div>
+                """
+            else:
+                # Sin información de turnos
+                color_fondo = "#e0e0e0"
+                color_numero = "#d32f2f" if es_domingo else "#1976d2" if es_sabado else "#333333"
+                
+                html_calendario += f"""
+                <div style="background-color: {color_fondo}; 
+                           border-radius: 8px; 
+                           padding: 8px; 
+                           height: 100px; 
+                           display: flex; 
+                           flex-direction: column; 
+                           justify-content: space-between;">
+                    <div style="font-weight: bold; color: {color_numero};">
+                        {dia}
+                    </div>
+                    <div style="font-weight: bold; font-size: 1.3em;">
+                        {codigo}
+                    </div>
+                </div>
+                """
+        else:
+            # Día sin turno
+            color_numero = "#d32f2f" if es_domingo else "#1976d2" if es_sabado else "#666666"
+            color_fondo = "#f8f9fa" if es_domingo or es_sabado else "#ffffff"
             
-        cols = st.columns(7)
-        for col in range(7):
-            with cols[col]:
-                if (fila == 0 and col < espacios_vacios) or dia_actual > num_dias:
-                    st.write("")
-                else:
-                    codigo = turnos_dict.get(dia_actual, "")
-                    
-                    if codigo and str(codigo).strip() != "":
-                        # Obtener información del turno
-                        codigo_str = str(codigo).strip()
-                        hora_info = ""
-                        
-                        if 'codigos_turno' in st.session_state:
-                            turno_info = st.session_state.codigos_turno.get(codigo_str, {})
-                            color = turno_info.get("color", "#e0e0e0")
-                            nombre = turno_info.get("nombre", "")
-                            
-                            # Extraer hora del nombre
-                            import re
-                            if nombre:
-                                hora_match = re.search(r'(\d{1,2}[:.]?\d{0,2})\s*[-–]\s*(\d{1,2}[:.]?\d{0,2})', nombre)
-                                if hora_match:
-                                    hora_info = f"{hora_match.group(1)}-{hora_match.group(2)}"
-                            
-                            # Crear un badge con el color
-                            badge_html = f"""
-                            <div style="background-color: {color}; 
-                                        border-radius: 6px; 
-                                        padding: 8px; 
-                                        margin: 2px;
-                                        text-align: center;">
-                                <div style="font-weight: bold; font-size: 1.1em;">{dia_actual}</div>
-                                <div style="font-weight: bold; font-size: 1.2em;">{codigo}</div>
-                                {f'<div style="font-size: 0.8em; margin-top: 4px;">{hora_info}</div>' if hora_info else ''}
-                            </div>
-                            """
-                            st.markdown(badge_html, unsafe_allow_html=True)
-                        else:
-                            # Sin información de turno
-                            st.markdown(f"**{dia_actual}**")
-                            st.markdown(f"`{codigo}`")
-                    else:
-                        # Día sin turno
-                        st.markdown(f"<div style='text-align: center; padding: 8px;'>{dia_actual}</div>", unsafe_allow_html=True)
-                    
-                    dia_actual += 1
+            html_calendario += f"""
+            <div style="background-color: {color_fondo}; 
+                       border-radius: 8px; 
+                       padding: 8px; 
+                       height: 100px; 
+                       display: flex; 
+                       flex-direction: column; 
+                       justify-content: center;
+                       border: 1px solid #eee;">
+                <div style="font-weight: bold; color: {color_numero}; font-size: 1.2em; text-align: center;">
+                    {dia}
+                </div>
+                <div style="font-size: 0.8em; color: #999; text-align: center; margin-top: 5px;">
+                    Sin turno
+                </div>
+            </div>
+            """
+    
+    # Cerrar divs
+    html_calendario += """
+        </div>
+    </div>
+    """
+    
+    # Mostrar el calendario completo
+    st.markdown(html_calendario, unsafe_allow_html=True)
 # ============================================================================
 # PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
 # ============================================================================
