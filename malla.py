@@ -1360,7 +1360,8 @@ def generar_calendario_simple(mes, ano, turnos_dict):
         hora_info = ""
         texto_mostrar = ""
         
-        if codigo and str(codigo).strip() != "":
+        # Verificar si el código es válido (no vacío ni "0")
+        if codigo and str(codigo).strip() != "" and str(codigo).strip() != "0":
             codigo_str = str(codigo).strip()
             
             # Obtener información del turno
@@ -1394,7 +1395,7 @@ def generar_calendario_simple(mes, ano, turnos_dict):
             <div style="text-align: center; height: 100%; display: flex; flex-direction: column; justify-content: center;">
         '''
         
-        if codigo and str(codigo).strip() != "":
+        if codigo and str(codigo).strip() != "" and str(codigo).strip() != "0":
             html += f'''
             <div style="font-weight: bold; font-size: {font_size}; margin: 5px 0; line-height: 1.3; word-break: break-word;">
                 {texto_mostrar}
