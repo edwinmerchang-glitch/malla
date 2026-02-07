@@ -2677,20 +2677,29 @@ def pagina_mis_turnos():
                 st.metric("Cobertura", f"{porcentaje:.1f}%")
             
             # Mostrar tabla detallada
-            st.markdown("#### 📋 Lista de Turnos")
-            
-            df_turnos = pd.DataFrame(turnos_detallados)
-            
-            # Crear tabla con colores
-            def aplicar_color_fila(row):
-                return [f'background-color: {row["Color"]}' for _ in row]
-            
-            styled_df = df_turnos.style.apply(aplicar_color_fila, axis=1)
-            st.dataframe(
-                styled_df[['Día', 'Código', 'Turno', 'Horas']],
-                use_container_width=True,
-                hide_index=True
-            )
+            # Mostrar tabla detallada
+st.markdown("#### 📋 Lista de Turnos")
+
+df_turnos = pd.DataFrame(turnos_detallados)
+
+# Crear tabla con colores - VERSIÓN CORREGIDA
+def aplicar_color_fila(row):
+    # Obtener el color de la fila original
+    color = df_turnos.loc[row.name, 'Color'] if row.name in df_turnos.index else '#FFFFFF'
+    return [f'background-color: {color}' for _ in row]
+
+# Primero seleccionar solo las columnas que queremos mostrar
+df_display = df_turnos[['Día', 'Código', 'Turno', 'Horas']].copy()
+
+# Aplicar el estilo al DataFrame de visualización
+styled_df = df_display.style.apply(aplicar_color_fila, axis=1)
+
+# Mostrar el DataFrame
+st.dataframe(
+    styled_df,
+    use_container_width=True,
+    hide_index=True
+)
             
             # Mostrar leyenda
             with st.expander("🎨 Leyenda de códigos", expanded=False):
