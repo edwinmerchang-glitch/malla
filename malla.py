@@ -1022,7 +1022,7 @@ def inicializar_session_state():
 # ============================================================================
 def pagina_login():
     """Página de inicio de sesión"""
-    st.markdown("<h1 class='main-header'>🔐 Malla de Turnos Locatel Restrepo</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='main-header'>Malla de Turnos Locatel Restrepo</h1>", unsafe_allow_html=True)
     
     # Mostrar advertencia de Streamlit Cloud
     #if IS_STREAMLIT_CLOUD:
