@@ -1039,7 +1039,7 @@ def pagina_login():
         with col2:
             st.markdown("""
             <div class="info-card">
-                <h3 style="text-align: center; color: #1E3A8A;">Inicio de Sesión</h3>
+                <h3 style="text-align: center; color: #1E3A8A;">Malla de Turnos Locatel Restrepo</h3>
                 <p style="text-align: center; color: #6c757d;">Ingrese sus credenciales para acceder</p>
             </div>
             """, unsafe_allow_html=True)
