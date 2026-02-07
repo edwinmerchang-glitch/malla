@@ -1269,7 +1269,7 @@ def mostrar_leyenda():
             """, unsafe_allow_html=True)
 
 def generar_calendario_simple(mes, ano, turnos_dict):
-    """Generar calendario simple - VERSIÓN CORREGIDA"""
+    """Generar calendario simple - VERSIÓN CORREGIDA CON HTML CORRECTO"""
     nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
                     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     
@@ -1283,13 +1283,12 @@ def generar_calendario_simple(mes, ano, turnos_dict):
     
     for idx, dia in enumerate(dias_semana):
         with cols[idx]:
-            estilo_header = "text-align: center; font-weight: bold; padding: 8px;"
             if idx == 0:  # Domingo
-                st.markdown(f"<div style='{estilo_header} color: #d32f2f;'>DOM</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='text-align: center; font-weight: bold; padding: 8px; color: #d32f2f;'>DOM</div>", unsafe_allow_html=True)
             elif idx == 6:  # Sábado
-                st.markdown(f"<div style='{estilo_header} color: #1976d2;'>SÁB</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='text-align: center; font-weight: bold; padding: 8px; color: #1976d2;'>SÁB</div>", unsafe_allow_html=True)
             else:
-                st.markdown(f"<div style='{estilo_header}'>{dia}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='text-align: center; font-weight: bold; padding: 8px;'>{dia}</div>", unsafe_allow_html=True)
     
     # Calcular el primer día
     primer_dia = date(ano, mes, 1)
@@ -1327,35 +1326,11 @@ def generar_calendario_simple(mes, ano, turnos_dict):
                             turno_info = st.session_state.codigos_turno.get(codigo_str, {})
                             color = turno_info.get("color", "#e0e0e0")
                             nombre_turno = turno_info.get("nombre", f"Turno {codigo_str}")
-                        else:
-                            # Colores por defecto
-                            colores_default = {
-                                "20": "#FF6B6B", "15": "#4ECDC4", "70": "#FFD166",
-                                "155": "#06D6A0", "151": "#118AB2", "177": "#EF476F",
-                                "149": "#073B4C", "26": "#7209B7", "158": "#F15BB5",
-                                "214": "#00BBF9", "VC": "#9B5DE5", "CP": "#00F5D4",
-                                "PA": "#FF9E00", "-1": "#E0E0E0"
-                            }
-                            color = colores_default.get(codigo_str, "#e0e0e0")
-                            nombre_turno = f"Turno {codigo_str}"
                     
                     # Determinar si es fin de semana
                     dia_semana_actual = (espacios_vacios + dia_actual - 1) % 7
                     es_domingo = (dia_semana_actual == 0)
                     es_sabado = (dia_semana_actual == 6)
-                    
-                    # Estilos del día
-                    estilo_base = f"""
-                    background-color: {color};
-                    border-radius: 5px;
-                    padding: 8px;
-                    text-align: center;
-                    height: 80px;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: center;
-                    align-items: center;
-                    """
                     
                     # Color del texto del número del día
                     color_numero = "#000000"
@@ -1364,9 +1339,18 @@ def generar_calendario_simple(mes, ano, turnos_dict):
                     elif es_sabado:
                         color_numero = "#1976d2"
                     
-                    # Construir el HTML del día
+                    # Construir el HTML del día como una sola cadena
                     html_dia = f"""
-                    <div style="{estilo_base}">
+                    <div style="background-color: {color};
+                        border-radius: 5px;
+                        padding: 8px;
+                        text-align: center;
+                        height: 80px;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        border: 1px solid #e0e0e0;">
                         <div style="font-weight: bold; font-size: 1.2em; color: {color_numero};">
                             {dia_actual}
                         </div>
@@ -1405,6 +1389,7 @@ def generar_calendario_simple(mes, ano, turnos_dict):
                     
                     html_dia += "</div>"
                     
+                    # Mostrar el día
                     st.markdown(html_dia, unsafe_allow_html=True)
                     
                     dia_actual += 1
