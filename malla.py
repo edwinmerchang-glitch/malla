@@ -1330,7 +1330,7 @@ def extraer_horas_desde_codigo(codigo):
     return codigo_str
 
 def generar_calendario_simple(mes, ano, turnos_dict):
-    """Versión completamente corregida del calendario"""
+    """Versión ultra-simple y robusta"""
     nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
                     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     
@@ -1341,96 +1341,47 @@ def generar_calendario_simple(mes, ano, turnos_dict):
     dia_semana = primer_dia.weekday()
     espacios_vacios = (dia_semana + 1) % 7
     
-    # HTML simple
-    html_parts = []
-    html_parts.append('<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 15px;">')
+    # Crear calendario con HTML básico pero correcto
+    html = '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 15px;">'
     
     # Días de semana
-    dias_semana = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"]
-    for dia in dias_semana:
-        html_parts.append(f'<div style="text-align: center; font-weight: bold; padding: 8px 0; background: #f5f5f5; border-radius: 4px;">{dia}</div>')
+    for dia in ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"]:
+        html += f'<div style="text-align: center; font-weight: bold; padding: 8px; background: #f5f5f5; border-radius: 4px;">{dia}</div>'
     
     # Espacios vacíos
     for _ in range(espacios_vacios):
-        html_parts.append('<div></div>')
+        html += '<div></div>'
     
-    # Días
+    # Días del mes
     for dia in range(1, num_dias + 1):
         codigo = turnos_dict.get(dia, "")
+        color = "#f8f9fa"
+        texto = "-"
+        codigo_mostrar = ""
         
-        # Determinar si hay un código válido
-        tiene_codigo = codigo and str(codigo).strip() != "" and str(codigo).strip() != "0"
-        
-        if tiene_codigo:
+        if codigo and str(codigo).strip() not in ["", "0"]:
             codigo_str = str(codigo).strip()
-            # Obtener información del turno
             if 'codigos_turno' in st.session_state and codigo_str in st.session_state.codigos_turno:
-                turno_info = st.session_state.codigos_turno[codigo_str]
-                color_fondo = turno_info.get("color", "#e0e0e0")
-                texto = extraer_horas_desde_codigo(codigo_str)
-                if not texto:
-                    texto = turno_info.get("nombre", codigo_str)
-            else:
-                color_fondo = "#e0e0e0"
-                texto = codigo_str
-        else:
-            color_fondo = "#f8f9fa"
-            texto = "-"
+                info = st.session_state.codigos_turno[codigo_str]
+                color = info.get("color", "#e0e0e0")
+                texto = info.get("nombre", codigo_str)
+                codigo_mostrar = codigo_str
         
-        # Ajustar tamaño de texto
-        font_size = "0.85em" if len(texto) > 10 else "1em"
-        
-        # Construir el HTML para este día
-        dia_html = f'''
-        <div style="background: {color_fondo}; border-radius: 6px; padding: 10px; min-height: 100px; 
-                    display: flex; flex-direction: column; justify-content: space-between; border: 1px solid #e0e0e0;">
+        html += f'''
+        <div style="background: {color}; border-radius: 6px; padding: 10px; min-height: 100px; border: 1px solid #e0e0e0;">
             <div style="font-weight: bold; font-size: 1.2em; text-align: right;">{dia}</div>
-            <div style="text-align: center; height: 100%; display: flex; flex-direction: column; justify-content: center;">
+            <div style="text-align: center; margin-top: 20px;">
+                <div style="font-weight: bold; font-size: 0.9em;">{texto}</div>
         '''
         
-        if tiene_codigo:
-            dia_html += f'''
-                <div style="font-weight: bold; font-size: {font_size}; margin: 5px 0; line-height: 1.3; word-break: break-word;">
-                    {texto}
-                </div>
-            '''
-            
-            # Mostrar código pequeño si estamos mostrando hora
-            if texto != codigo_str:
-                dia_html += f'<div style="font-size: 0.7em; opacity: 0.7; margin-top: 5px;">[{codigo_str}]</div>'
-        else:
-            dia_html += f'<div style="font-size: 1em; color: #999;">-</div>'
+        if codigo_mostrar:
+            html += f'<div style="font-size: 0.7em; opacity: 0.7; margin-top: 5px;">[{codigo_mostrar}]</div>'
         
-        # Cerrar los divs
-        dia_html += '''
-            </div>
-        </div>
-        '''
-        
-        html_parts.append(dia_html)
+        html += '</div></div>'
     
-    html_parts.append('</div>')
+    html += '</div>'
     
-    # Unir todo el HTML
-    html_completo = '\n'.join(html_parts)
-    st.markdown(html_completo, unsafe_allow_html=True)
-    
-    # Añadir leyenda si hay turnos
-    if any(turnos_dict.values()):
-        with st.expander("📝 Notas", expanded=False):
-            st.markdown("""
-            **Formato del calendario:**
-            - Número grande: Día del mes
-            - Texto principal: Horario del turno (si disponible)
-            - Texto pequeño `[XX]`: Código del turno
-            - Fondo coloreado: Tipo de turno según la leyenda
-            
-            **Para códigos sin horario específico:**
-            - `VC`: Vacaciones
-            - `CP`: Cumpleaños  
-            - `PA`: Permiso Administrativo
-            - `-1`: Ausente
-            """)
+    st.markdown(html, unsafe_allow_html=True)
 # ============================================================================
 # PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
 # ============================================================================
