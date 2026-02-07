@@ -24,6 +24,7 @@ import time
 import pytz
 import tempfile
 import sys
+import re
 
 # ============================================================================
 # CONFIGURACIÓN INICIAL
