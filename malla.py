@@ -1278,7 +1278,7 @@ def extraer_horas_desde_codigo(codigo):
     2. De las horas configuradas
     3. Retorna el código si no se puede extraer hora
     """
-    if not codigo or str(codigo).strip() == "":
+    if not codigo or str(codigo).strip() == "" or str(codigo).strip() == "0":
         return ""
     
     codigo_str = str(codigo).strip()
@@ -1321,6 +1321,10 @@ def extraer_horas_desde_codigo(codigo):
     
     if codigo_str in codigos_especiales:
         return codigos_especiales[codigo_str]
+    
+    # Si el código es solo un número (y no está en la lista de códigos)
+    if codigo_str.isdigit() and int(codigo_str) == 0:
+        return ""
     
     # Si no se puede extraer hora, devolver el código
     return codigo_str
