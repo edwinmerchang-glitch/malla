@@ -1269,215 +1269,64 @@ def mostrar_leyenda():
             """, unsafe_allow_html=True)
 
 def generar_calendario_simple(mes, ano, turnos_dict):
-    """Generar calendario simple - VERSIÓN MEJORADA CON HORAS"""
+    """Versión minimalista pero funcional"""
     nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
                     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     
     st.markdown(f"### 📅 {nombres_meses[mes-1]} {ano}")
     
-    # Calcular días del mes
     num_dias = calendar.monthrange(ano, mes)[1]
     primer_dia = date(ano, mes, 1)
-    dia_semana = primer_dia.weekday()  # 0=Lunes
-    espacios_vacios = (dia_semana + 1) % 7  # 0=Domingo
+    dia_semana = primer_dia.weekday()
+    espacios_vacios = (dia_semana + 1) % 7
     
-    # Construir HTML completo
-    html = '''
-    <div style="width: 100%; font-family: Arial, sans-serif;">
-        <!-- Encabezados de días -->
-        <div style="display: flex; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px;">
-    '''
+    # HTML simple
+    html = '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 15px;">'
     
-    # Días de la semana
+    # Días de semana
     dias_semana = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"]
-    for i, dia in enumerate(dias_semana):
-        color = "#d32f2f" if i == 0 else "#1976d2" if i == 6 else "#333333"
-        html += f'''
-        <div style="flex: 1; text-align: center; font-weight: bold; color: {color}; 
-                    padding: 10px 5px; font-size: 0.9em;">
-            {dia}
-        </div>
-        '''
+    for dia in dias_semana:
+        html += f'<div style="text-align: center; font-weight: bold; padding: 8px 0; background: #f5f5f5; border-radius: 4px;">{dia}</div>'
     
-    html += '''
-        </div>
-        
-        <!-- Grid de días -->
-        <div style="display: flex; flex-wrap: wrap;">
-    '''
-    
-    # Espacios vacíos al inicio
+    # Espacios vacíos
     for _ in range(espacios_vacios):
-        html += '''
-        <div style="flex: 0 0 14.28%; height: 120px; margin: 2px; 
-                    background: linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%); 
-                    border-radius: 8px; border: 1px dashed #ddd;">
-        </div>
-        '''
+        html += '<div></div>'
     
-    # Días del mes
+    # Días
     for dia in range(1, num_dias + 1):
         codigo = turnos_dict.get(dia, "")
-        
-        # Determinar si es fin de semana
-        dia_semana_actual = (espacios_vacios + dia - 1) % 7
-        es_domingo = (dia_semana_actual == 0)
-        es_sabado = (dia_semana_actual == 6)
-        
-        # Obtener información del turno
         color_fondo = "#ffffff"
         hora_info = ""
-        nombre_turno = ""
         
-        if codigo and str(codigo).strip() != "":
+        if codigo:
             codigo_str = str(codigo).strip()
             if 'codigos_turno' in st.session_state:
                 turno_info = st.session_state.codigos_turno.get(codigo_str, {})
                 color_fondo = turno_info.get("color", "#e0e0e0")
-                nombre_turno = turno_info.get("nombre", "")
+                nombre = turno_info.get("nombre", "")
                 
-                # Extraer información de horas
+                # Extraer hora
                 import re
-                
-                # Buscar formato de hora (ej: "8 AM - 5 PM" o "08:00-17:00")
-                patrones = [
-                    r'(\d{1,2}\s*[APMapm]{2})\s*[-–]\s*(\d{1,2}\s*[APMapm]{2})',  # 8 AM - 5 PM
-                    r'(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})',  # 08:00-17:00
-                    r'(\d{1,2})\s*[-–]\s*(\d{1,2})',  # 8-5
-                    r'(\d{1,2}:\d{2})\s*a\s*(\d{1,2}:\d{2})',  # 08:00 a 17:00
-                ]
-                
-                for patron in patrones:
-                    match = re.search(patron, nombre_turno, re.IGNORECASE)
-                    if match:
-                        hora_inicio = match.group(1).strip()
-                        hora_fin = match.group(2).strip()
-                        hora_info = f"{hora_inicio}-{hora_fin}"
-                        break
+                match = re.search(r'(\d{1,2}[:.]?\d{0,2})\s*[-–]\s*(\d{1,2}[:.]?\d{0,2})', nombre)
+                if match:
+                    hora_info = f"{match.group(1)}-{match.group(2)}"
         
-        # Color del número del día
-        color_numero = "#000000"
-        borde_especial = "2px solid"
-        color_borde = ""
-        
-        if es_domingo:
-            color_numero = "#d32f2f"
-            color_borde = "#d32f2f"
-        elif es_sabado:
-            color_numero = "#1976d2"
-            color_borde = "#1976d2"
-        else:
-            borde_especial = "1px solid #ddd"
-        
-        # Construir el día
         html += f'''
-        <div style="flex: 0 0 14.28%; height: 120px; margin: 2px; 
-                    background: {color_fondo}; 
-                    border-radius: 10px; 
-                    border: {borde_especial} {color_borde if color_borde else '#ddd'};
-                    padding: 10px; 
-                    display: flex; 
-                    flex-direction: column; 
-                    justify-content: space-between;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-                    transition: transform 0.2s, box-shadow 0.2s;"
-            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.1)';"
-            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.05)';">
-            
-            <!-- Número del día -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                <div style="font-weight: bold; color: {color_numero}; font-size: 1.3em;">
-                    {dia}
-                </div>
+        <div style="background: {color_fondo}; border-radius: 6px; padding: 10px; min-height: 100px; 
+                    display: flex; flex-direction: column; justify-content: space-between; border: 1px solid #e0e0e0;">
+            <div style="font-weight: bold; font-size: 1.2em;">{dia}</div>
+            <div style="text-align: center;">
         '''
         
-        # Mostrar número del día de semana pequeño
-        if es_domingo or es_sabado:
-            dia_semana_text = "DOM" if es_domingo else "SÁB"
-            html += f'''
-                <div style="font-size: 0.7em; font-weight: bold; color: {color_numero}; 
-                          background: rgba(255,255,255,0.3); padding: 1px 4px; border-radius: 3px;">
-                    {dia_semana_text}
-                </div>
-            '''
+        if codigo:
+            html += f'<div style="font-weight: bold; font-size: 1.3em; margin: 5px 0;">{codigo}</div>'
+            if hora_info:
+                html += f'<div style="font-size: 0.75em; margin-top: 5px; line-height: 1.2;">{hora_info}</div>'
         
-        html += '''
-            </div>
-            
-            <!-- Contenido del turno -->
-            <div style="text-align: center; flex-grow: 1; display: flex; 
-                      flex-direction: column; justify-content: center;">
-        '''
-        
-        if codigo and str(codigo).strip() != "":
-            html += f'''
-                <!-- Código del turno -->
-                <div style="font-weight: bold; font-size: 1.4em; margin: 5px 0; 
-                          text-shadow: 1px 1px 2px rgba(0,0,0,0.1);">
-                    {codigo}
-                </div>
-                
-                <!-- Nombre corto del turno -->
-                <div style="font-size: 0.75em; color: #555; margin-bottom: 3px; 
-                          font-style: italic; line-height: 1.2;">
-            '''
-            
-            # Mostrar nombre corto si está disponible
-            if nombre_turno:
-                # Extraer solo la parte de horas o mostrar nombre corto
-                if hora_info:
-                    html += hora_info
-                else:
-                    # Acortar nombre largo
-                    if len(nombre_turno) > 15:
-                        nombre_corto = nombre_turno[:12] + "..."
-                        html += nombre_corto
-                    else:
-                        html += nombre_turno
-            
-            html += '''
-                </div>
-            '''
-            
-            # Mostrar horas específicas si se encontraron
-            if hora_info and ("AM" in hora_info.upper() or "PM" in hora_info.upper()):
-                html += f'''
-                <!-- Horas específicas -->
-                <div style="font-size: 0.75em; font-weight: bold; color: #333; 
-                          background: rgba(255,255,255,0.7); 
-                          padding: 3px 6px; border-radius: 4px; 
-                          margin-top: 5px; line-height: 1.2;">
-                    {hora_info}
-                </div>
-                '''
-        else:
-            # Día sin turno
-            html += '''
-                <div style="font-size: 0.85em; color: #888; font-style: italic; 
-                          margin: auto 0; line-height: 1.2;">
-                    Sin turno
-                </div>
-            '''
-        
-        html += '''
-            </div>
-        </div>
-        '''
+        html += '</div></div>'
     
-    # Cerrar divs
-    html += '''
-        </div>
-    </div>
-    '''
-    
-    # Mostrar calendario
+    html += '</div>'
     st.markdown(html, unsafe_allow_html=True)
-    
-    # Mostrar leyenda si hay turnos
-    if any(codigo and str(codigo).strip() != "" for codigo in turnos_dict.values()):
-        with st.expander("🎨 Leyenda de Códigos", expanded=False):
-            mostrar_leyenda()
-)
 # ============================================================================
 # PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
 # ============================================================================
