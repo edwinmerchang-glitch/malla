@@ -2940,7 +2940,7 @@ def main():
     
     if IS_STREAMLIT_CLOUD:
         backups = list(BACKUP_DIR.glob("turnos_backup_*.db"))
-        footer_text += f"
+        footer_text += f"| ☁️ Backups: {len(backups)}"
     
     footer_text += "</div>"
     
