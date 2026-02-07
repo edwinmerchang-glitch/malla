@@ -1269,7 +1269,7 @@ def mostrar_leyenda():
             """, unsafe_allow_html=True)
 
 def generar_calendario_simple(mes, ano, turnos_dict):
-    """Generar calendario simple - VERSIÓN COMPLETAMENTE CORREGIDA"""
+    """Versión ultra simple que evita problemas de HTML"""
     nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
                     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     
@@ -1277,116 +1277,77 @@ def generar_calendario_simple(mes, ano, turnos_dict):
     
     st.markdown(f"### 📅 {nombres_meses[mes-1]} {ano}")
     
-    # Encabezados de días de la semana
+    # Usar columnas de Streamlit sin HTML complejo
     dias_semana = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"]
+    
+    # Mostrar encabezados
     cols = st.columns(7)
-    
-    for idx, dia in enumerate(dias_semana):
-        with cols[idx]:
-            if idx == 0:  # Domingo
-                st.markdown(f"<div style='text-align: center; font-weight: bold; padding: 8px; color: #d32f2f;'>DOM</div>", unsafe_allow_html=True)
-            elif idx == 6:  # Sábado
-                st.markdown(f"<div style='text-align: center; font-weight: bold; padding: 8px; color: #1976d2;'>SÁB</div>", unsafe_allow_html=True)
+    for i, dia in enumerate(dias_semana):
+        with cols[i]:
+            if i == 0:
+                st.markdown(f"<div style='color: #d32f2f;'><strong>{dia}</strong></div>", unsafe_allow_html=True)
+            elif i == 6:
+                st.markdown(f"<div style='color: #1976d2;'><strong>{dia}</strong></div>", unsafe_allow_html=True)
             else:
-                st.markdown(f"<div style='text-align: center; font-weight: bold; padding: 8px;'>{dia}</div>", unsafe_allow_html=True)
+                st.markdown(f"<strong>{dia}</strong>")
     
-    # Calcular el primer día
+    # Calcular primer día
     primer_dia = date(ano, mes, 1)
-    dia_semana = primer_dia.weekday()  # 0=Lunes, 6=Domingo
-    espacios_vacios = (dia_semana + 1) % 7  # Convertir a 0=Domingo
+    dia_semana = primer_dia.weekday()
+    espacios_vacios = (dia_semana + 1) % 7
     
-    # Generar calendario usando un enfoque diferente
     dia_actual = 1
-    
-    # Crear un contenedor para todo el calendario
-    calendario_html = "<div style='display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;'>"
-    
-    # Agregar espacios vacíos al inicio
-    for _ in range(espacios_vacios):
-        calendario_html += "<div style='height: 100px;'></div>"
-    
-    # Agregar los días del mes
-    for dia in range(1, num_dias + 1):
-        # Obtener código del turno
-        codigo = turnos_dict.get(dia, "")
-        
-        # Obtener información del turno
-        color = "#f8f9fa"  # Color de fondo por defecto
-        horas_info = ""
-        
-        if codigo and str(codigo).strip() != "":
-            codigo_str = str(codigo).strip()
+    for fila in range(6):
+        if dia_actual > num_dias:
+            break
             
-            # Obtener información del turno
-            if 'codigos_turno' in st.session_state:
-                turno_info = st.session_state.codigos_turno.get(codigo_str, {})
-                color = turno_info.get("color", "#e0e0e0")
-                nombre_turno = turno_info.get("nombre", f"Turno {codigo_str}")
-                
-                # Extraer hora del nombre
-                import re
-                hora_match = re.search(r'(\d{1,2}[:.]?\d{0,2})\s*[-–]\s*(\d{1,2}[:.]?\d{0,2})', nombre_turno)
-                if hora_match:
-                    hora_inicio = hora_match.group(1).strip()
-                    hora_fin = hora_match.group(2).strip()
-                    horas_info = f"{hora_inicio}-{hora_fin}"
-        
-        # Determinar si es fin de semana
-        dia_semana_actual = (espacios_vacios + dia - 1) % 7
-        es_domingo = (dia_semana_actual == 0)
-        es_sabado = (dia_semana_actual == 6)
-        
-        # Color del texto del número del día
-        color_numero = "#000000"
-        if es_domingo:
-            color_numero = "#d32f2f"
-        elif es_sabado:
-            color_numero = "#1976d2"
-        
-        # Construir HTML para este día
-        dia_html = f"""
-        <div style="background-color: {color}; 
-                    border-radius: 8px; 
-                    padding: 8px; 
-                    height: 100px; 
-                    display: flex; 
-                    flex-direction: column; 
-                    justify-content: space-between;
-                    border: 1px solid #e0e0e0;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="font-weight: bold; font-size: 1.1em; color: {color_numero};">
-                {dia}
-            </div>
-            <div style="text-align: center;">
-        """
-        
-        if codigo and str(codigo).strip() != "":
-            dia_html += f"""
-                <div style="font-weight: bold; font-size: 1.2em; margin-bottom: 4px;">
-                    {codigo}
-                </div>
-            """
-            
-            if horas_info:
-                dia_html += f"""
-                    <div style="font-size: 0.75em; color: #444; background-color: rgba(255,255,255,0.7); 
-                              padding: 2px 4px; border-radius: 4px;">
-                        {horas_info}
-                    </div>
-                """
-        
-        dia_html += """
-            </div>
-        </div>
-        """
-        
-        calendario_html += dia_html
-    
-    # Cerrar el contenedor del calendario
-    calendario_html += "</div>"
-    
-    # Mostrar todo el calendario de una vez
-    st.markdown(calendario_html, unsafe_allow_html=True)
+        cols = st.columns(7)
+        for col in range(7):
+            with cols[col]:
+                if (fila == 0 and col < espacios_vacios) or dia_actual > num_dias:
+                    st.write("")
+                else:
+                    codigo = turnos_dict.get(dia_actual, "")
+                    
+                    if codigo and str(codigo).strip() != "":
+                        # Obtener información del turno
+                        codigo_str = str(codigo).strip()
+                        hora_info = ""
+                        
+                        if 'codigos_turno' in st.session_state:
+                            turno_info = st.session_state.codigos_turno.get(codigo_str, {})
+                            color = turno_info.get("color", "#e0e0e0")
+                            nombre = turno_info.get("nombre", "")
+                            
+                            # Extraer hora del nombre
+                            import re
+                            if nombre:
+                                hora_match = re.search(r'(\d{1,2}[:.]?\d{0,2})\s*[-–]\s*(\d{1,2}[:.]?\d{0,2})', nombre)
+                                if hora_match:
+                                    hora_info = f"{hora_match.group(1)}-{hora_match.group(2)}"
+                            
+                            # Crear un badge con el color
+                            badge_html = f"""
+                            <div style="background-color: {color}; 
+                                        border-radius: 6px; 
+                                        padding: 8px; 
+                                        margin: 2px;
+                                        text-align: center;">
+                                <div style="font-weight: bold; font-size: 1.1em;">{dia_actual}</div>
+                                <div style="font-weight: bold; font-size: 1.2em;">{codigo}</div>
+                                {f'<div style="font-size: 0.8em; margin-top: 4px;">{hora_info}</div>' if hora_info else ''}
+                            </div>
+                            """
+                            st.markdown(badge_html, unsafe_allow_html=True)
+                        else:
+                            # Sin información de turno
+                            st.markdown(f"**{dia_actual}**")
+                            st.markdown(f"`{codigo}`")
+                    else:
+                        # Día sin turno
+                        st.markdown(f"<div style='text-align: center; padding: 8px;'>{dia_actual}</div>", unsafe_allow_html=True)
+                    
+                    dia_actual += 1
 # ============================================================================
 # PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
 # ============================================================================
