@@ -1936,6 +1936,9 @@ def mostrar_estadisticas_avanzadas(mes, ano):
 # ============================================================================
 # PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
 # ============================================================================
+# ============================================================================
+# PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
+# ============================================================================
 def pagina_malla():
     """Página principal - Malla de turnos CON ESTADÍSTICAS - Optimizada para móvil"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
@@ -1985,7 +1988,6 @@ def pagina_malla():
     else:
         mostrar_leyenda(inside_expander=True)
     
-      
     if st.session_state.malla_actual.empty:
         st.warning("⚠️ No hay malla de turnos cargada. Presiona 'Cargar Malla' para ver los datos.")
     else:
@@ -2000,16 +2002,24 @@ def pagina_malla():
             malla_editable = st.session_state.malla_actual.copy()
             column_config = {}
             day_columns = [col for col in malla_editable.columns if '/' in str(col)]
-            opciones_codigos = list(st.session_state.codigos_turno.keys())
-            if "" in opciones_codigos:
-                opciones_codigos.remove("")
             
+            # Obtener opciones de códigos para los selectboxes
+            if 'codigos_turno' in st.session_state:
+                opciones_codigos = list(st.session_state.codigos_turno.keys())
+                # Filtrar código vacío si existe
+                if "" in opciones_codigos:
+                    opciones_codigos.remove("")
+            else:
+                opciones_codigos = []
+            
+            # Configurar columnas - CORRECCIÓN AQUÍ
             for col in malla_editable.columns:
                 if col in day_columns:
+                    # Esta es la parte importante: SelectboxColumn debe tener opciones válidas
                     column_config[col] = st.column_config.SelectboxColumn(
                         col,
                         width="small",
-                        options=[""] + opciones_codigos,
+                        options=[""] + opciones_codigos,  # Incluye opción vacía
                         help="Selecciona el código del turno"
                     )
                 elif col in ['N°', 'CC']:
@@ -2018,6 +2028,15 @@ def pagina_malla():
                     column_config[col] = st.column_config.Column(width="medium", disabled=True)
                 elif col in ['CARGO', 'DEPARTAMENTO', 'ESTADO']:
                     column_config[col] = st.column_config.Column(disabled=True)
+            
+            # Asegurarse de que todas las celdas de días tengan valores válidos
+            for col in day_columns:
+                # Reemplazar valores NaN o inválidos con cadena vacía
+                malla_editable[col] = malla_editable[col].fillna("").astype(str)
+                # Filtrar valores que no estén en las opciones
+                for idx, val in enumerate(malla_editable[col]):
+                    if val not in [""] + opciones_codigos:
+                        malla_editable.at[idx, col] = ""
             
             edited_df = st.data_editor(
                 malla_editable,
