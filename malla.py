@@ -36,6 +36,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Agregar esta línea para mobile
+st.markdown("""
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+""", unsafe_allow_html=True)
+
 # ============================================================================
 # DETECTAR SI ESTAMOS EN STREAMLIT CLOUD
 # ============================================================================
@@ -58,16 +63,69 @@ else:
 BACKUP_DIR.mkdir(exist_ok=True, parents=True)
 
 # ============================================================================
-# CSS PERSONALIZADO
+# CSS PERSONALIZADO (MOBILE-FIRST)
 # ============================================================================
 st.markdown("""
 <style>
+    /* Configuración base para móviles */
+    @media (max-width: 768px) {
+        .main-header {
+            font-size: 1.8rem !important;
+            text-align: center;
+            padding: 10px 5px;
+            margin-bottom: 1rem;
+        }
+        
+        /* Ajustar columnas para móviles */
+        .stDataFrame {
+            overflow-x: auto !important;
+            font-size: 0.9em !important;
+        }
+        
+        /* Botones más grandes en móvil */
+        .stButton > button {
+            width: 100% !important;
+            margin: 5px 0;
+            padding: 12px !important;
+            font-size: 1em !important;
+        }
+        
+        /* Inputs más grandes */
+        .stTextInput > div > div > input,
+        .stSelectbox > div > div > select,
+        .stNumberInput > div > div > input {
+            font-size: 16px !important; /* Previene zoom en iOS */
+            padding: 12px !important;
+        }
+        
+        /* Sidebar ajustable */
+        .css-1d391kg {
+            width: 100% !important;
+        }
+        
+        /* Tablas scrollables */
+        .dataframe {
+            font-size: 0.8em !important;
+        }
+        
+        /* Ajustar métricas */
+        .metric-value {
+            font-size: 1.5em !important;
+        }
+        
+        .metric-label {
+            font-size: 0.8em !important;
+        }
+    }
+    
+    /* Estilos generales */
     .main-header {
         font-size: 2.5rem;
         color: #1E3A8A;
         text-align: center;
         margin-bottom: 2rem;
     }
+    
     .auto-save-notice {
         background-color: #e8f4fd;
         color: #0c5460;
@@ -76,7 +134,9 @@ st.markdown("""
         border: 1px solid #bee5eb;
         margin: 10px 0;
         text-align: center;
+        font-size: 0.9em;
     }
+    
     .metric-card {
         background-color: #f8f9fa;
         padding: 15px;
@@ -84,12 +144,16 @@ st.markdown("""
         border: 1px solid #dee2e6;
         margin-bottom: 10px;
     }
+    
     .info-card {
         background-color: #f8f9fa;
-        padding: 20px;
+        padding: 15px;
         border-radius: 10px;
         border: 1px solid #dee2e6;
+        margin: 10px 0;
+        font-size: 0.9em;
     }
+    
     .streamlit-cloud-warning {
         background-color: #fff3cd;
         color: #856404;
@@ -99,24 +163,73 @@ st.markdown("""
         margin: 10px 0;
         text-align: center;
         font-weight: bold;
+        font-size: 0.9em;
     }
-    /* AGREGAR ESTO: */
+    
     .stat-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        padding: 15px;
+        padding: 12px;
         border-radius: 10px;
         margin: 5px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        font-size: 0.9em;
     }
+    
     .stat-value {
-        font-size: 1.8em;
+        font-size: 1.5em;
         font-weight: bold;
         margin: 5px 0;
     }
+    
     .stat-label {
-        font-size: 0.9em;
+        font-size: 0.8em;
         opacity: 0.9;
+    }
+    
+    /* Botones táctiles (mejor para móvil) */
+    .mobile-friendly-btn {
+        padding: 14px 20px !important;
+        margin: 8px 0;
+        border-radius: 8px !important;
+        font-size: 1em !important;
+        min-height: 48px !important; /* Tamaño táctil mínimo */
+    }
+    
+    /* Contenedores responsivos */
+    .mobile-container {
+        padding: 10px !important;
+        margin: 5px !important;
+    }
+    
+    /* Tablas responsivas */
+    .responsive-table {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important; /* Scroll suave en iOS */
+    }
+    
+    /* Ajustar dataframes para móvil */
+    div[data-testid="stDataFrame"] {
+        font-size: 0.85em !important;
+    }
+    
+    /* Expanders más grandes en móvil */
+    .streamlit-expanderHeader {
+        padding: 12px !important;
+        font-size: 1em !important;
+    }
+    
+    /* Ajustar columnas en móvil */
+    @media (max-width: 768px) {
+        .stColumn {
+            padding: 5px !important;
+        }
+        
+        /* Reduce el padding en dataframes */
+        .dataframe th, .dataframe td {
+            padding: 6px 4px !important;
+            min-width: 50px !important;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1097,33 +1210,40 @@ def pagina_login():
 # COMPONENTES DE INTERFAZ
 # ============================================================================
 def mostrar_barra_usuario():
-    """Mostrar barra superior con información del usuario"""
+    """Mostrar barra superior con información del usuario - Optimizado para móvil"""
     if st.session_state.auth['is_authenticated']:
         user_info = st.session_state.auth['user_data']
         
-        col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+        # En móvil, mostramos menos información
+        col1, col2 = st.columns([3, 2])
         
         with col1:
             st.markdown(f"""
-            <div style="background-color: #1E3A8A; color: white; padding: 10px 20px; 
-                        border-radius: 5px; margin-bottom: 20px;">
-                <strong>👤 {user_info['nombre']}</strong> | 
-                <span>Rol: {st.session_state.auth['role'].title()}</span> |
-                <span>Depto: {user_info.get('departamento', 'N/A')}</span>
+            <div style="background-color: #1E3A8A; color: white; padding: 8px 15px; 
+                       border-radius: 5px; margin-bottom: 10px; font-size: 0.9em;">
+                <div><strong>👤 {user_info['nombre'].split()[0] if user_info['nombre'] else 'Usuario'}</strong></div>
+                <div style="font-size: 0.8em;">
+                    {st.session_state.auth['role'].title()} | {user_info.get('departamento', 'N/A')}
+                </div>
             </div>
             """, unsafe_allow_html=True)
         
         with col2:
-            if st.session_state.last_save:
-                tiempo_transcurrido = obtener_hora_colombia() - st.session_state.last_save
-                minutos = int(tiempo_transcurrido.total_seconds() / 60)
-                if minutos < 1:
-                    tiempo_texto = "Ahora"
-                elif minutos == 1:
-                    tiempo_texto = "Hace 1 minuto"
-                else:
-                    tiempo_texto = f"Hace {minutos} minutos"
-                st.metric("💾 Guardado", tiempo_texto)
+            if st.button("🚪 Salir", use_container_width=True, type="secondary"):
+                logout()
+            
+            # En móvil, ocultamos la info de guardado para ahorrar espacio
+            if not st.session_state.get('is_mobile', False):  # Solo mostrar en desktop
+                if st.session_state.last_save:
+                    tiempo_transcurrido = obtener_hora_colombia() - st.session_state.last_save
+                    minutos = int(tiempo_transcurrido.total_seconds() / 60)
+                    if minutos < 1:
+                        tiempo_texto = "Ahora"
+                    elif minutos == 1:
+                        tiempo_texto = "Hace 1 min"
+                    else:
+                        tiempo_texto = f"Hace {minutos} min"
+                    st.caption(f"💾 {tiempo_texto}")
         
         with col3:
             if st.button("🔄 Recargar", use_container_width=True):
@@ -1134,18 +1254,18 @@ def mostrar_barra_usuario():
                 logout()
 
 def mostrar_sidebar():
-    """Mostrar sidebar según el rol del usuario"""
+    """Mostrar sidebar según el rol del usuario - Optimizado para móvil"""
     with st.sidebar:
         rol = st.session_state.auth['role']
         
-        st.markdown(f"<h3 style='text-align: center;'>📊 {rol.title()}</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='text-align: center; font-size: 1.2em;'>📊 {rol.title()}</h3>", unsafe_allow_html=True)
         st.markdown("---")
         
-        # Mostrar hora Colombia
+        # Mostrar hora Colombia (más compacta en móvil)
         hora_colombia = obtener_hora_colombia()
         st.markdown(f"""
-        <div style="text-align: center; padding: 10px; background-color: #1E3A8A; 
-                   color: white; border-radius: 5px; margin-bottom: 10px;">
+        <div style="text-align: center; padding: 8px; background-color: #1E3A8A; 
+                   color: white; border-radius: 5px; margin-bottom: 10px; font-size: 0.9em;">
             <div style="font-size: 1.1em; font-weight: bold;">
                 {hora_colombia.strftime('%H:%M')}
             </div>
@@ -1158,43 +1278,45 @@ def mostrar_sidebar():
         # Opciones según rol
         if rol == "admin":
             opciones = [
-                ("📅 Malla de Turnos", "malla"),
-                ("👥 Gestión de Empleados", "empleados"),
-                ("⚙️ Configuración", "config"),
-                ("👑 Gestión de Usuarios", "usuarios"),
+                ("📅 Malla", "malla"),
+                ("👥 Empleados", "empleados"),
+                ("⚙️ Config", "config"),
+                ("👑 Usuarios", "usuarios"),
                 ("📦 Backup", "backup"),
-                ("🖥️ Info Sistema", "info_sistema")
+                ("🖥️ Sistema", "info_sistema")
             ]
         elif rol == "supervisor":
             opciones = [
-                ("📅 Malla de Turnos", "malla"),
+                ("📅 Malla", "malla"),
                 ("👥 Empleados", "empleados")
             ]
         else:  # empleado
             opciones = [
                 ("📅 Mis Turnos", "mis_turnos"),
-                ("📆 Mi Calendario", "calendario"),
-                ("👤 Mi Información", "mi_info")
+                ("📆 Calendario", "calendario"),
+                ("👤 Mi Info", "mi_info")
             ]
         
-        # Botones de navegación
+        # Botones de navegación más compactos para móvil
         for icon_text, key in opciones:
-            if st.button(icon_text, key=f"nav_{key}", use_container_width=True):
+            if st.button(icon_text, key=f"nav_{key}", use_container_width=True, 
+                        help=f"Ir a {icon_text.split(' ')[1]}",
+                        type="secondary"):
                 st.session_state.current_page = key
+                st.rerun()
         
         st.markdown("---")
         
-        # Información del sistema
+        # Información del sistema más compacta
         if rol == "admin":
             total_empleados = len(st.session_state.empleados_df)
             activos = st.session_state.empleados_df[st.session_state.empleados_df['estado'] == 'Activo'].shape[0]
             
-            st.markdown("**📈 Estadísticas**")
+            st.markdown("**📈 Stats**")
             st.info(f"""
             Empleados: {total_empleados}  
-            Activos: {activos}  
-            Códigos: {len(st.session_state.codigos_turno) - 1}
-            """)
+            Activos: {activos}
+            """, icon="ℹ️")
             
             # Estado de Streamlit Cloud
             if IS_STREAMLIT_CLOUD:
@@ -1896,10 +2018,16 @@ def mostrar_estadisticas_avanzadas(mes, ano):
 # PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
 # ============================================================================
 def pagina_malla():
-    """Página principal - Malla de turnos CON ESTADÍSTICAS"""
+    """Página principal - Malla de turnos CON ESTADÍSTICAS - Optimizada para móvil"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
     
-    col1, col2, col3, col4 = st.columns(4)
+    # En móvil, usar columnas apiladas
+    if st.session_state.is_mobile:
+        col1, col2 = st.columns(2)
+        col3, col4 = st.columns(2)
+    else:
+        col1, col2, col3, col4 = st.columns(4)
+    
     with col1:
         meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
                 "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
@@ -1910,7 +2038,8 @@ def pagina_malla():
         ano = st.selectbox("Año:", [2026, 2025, 2024, 2027], index=0)
     
     with col3:
-        if st.button("🔄 Cargar/Actualizar Malla", use_container_width=True):
+        if st.button("🔄 Cargar Malla", use_container_width=True, 
+                    help="Cargar o actualizar la malla de turnos"):
             st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
             st.session_state.mes_actual = mes_numero
             st.session_state.ano_actual = ano
@@ -1922,12 +2051,22 @@ def pagina_malla():
         if not st.session_state.malla_actual.empty:
             csv = st.session_state.malla_actual.to_csv(index=False)
             st.download_button(
-                label="📥 Exportar CSV",
+                label="📥 Exportar",
                 data=csv,
-                file_name=f"malla_turnos_{mes_seleccionado}_{ano}.csv",
+                file_name=f"malla_{mes_seleccionado}_{ano}.csv",
                 mime="text/csv",
-                use_container_width=True
+                use_container_width=True,
+                help="Descargar como archivo CSV"
             )
+    
+    # En móvil, mostrar leyenda como expander por defecto
+    if st.session_state.is_mobile:
+        with st.expander("📋 Códigos de Turno", expanded=False):
+            mostrar_leyenda()
+    else:
+        mostrar_leyenda()
+    
+    # ... resto del código permanece igual pero con ajustes en el data editor ...
     
     mostrar_leyenda()
     
@@ -3447,6 +3586,9 @@ def pagina_info_sistema():
 
 def main():
     """Función principal que gestiona toda la aplicación"""
+    # Detectar dispositivo
+    st.session_state.is_mobile = es_dispositivo_movil()
+    
     # Inicializar session state
     if 'app_initialized' not in st.session_state:
         inicializar_session_state()
@@ -3459,10 +3601,14 @@ def main():
         pagina_login()
         return
     
+    # En móvil, ajustar layout
+    if st.session_state.is_mobile:
+        st.markdown('<div class="mobile-container">', unsafe_allow_html=True)
+    
     mostrar_barra_usuario()
     mostrar_sidebar()
     
-    if st.session_state.auth['role'] == 'admin':
+    if st.session_state.auth['role'] == 'admin' and not st.session_state.is_mobile:
         monitoreo_sistema()
     
     # Mapeo de páginas disponibles
@@ -3500,17 +3646,28 @@ def main():
         # Página por defecto
         pagina_malla()
     
+    # Cerrar contenedor móvil
+    if st.session_state.is_mobile:
+        st.markdown('</div>', unsafe_allow_html=True)
+    
     # Footer
     st.markdown("---")
     hora_colombia = obtener_hora_colombia()
     
-    footer_text = f"""
-    <div style='text-align: center; color: #6c757d; padding: 20px;'>
-    📊 Creado por Edwin Merchán | © 2026 | Versión 2.0 | 
-    Hora Colombia: {hora_colombia.strftime('%H:%M')}
-    """
+    # Footer más compacto para móvil
+    if st.session_state.is_mobile:
+        footer_text = f"""
+        <div style='text-align: center; color: #6c757d; padding: 10px; font-size: 0.8em;'>
+        📊 Edwin Merchán | {hora_colombia.strftime('%H:%M')}
+        """
+    else:
+        footer_text = f"""
+        <div style='text-align: center; color: #6c757d; padding: 20px;'>
+        📊 Creado por Edwin Merchán | © 2026 | Versión 2.0 | 
+        Hora Colombia: {hora_colombia.strftime('%H:%M')}
+        """
     
-    if IS_STREAMLIT_CLOUD:
+    if IS_STREAMLIT_CLOUD and not st.session_state.is_mobile:
         backups = list(BACKUP_DIR.glob("turnos_backup_*.db"))
         footer_text += f"| ☁️ Backups: {len(backups)}"
     
