@@ -100,6 +100,24 @@ st.markdown("""
         text-align: center;
         font-weight: bold;
     }
+    /* AGREGAR ESTO: */
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        margin: 5px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .stat-value {
+        font-size: 1.8em;
+        font-weight: bold;
+        margin: 5px 0;
+    }
+    .stat-label {
+        font-size: 0.9em;
+        opacity: 0.9;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1383,20 +1401,420 @@ def generar_calendario_simple(mes, ano, turnos_dict):
     
     st.markdown(html, unsafe_allow_html=True)
 # ============================================================================
+# FUNCIONES DE ESTADÍSTICAS PARA ADMIN Y SUPERVISOR
+# ============================================================================
+def generar_estadisticas_turnos(mes, ano):
+    """Generar estadísticas detalladas de turnos por día y departamento"""
+    try:
+        conn = get_connection()
+        
+        # 1. Estadísticas por día
+        query_dias = '''
+            SELECT mt.dia, 
+                   COUNT(mt.id) as total_turnos,
+                   COUNT(CASE WHEN mt.codigo_turno IS NOT NULL AND mt.codigo_turno != '' THEN 1 END) as turnos_asignados,
+                   COUNT(CASE WHEN mt.codigo_turno IS NULL OR mt.codigo_turno = '' THEN 1 END) as turnos_vacios,
+                   GROUP_CONCAT(DISTINCT ct.nombre) as codigos_dia
+            FROM malla_turnos mt
+            LEFT JOIN codigos_turno ct ON mt.codigo_turno = ct.codigo
+            WHERE mt.mes = ? AND mt.ano = ?
+            GROUP BY mt.dia
+            ORDER BY mt.dia
+        '''
+        
+        df_dias = pd.read_sql_query(query_dias, conn, params=(mes, ano))
+        
+        # 2. Estadísticas por departamento
+        query_deptos = '''
+            SELECT e.departamento,
+                   COUNT(DISTINCT e.id) as total_empleados,
+                   COUNT(CASE WHEN e.estado = 'Activo' THEN 1 END) as empleados_activos,
+                   COUNT(mt.id) as total_turnos,
+                   COUNT(CASE WHEN mt.codigo_turno IS NOT NULL AND mt.codigo_turno != '' THEN 1 END) as turnos_asignados,
+                   ROUND(AVG(CASE WHEN ct.horas IS NOT NULL THEN ct.horas ELSE 0 END), 1) as promedio_horas
+            FROM empleados e
+            LEFT JOIN malla_turnos mt ON e.id = mt.empleado_id AND mt.mes = ? AND mt.ano = ?
+            LEFT JOIN codigos_turno ct ON mt.codigo_turno = ct.codigo
+            GROUP BY e.departamento
+            ORDER BY e.departamento
+        '''
+        
+        df_deptos = pd.read_sql_query(query_deptos, conn, params=(mes, ano))
+        
+        # 3. Estadísticas por código de turno
+        query_codigos = '''
+            SELECT ct.codigo,
+                   ct.nombre,
+                   ct.color,
+                   COUNT(mt.id) as veces_asignado,
+                   SUM(ct.horas) as total_horas,
+                   COUNT(DISTINCT mt.empleado_id) as empleados_distintos,
+                   COUNT(DISTINCT e.departamento) as departamentos_distintos
+            FROM codigos_turno ct
+            LEFT JOIN malla_turnos mt ON ct.codigo = mt.codigo_turno AND mt.mes = ? AND mt.ano = ?
+            LEFT JOIN empleados e ON mt.empleado_id = e.id
+            WHERE ct.codigo IS NOT NULL
+            GROUP BY ct.codigo, ct.nombre, ct.color
+            HAVING veces_asignado > 0
+            ORDER BY veces_asignado DESC
+        '''
+        
+        df_codigos = pd.read_sql_query(query_codigos, conn, params=(mes, ano))
+        
+        conn.close()
+        
+        return {
+            'por_dia': df_dias,
+            'por_departamento': df_deptos,
+            'por_codigo': df_codigos
+        }
+        
+    except Exception as e:
+        print(f"❌ Error al generar estadísticas: {str(e)}")
+        return None
+
+def mostrar_estadisticas_rapidas(mes, ano):
+    """Mostrar un resumen rápido de estadísticas"""
+    try:
+        estadisticas = generar_estadisticas_turnos(mes, ano)
+        
+        if estadisticas is None:
+            return
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            # Total de turnos asignados
+            if not estadisticas['por_dia'].empty:
+                total_asignados = estadisticas['por_dia']['turnos_asignados'].sum()
+                st.metric("Turnos Asignados", f"{total_asignados:,}")
+        
+        with col2:
+            # Porcentaje de asignación
+            total_empleados = len(get_empleados())
+            num_dias = calendar.monthrange(ano, mes)[1]
+            total_posibles = total_empleados * num_dias
+            
+            if total_posibles > 0 and not estadisticas['por_dia'].empty:
+                total_asignados = estadisticas['por_dia']['turnos_asignados'].sum()
+                porcentaje = (total_asignados / total_posibles) * 100
+                st.metric("Asignación", f"{porcentaje:.1f}%")
+        
+        with col3:
+            # Departamento con más turnos
+            if not estadisticas['por_departamento'].empty:
+                depto_top = estadisticas['por_departamento'].nlargest(1, 'turnos_asignados')
+                if not depto_top.empty:
+                    st.metric("Depto. Más Ocupado", 
+                            f"{depto_top.iloc[0]['departamento'][:10]}...")
+        
+        with col4:
+            # Día más ocupado
+            if not estadisticas['por_dia'].empty:
+                dia_top = estadisticas['por_dia'].nlargest(1, 'turnos_asignados')
+                if not dia_top.empty:
+                    st.metric("Día Más Ocupado", f"Día {dia_top.iloc[0]['dia']}")
+        
+        # Gráfico mini de tendencia
+        if not estadisticas['por_dia'].empty and len(estadisticas['por_dia']) > 1:
+            fig = px.line(
+                estadisticas['por_dia'],
+                x='dia',
+                y='turnos_asignados',
+                title='Tendencia Diaria',
+                height=150
+            )
+            
+            fig.update_layout(
+                margin=dict(l=0, r=0, t=30, b=0),
+                xaxis_title=None,
+                yaxis_title=None,
+                showlegend=False
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+    except Exception as e:
+        st.error(f"Error al cargar estadísticas: {str(e)}")
+
+def mostrar_estadisticas_avanzadas(mes, ano):
+    """Mostrar panel de estadísticas avanzadas"""
+    st.markdown("---")
+    st.markdown("### 📊 Estadísticas Avanzadas")
+    
+    # Generar estadísticas
+    estadisticas = generar_estadisticas_turnos(mes, ano)
+    
+    if estadisticas is None:
+        st.warning("No se pudieron generar las estadísticas.")
+        return
+    
+    # Crear pestañas para diferentes vistas
+    tab1, tab2, tab3, tab4 = st.tabs(["📅 Por Día", "🏢 Por Departamento", "🔢 Por Código", "📈 Gráficas"])
+    
+    with tab1:
+        # Estadísticas por día
+        if not estadisticas['por_dia'].empty:
+            st.markdown("#### 📅 Distribución de Turnos por Día")
+            
+            df_dias = estadisticas['por_dia']
+            num_dias = calendar.monthrange(ano, mes)[1]
+            
+            # Calcular métricas generales
+            total_turnos_posibles = len(get_empleados()) * num_dias
+            total_turnos_asignados = df_dias['turnos_asignados'].sum()
+            porcentaje_asignacion = (total_turnos_asignados / total_turnos_posibles * 100) if total_turnos_posibles > 0 else 0
+            
+            # Mostrar métricas generales
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Días del mes", num_dias)
+            with col2:
+                st.metric("Turnos totales", total_turnos_asignados)
+            with col3:
+                st.metric("Turnos posibles", total_turnos_posibles)
+            with col4:
+                st.metric("Asignación", f"{porcentaje_asignacion:.1f}%")
+            
+            # Mostrar tabla detallada
+            st.dataframe(
+                df_dias.rename(columns={
+                    'dia': 'Día',
+                    'total_turnos': 'Total Turnos',
+                    'turnos_asignados': 'Asignados',
+                    'turnos_vacios': 'Vacíos',
+                    'codigos_dia': 'Códigos Usados'
+                }),
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            # Gráfico de turnos por día
+            fig = px.bar(
+                df_dias,
+                x='dia',
+                y=['turnos_asignados', 'turnos_vacios'],
+                title=f'Turnos por Día - {mes}/{ano}',
+                labels={'dia': 'Día del mes', 'value': 'Cantidad de Turnos', 'variable': 'Estado'},
+                barmode='stack',
+                color_discrete_map={'turnos_asignados': '#4CAF50', 'turnos_vacios': '#FF9800'}
+            )
+            
+            fig.update_layout(
+                xaxis=dict(tickmode='linear', dtick=1),
+                yaxis_title="Cantidad de Turnos",
+                legend_title="Estado"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No hay datos de turnos para mostrar por día.")
+    
+    with tab2:
+        # Estadísticas por departamento
+        if not estadisticas['por_departamento'].empty:
+            st.markdown("#### 🏢 Estadísticas por Departamento")
+            
+            df_deptos = estadisticas['por_departamento']
+            
+            # Mostrar tabla
+            st.dataframe(
+                df_deptos.rename(columns={
+                    'departamento': 'Departamento',
+                    'total_empleados': 'Total Empleados',
+                    'empleados_activos': 'Empleados Activos',
+                    'total_turnos': 'Total Turnos',
+                    'turnos_asignados': 'Turnos Asignados',
+                    'promedio_horas': 'Promedio Horas'
+                }),
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            # Gráfico de torta por departamento
+            fig = px.pie(
+                df_deptos,
+                values='turnos_asignados',
+                names='departamento',
+                title='Distribución de Turnos por Departamento',
+                hole=0.4,
+                color_discrete_sequence=px.colors.qualitative.Set3
+            )
+            
+            fig.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Gráfico de barras horizontales
+            fig2 = px.bar(
+                df_deptos,
+                y='departamento',
+                x='turnos_asignados',
+                title='Turnos Asignados por Departamento',
+                orientation='h',
+                color='promedio_horas',
+                color_continuous_scale='Blues',
+                labels={'turnos_asignados': 'Turnos Asignados', 'promedio_horas': 'Promedio Horas'}
+            )
+            
+            fig2.update_layout(yaxis={'categoryorder': 'total ascending'})
+            st.plotly_chart(fig2, use_container_width=True)
+        else:
+            st.info("No hay datos de turnos por departamento.")
+    
+    with tab3:
+        # Estadísticas por código de turno
+        if not estadisticas['por_codigo'].empty:
+            st.markdown("#### 🔢 Uso de Códigos de Turno")
+            
+            df_codigos = estadisticas['por_codigo']
+            
+            # Mostrar tabla con colores
+            def color_row(val):
+                if isinstance(val, str) and val.startswith('#'):
+                    return f'background-color: {val}; color: white;'
+                return ''
+            
+            styled_df = df_codigos.style.applymap(color_row, subset=['color'])
+            
+            st.dataframe(
+                styled_df.rename(columns={
+                    'codigo': 'Código',
+                    'nombre': 'Descripción',
+                    'color': 'Color',
+                    'veces_asignado': 'Veces Asignado',
+                    'total_horas': 'Total Horas',
+                    'empleados_distintos': 'Empleados',
+                    'departamentos_distintos': 'Departamentos'
+                }),
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            # Gráfico de códigos más usados
+            fig = px.bar(
+                df_codigos.head(10),
+                x='codigo',
+                y='veces_asignado',
+                title='Top 10 Códigos Más Usados',
+                color='veces_asignado',
+                color_continuous_scale='Viridis',
+                labels={'codigo': 'Código', 'veces_asignado': 'Veces Asignado'}
+            )
+            
+            fig.update_layout(xaxis={'categoryorder': 'total descending'})
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No hay códigos de turno asignados en este período.")
+    
+    with tab4:
+        # Gráficas avanzadas
+        st.markdown("#### 📈 Análisis Avanzado")
+        
+        if not estadisticas['por_dia'].empty and not estadisticas['por_departamento'].empty:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Heatmap de asignación por día y departamento (simplificado)
+                st.markdown("##### Calor de Asignación por Día")
+                
+                df_dias = estadisticas['por_dia']
+                
+                fig = go.Figure(data=go.Heatmap(
+                    z=[df_dias['turnos_asignados']],
+                    x=df_dias['dia'],
+                    y=['Turnos Asignados'],
+                    colorscale='Blues',
+                    showscale=True,
+                    hovertemplate='Día: %{x}<br>Turnos: %{z}<extra></extra>'
+                ))
+                
+                fig.update_layout(
+                    title='Intensidad de Asignación por Día',
+                    xaxis_title='Día del Mes',
+                    height=200
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                # Comparativa de asignación
+                st.markdown("##### Eficiencia de Asignación")
+                
+                df_deptos = estadisticas['por_departamento']
+                
+                # Calcular porcentaje de asignación por departamento
+                if 'total_turnos' in df_deptos.columns and 'turnos_asignados' in df_deptos.columns:
+                    df_deptos['porcentaje_asignacion'] = (df_deptos['turnos_asignados'] / df_deptos['total_turnos'] * 100).round(1)
+                    
+                    fig = px.bar(
+                        df_deptos,
+                        y='departamento',
+                        x='porcentaje_asignacion',
+                        title='Porcentaje de Asignación por Depto',
+                        orientation='h',
+                        color='porcentaje_asignacion',
+                        color_continuous_scale='RdYlGn',
+                        range_color=[0, 100]
+                    )
+                    
+                    fig.update_layout(
+                        xaxis_title='Porcentaje de Asignación (%)',
+                        xaxis_range=[0, 100]
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+        
+        # Resumen ejecutivo
+        st.markdown("##### 📋 Resumen Ejecutivo")
+        
+        if not estadisticas['por_dia'].empty:
+            df_dias = estadisticas['por_dia']
+            df_deptos = estadisticas['por_departamento']
+            
+            # Calcular métricas clave
+            total_empleados = len(get_empleados())
+            dias_con_mas_turnos = df_dias.nlargest(3, 'turnos_asignados')[['dia', 'turnos_asignados']]
+            depto_mas_ocupado = df_deptos.nlargest(1, 'turnos_asignados')[['departamento', 'turnos_asignados']]
+            
+            col_sum1, col_sum2, col_sum3 = st.columns(3)
+            
+            with col_sum1:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h4>👥 Empleados</h4>
+                    <p><strong>Total:</strong> {total_empleados}</p>
+                    <p><strong>Activos:</strong> {get_empleados()[get_empleados()['estado'] == 'Activo'].shape[0]}</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col_sum2:
+                dias_text = ""
+                for _, row in dias_con_mas_turnos.iterrows():
+                    dias_text += f"Día {row['dia']}: {row['turnos_asignados']} turnos<br>"
+                
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h4>📅 Días más ocupados</h4>
+                    {dias_text}
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col_sum3:
+                if not depto_mas_ocupado.empty:
+                    depto_info = depto_mas_ocupado.iloc[0]
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <h4>🏢 Depto. más ocupado</h4>
+                        <p><strong>{depto_info['departamento']}</strong></p>
+                        <p>{depto_info['turnos_asignados']} turnos asignados</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+# ============================================================================
 # PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
 # ============================================================================
 def pagina_malla():
-    """Página principal - Malla de turnos"""
+    """Página principal - Malla de turnos CON ESTADÍSTICAS"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
-    
-    # Advertencia de Streamlit Cloud
-    #if IS_STREAMLIT_CLOUD:
-    #    st.warning("""
-    #    ⚠️ **STREAMLIT CLOUD - IMPORTANTE**
-    #    - Los datos se guardan en almacenamiento temporal
-    #    - Exporta regularmente usando la opción de Backup
-    #    - Se crean backups automáticos al guardar
-    #    """)
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -1434,6 +1852,12 @@ def pagina_malla():
         st.warning("⚠️ No hay malla de turnos cargada. Presiona 'Cargar Malla' para ver los datos.")
     else:
         st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
+        
+        # MOSTRAR ESTADÍSTICAS RÁPIDAS (solo para admin y supervisor)
+        rol = st.session_state.auth['role']
+        if rol in ['admin', 'supervisor']:
+            with st.expander("📊 Ver Estadísticas Rápidas", expanded=True):
+                mostrar_estadisticas_rapidas(mes_numero, ano)
         
         if check_permission("write"):
             st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', unsafe_allow_html=True)
@@ -1512,10 +1936,17 @@ def pagina_malla():
                         st.success(f"✅ {cambios} turnos limpiados")
                         st.rerun()
             
+            # Mostrar estadísticas avanzadas después de guardar cambios
+            if rol in ['admin', 'supervisor']:
+                mostrar_estadisticas_avanzadas(mes_numero, ano)
         else:
             st.info("👁️ Vista de solo lectura - No puedes editar")
             styled_df = aplicar_estilo_dataframe(st.session_state.malla_actual)
             st.dataframe(styled_df, use_container_width=True, height=600)
+            
+            # Mostrar estadísticas para vista de solo lectura también
+            if rol in ['admin', 'supervisor']:
+                mostrar_estadisticas_avanzadas(mes_numero, ano)
 
 def pagina_backup():
     """Página completa de backup y restauración"""
