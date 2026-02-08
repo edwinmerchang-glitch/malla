@@ -1962,7 +1962,6 @@ def pagina_malla():
     else:
         mostrar_leyenda(inside_expander=True)
     
-      
     if st.session_state.malla_actual.empty:
         st.warning("⚠️ No hay malla de turnos cargada. Presiona 'Cargar Malla' para ver los datos.")
     else:
@@ -1976,38 +1975,74 @@ def pagina_malla():
             
             malla_editable = st.session_state.malla_actual.copy()
             column_config = {}
-day_columns = [col for col in malla_editable.columns if '/' in str(col)]
-opciones_codigos = list(st.session_state.codigos_turno.keys())
-if "" in opciones_codigos:
-    opciones_codigos.remove("")
-
-# Configurar todas las columnas
-for col in malla_editable.columns:
-    if col in day_columns:
-        column_config[col] = st.column_config.SelectboxColumn(
-            col,
-            width="small",
-            options=[""] + opciones_codigos,
-            help="Selecciona el código del turno"
-        )
-    elif col == 'CC':
-        # Columna CC inmovilizada a la izquierda
-        column_config[col] = st.column_config.Column(
-            "CC",
-            width="small",
-            disabled=True,
-            required=True
-        )
-    elif col in ['N°']:
-        column_config[col] = st.column_config.Column(width="small", disabled=True)
-    elif col == 'APELLIDOS Y NOMBRES':
-        column_config[col] = st.column_config.Column(width="medium", disabled=True)
-    elif col in ['CARGO', 'DEPARTAMENTO', 'ESTADO']:
-        column_config[col] = st.column_config.Column(disabled=True)
+            day_columns = [col for col in malla_editable.columns if '/' in str(col)]
+            opciones_codigos = list(st.session_state.codigos_turno.keys())
+            if "" in opciones_codigos:
+                opciones_codigos.remove("")
             
+            # Añadir CSS para fijar columna CC
+            st.markdown("""
+            <style>
+            /* Fijar columna CC (generalmente la 4ta columna) */
+            .stDataFrame [data-testid="stDataFrameResizable"] {
+                position: relative;
+            }
+            
+            .stDataFrame th:nth-child(4),
+            .stDataFrame td:nth-child(4) {
+                position: sticky !important;
+                left: 0 !important;
+                background-color: white !important;
+                z-index: 100 !important;
+                box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
+            }
+            
+            .stDataFrame th:nth-child(4) {
+                background-color: #f8f9fa !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            # Configurar columnas con CC como columna importante
+            for col in malla_editable.columns:
+                if col in day_columns:
+                    column_config[col] = st.column_config.SelectboxColumn(
+                        col,
+                        width="small",
+                        options=[""] + opciones_codigos,
+                        help="Selecciona el código del turno"
+                    )
+                elif col == 'CC':
+                    # Columna CC - importante para identificar empleados
+                    column_config[col] = st.column_config.TextColumn(
+                        "CC",
+                        width="small",
+                        disabled=True,
+                        help="Cédula (no editable)"
+                    )
+                elif col in ['N°']:
+                    column_config[col] = st.column_config.Column(
+                        width="small", 
+                        disabled=True
+                    )
+                elif col == 'APELLIDOS Y NOMBRES':
+                    column_config[col] = st.column_config.Column(
+                        width="medium", 
+                        disabled=True
+                    )
+                elif col in ['CARGO', 'DEPARTAMENTO', 'ESTADO']:
+                    column_config[col] = st.column_config.Column(disabled=True)
+            
+            # Reordenar columnas para que CC sea más visible
+            column_order = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 'ESTADO']
+            # Añadir columnas de días manteniendo CC cerca del inicio
+            column_order += [col for col in malla_editable.columns if col not in column_order]
+            
+            # CORREGIDO: Esta es la línea 2008 - asegurar indentación correcta
             edited_df = st.data_editor(
                 malla_editable,
                 column_config=column_config,
+                column_order=column_order,
                 hide_index=True,
                 use_container_width=True,
                 height=600,
