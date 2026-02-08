@@ -1853,11 +1853,8 @@ def pagina_malla():
     else:
         st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
         
-        # MOSTRAR ESTADÍSTICAS RÁPIDAS (solo para admin y supervisor)
+        # OPCIONAL: Si quieres mantener el rol para otra cosa
         rol = st.session_state.auth['role']
-        if rol in ['admin', 'supervisor']:
-            with st.expander("📊 Ver Estadísticas Rápidas", expanded=True):
-                mostrar_estadisticas_rapidas(mes_numero, ano)
         
         if check_permission("write"):
             st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', unsafe_allow_html=True)
