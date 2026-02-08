@@ -69,74 +69,111 @@ st.markdown("""
 <style>
     /* Configuración base para móviles */
     @media (max-width: 768px) {
-        /* ... tus estilos existentes ... */
+        /* Reducir tamaño de fuente */
+        .main-header {
+            font-size: 1.8rem !important;
+            padding: 10px !important;
+        }
+        
+        /* Ajustar columnas */
+        .stColumn {
+            width: 100% !important;
+            margin-bottom: 10px !important;
+        }
+        
+        /* Botones más grandes */
+        .stButton > button {
+            min-height: 48px !important;
+            font-size: 16px !important;
+            padding: 12px !important;
+        }
+        
+        /* Inputs más grandes */
+        .stTextInput > div > div > input,
+        .stSelectbox > div > div > select,
+        .stNumberInput > div > div > input {
+            font-size: 16px !important;
+            padding: 12px !important;
+            min-height: 48px !important;
+        }
+        
+        /* Tablas responsivas */
+        .dataframe {
+            font-size: 12px !important;
+        }
+        
+        /* Ajustar dataframes */
+        div[data-testid="stDataFrame"] {
+            max-width: 100% !important;
+            overflow-x: auto !important;
+        }
+        
+        /* Sidebar más compacta */
+        section[data-testid="stSidebar"] {
+            min-width: 200px !important;
+            max-width: 100% !important;
+        }
+        
+        /* Ajustar métricas */
+        div[data-testid="stMetricValue"] {
+            font-size: 1.4rem !important;
+        }
+        
+        div[data-testid="stMetricLabel"] {
+            font-size: 0.8rem !important;
+        }
     }
     
-    /* ESTILOS NUEVOS PARA COLUMNAS INMOVILIZADAS */
+    /* Estilos generales que mejoran la experiencia móvil */
     
-    /* Contenedor de la tabla */
-    .stDataFrame [data-testid="stDataFrameResizable"] {
-        overflow-x: auto !important;
-        position: relative !important;
+    /* Mejorar botones para toque */
+    .stButton > button {
+        border-radius: 8px !important;
+        border-width: 2px !important;
     }
     
-    /* Tabla principal */
-    .stDataFrame table {
-        border-collapse: separate !important;
-        border-spacing: 0 !important;
-        min-width: 100% !important;
+    /* Mejorar inputs para toque */
+    .stTextInput > div > div > input {
+        border-radius: 8px !important;
     }
     
-    /* Inmovilizar columnas desde CC (generalmente la 4ta columna) */
-    .stDataFrame th:nth-child(-n+4),
-    .stDataFrame td:nth-child(-n+4) {
-        position: sticky !important;
-        background-color: white !important;
-        z-index: 10 !important;
+    /* Asegurar que los selects sean fáciles de tocar */
+    .stSelectbox > div > div {
+        border-radius: 8px !important;
     }
     
-    /* Posicionamiento específico */
-    .stDataFrame th:nth-child(1),
-    .stDataFrame td:nth-child(1) {
-        left: 0 !important;
+    /* Mejorar experiencia de tablas */
+    .dataframe th, .dataframe td {
+        padding: 8px 4px !important;
+        min-width: 50px !important;
     }
     
-    .stDataFrame th:nth-child(2),
-    .stDataFrame td:nth-child(2) {
-        left: 50px !important; /* Ancho estimado columna 1 */
+    /* Ajustar expansores */
+    .streamlit-expanderHeader {
+        font-size: 1rem !important;
+        padding: 12px !important;
     }
     
-    .stDataFrame th:nth-child(3),
-    .stDataFrame td:nth-child(3) {
-        left: 150px !important; /* Ancho estimado columna 2 */
+    /* Scroll suave en iOS */
+    .element-container {
+        -webkit-overflow-scrolling: touch !important;
     }
     
-    .stDataFrame th:nth-child(4),
-    .stDataFrame td:nth-child(4) {
-        left: 300px !important; /* Ancho estimado columna 3 */
-        border-right: 2px solid #dee2e6 !important;
+    /* Ajustar spacing general */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
     }
     
-    /* Sombra para indicar columna fija */
-    .stDataFrame td:nth-child(4),
-    .stDataFrame th:nth-child(4) {
-        box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
+    /* Clases personalizadas para mejor responsividad */
+    .mobile-optimized {
+        width: 100% !important;
+        max-width: 100% !important;
     }
     
-    /* Encabezados con fondo */
-    .stDataFrame th:nth-child(-n+4) {
-        background-color: #f8f9fa !important;
-        z-index: 20 !important;
-    }
-    
-    /* Mejorar visibilidad de CC */
-    .stDataFrame td:nth-child(4) {
-        font-weight: 600 !important;
-        background-color: #f0f7ff !important;
-    }
-    
-    .stDataFrame th:nth-child(4) {
-        background-color: #e3f2fd !important;
+    .touch-friendly {
+        min-height: 44px !important;
+        min-width: 44px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1274,7 +1311,7 @@ def aplicar_estilo_dataframe(df):
     return df.style
 
 def mostrar_leyenda(inside_expander=False):
-    """Mostrar leyenda de colores - VERSIÓN MEJORADA
+    """Mostrar leyenda de colores - VERSIÓN CORREGIDA
     
     Args:
         inside_expander (bool): Si se llama desde dentro de otro expander
@@ -1292,32 +1329,28 @@ def mostrar_leyenda(inside_expander=False):
         st.info("No hay códigos de turno configurados.")
         return
     
-    # Si estamos dentro de otro expander, mostrar directamente
-    if inside_expander:
+    # SIEMPRE crear un expander para la leyenda
+    with st.expander("🎨 Leyenda de códigos", expanded=False):
         st.markdown("**Códigos disponibles:**")
-    else:
-        # Crear un expander solo si no estamos dentro de otro
-        with st.expander("🎨 Leyenda de códigos", expanded=False):
-            st.markdown("**Códigos disponibles:**")
-    
-    # Organizar en una tabla compacta
-    cols_per_row = 4
-    cols = st.columns(cols_per_row)
-    
-    for idx, (codigo, info) in enumerate(items):
-        with cols[idx % cols_per_row]:
-            color = info.get("color", "#FFFFFF")
-            nombre = info.get("nombre", "Sin nombre")
-            horas = info.get("horas", 0)
-            
-            st.markdown(f"""
-            <div style="margin-bottom: 8px; padding: 8px; background: #f9f9f9; 
-                       border-radius: 4px; border-left: 4px solid {color};">
-                <div style="font-weight: bold; font-size: 0.95em;">{codigo}</div>
-                <div style="font-size: 0.8em; color: #666;">{nombre[:20]}{'...' if len(nombre) > 20 else ''}</div>
-                <div style="font-size: 0.75em; color: #888;">{horas}h</div>
-            </div>
-            """, unsafe_allow_html=True)
+        
+        # Organizar en una tabla compacta
+        cols_per_row = 4
+        cols = st.columns(cols_per_row)
+        
+        for idx, (codigo, info) in enumerate(items):
+            with cols[idx % cols_per_row]:
+                color = info.get("color", "#FFFFFF")
+                nombre = info.get("nombre", "Sin nombre")
+                horas = info.get("horas", 0)
+                
+                st.markdown(f"""
+                <div style="margin-bottom: 8px; padding: 8px; background: #f9f9f9; 
+                           border-radius: 4px; border-left: 4px solid {color};">
+                    <div style="font-weight: bold; font-size: 0.95em;">{codigo}</div>
+                    <div style="font-size: 0.8em; color: #666;">{nombre[:20]}{'...' if len(nombre) > 20 else ''}</div>
+                    <div style="font-size: 0.75em; color: #888;">{horas}h</div>
+                </div>
+                """, unsafe_allow_html=True)
 
 def extraer_horas_desde_codigo(codigo):
     """
@@ -1929,6 +1962,7 @@ def pagina_malla():
     else:
         mostrar_leyenda(inside_expander=True)
     
+      
     if st.session_state.malla_actual.empty:
         st.warning("⚠️ No hay malla de turnos cargada. Presiona 'Cargar Malla' para ver los datos.")
     else:
@@ -1947,30 +1981,6 @@ def pagina_malla():
             if "" in opciones_codigos:
                 opciones_codigos.remove("")
             
-            # Añadir CSS para fijar columna CC
-            st.markdown("""
-            <style>
-            /* Fijar columna CC (generalmente la 4ta columna) */
-            .stDataFrame [data-testid="stDataFrameResizable"] {
-                position: relative;
-            }
-            
-            .stDataFrame th:nth-child(4),
-            .stDataFrame td:nth-child(4) {
-                position: sticky !important;
-                left: 0 !important;
-                background-color: white !important;
-                z-index: 100 !important;
-                box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
-            }
-            
-            .stDataFrame th:nth-child(4) {
-                background-color: #f8f9fa !important;
-            }
-            </style>
-            """, unsafe_allow_html=True)
-            
-            # Configurar columnas con CC como columna importante
             for col in malla_editable.columns:
                 if col in day_columns:
                     column_config[col] = st.column_config.SelectboxColumn(
@@ -1979,37 +1989,16 @@ def pagina_malla():
                         options=[""] + opciones_codigos,
                         help="Selecciona el código del turno"
                     )
-                elif col == 'CC':
-                    # Columna CC - importante para identificar empleados
-                    column_config[col] = st.column_config.TextColumn(
-                        "CC",
-                        width="small",
-                        disabled=True,
-                        help="Cédula (no editable)"
-                    )
-                elif col in ['N°']:
-                    column_config[col] = st.column_config.Column(
-                        width="small", 
-                        disabled=True
-                    )
+                elif col in ['N°', 'CC']:
+                    column_config[col] = st.column_config.Column(width="small", disabled=True)
                 elif col == 'APELLIDOS Y NOMBRES':
-                    column_config[col] = st.column_config.Column(
-                        width="medium", 
-                        disabled=True
-                    )
+                    column_config[col] = st.column_config.Column(width="medium", disabled=True)
                 elif col in ['CARGO', 'DEPARTAMENTO', 'ESTADO']:
                     column_config[col] = st.column_config.Column(disabled=True)
             
-            # Reordenar columnas para que CC sea más visible
-            column_order = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 'ESTADO']
-            # Añadir columnas de días manteniendo CC cerca del inicio
-            column_order += [col for col in malla_editable.columns if col not in column_order]
-            
-            # CORREGIDO: Esta es la línea 2008 - asegurar indentación correcta
             edited_df = st.data_editor(
                 malla_editable,
                 column_config=column_config,
-                column_order=column_order,
                 hide_index=True,
                 use_container_width=True,
                 height=600,
@@ -3261,11 +3250,10 @@ def pagina_calendario():
         else:
             st.success(f"✅ Tienes {dias_con_turno} días con turnos asignados en {mes} {ano}")
             
-            # Mostrar leyenda de colores si hay turnos - SIN EXPANDER INTERNO
-            # Aquí pasamos inside_expander=False para que muestre la leyenda directamente
-            st.markdown("#### 🎨 Leyenda de Colores")
-            # Llamar a mostrar_leyenda pero sin crear expander dentro de otro
-            mostrar_leyenda_simplificada()  # Necesitarás crear esta función
+            # Mostrar leyenda de colores si hay turnos - VERSIÓN CORREGIDA
+            with st.expander("🎨 Leyenda de Colores", expanded=False):
+                # Pasar inside_expander=True para evitar crear otro expander dentro
+                mostrar_leyenda(inside_expander=True)
         
         # Generar calendario
         generar_calendario_simple(mes_numero, ano, turnos)
