@@ -1310,8 +1310,12 @@ def aplicar_estilo_dataframe(df):
         return styled_df
     return df.style
 
-def mostrar_leyenda():
-    """Mostrar leyenda de colores en un expander debajo de la tabla"""
+def mostrar_leyenda(inside_expander=False):
+    """Mostrar leyenda de colores - VERSIÓN CORREGIDA
+    
+    Args:
+        inside_expander (bool): Si se llama desde dentro de otro expander
+    """
     if 'codigos_turno' not in st.session_state or not st.session_state.codigos_turno:
         st.info("No hay códigos de turno configurados.")
         return
@@ -1325,80 +1329,32 @@ def mostrar_leyenda():
         st.info("No hay códigos de turno configurados.")
         return
     
-    # Crear expander con la leyenda
-    with st.expander("📋 Códigos de Turno (Leyenda de Colores)", expanded=False):
-        st.markdown("**Selecciona un código para ver su información detallada:**")
-        
-        # Crear una lista desplegable con los códigos - CLAVE ÚNICA
-        opciones_leyenda = [""] + [f"{codigo}: {info.get('nombre', 'Sin nombre')}" 
-                                  for codigo, info in items]
-        
-        # Usar una clave única basada en la página actual
-        current_page = st.session_state.get('current_page', 'unknown')
-        codigo_seleccionado = st.selectbox(
-            "Buscar código:",
-            options=opciones_leyenda,
-            key=f"selector_codigo_leyenda_{current_page}_{id(items)}"  # Clave única
-        )
-        
-        if codigo_seleccionado and codigo_seleccionado != "":
-            # Extraer el código del texto seleccionado
-            codigo = codigo_seleccionado.split(":")[0].strip()
+    # Si ya estamos dentro de un expander, NO crear otro
+    if inside_expander:
+        st.markdown("**🎨 Leyenda de códigos**")
+    else:
+        # Crear expander solo si no estamos dentro de otro
+        with st.expander("🎨 Leyenda de códigos", expanded=False):
+            st.markdown("**Códigos disponibles:**")
+    
+    # Organizar en una tabla compacta
+    cols_per_row = 4
+    cols = st.columns(cols_per_row)
+    
+    for idx, (codigo, info) in enumerate(items):
+        with cols[idx % cols_per_row]:
+            color = info.get("color", "#FFFFFF")
+            nombre = info.get("nombre", "Sin nombre")
+            horas = info.get("horas", 0)
             
-            if codigo in codigos:
-                info = codigos[codigo]
-                color = info.get("color", "#FFFFFF")
-                nombre = info.get("nombre", "Sin nombre")
-                horas = info.get("horas", 0)
-                
-                # Mostrar información detallada del código seleccionado
-                st.markdown(f"""
-                <div style="display: flex; align-items: center; padding: 15px; 
-                           background: white; border-radius: 5px; border: 2px solid #e0e0e0;
-                           margin-bottom: 10px;">
-                    <div style="width: 40px; height: 40px; background-color: {color}; 
-                             margin-right: 15px; border-radius: 5px; border: 1px solid #ccc;"></div>
-                    <div style="flex: 1;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <span style="font-weight: bold; font-size: 1.2em;">{codigo}</span>
-                                <span style="margin-left: 10px; color: #666;">{nombre}</span>
-                            </div>
-                            <span style="background-color: #f0f0f0; padding: 3px 8px; border-radius: 3px;">
-                                {horas} horas
-                            </span>
-                        </div>
-                        <div style="margin-top: 5px;">
-                            <span style="color: #888; font-size: 0.9em;">
-                                Color: <code>{color}</code>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        # Mostrar todos los códigos en una vista compacta
-        st.markdown("---")
-        st.markdown("**Todos los códigos disponibles:**")
-        
-        # Organizar en una tabla compacta
-        cols_per_row = 4
-        cols = st.columns(cols_per_row)
-        
-        for idx, (codigo, info) in enumerate(items):
-            with cols[idx % cols_per_row]:
-                color = info.get("color", "#FFFFFF")
-                nombre = info.get("nombre", "Sin nombre")
-                horas = info.get("horas", 0)
-                
-                st.markdown(f"""
-                <div style="margin-bottom: 8px; padding: 8px; background: #f9f9f9; 
-                           border-radius: 4px; border-left: 4px solid {color};">
-                    <div style="font-weight: bold; font-size: 0.95em;">{codigo}</div>
-                    <div style="font-size: 0.8em; color: #666;">{nombre[:20]}{'...' if len(nombre) > 20 else ''}</div>
-                    <div style="font-size: 0.75em; color: #888;">{horas}h</div>
-                </div>
-                """, unsafe_allow_html=True)
+            st.markdown(f"""
+            <div style="margin-bottom: 8px; padding: 8px; background: #f9f9f9; 
+                       border-radius: 4px; border-left: 4px solid {color};">
+                <div style="font-weight: bold; font-size: 0.95em;">{codigo}</div>
+                <div style="font-size: 0.8em; color: #666;">{nombre[:20]}{'...' if len(nombre) > 20 else ''}</div>
+                <div style="font-size: 0.75em; color: #888;">{horas}h</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 def extraer_horas_desde_codigo(codigo):
     """
@@ -2006,9 +1962,9 @@ def pagina_malla():
     # En móvil, mostrar leyenda como expander por defecto
     if st.session_state.is_mobile:
         with st.expander("📋 Códigos de Turno", expanded=False):
-            mostrar_leyenda()
+            mostrar_leyenda(inside_expander=True)
     else:
-        mostrar_leyenda()
+        mostrar_leyenda(inside_expander=True)
     
     # ... resto del código permanece igual pero con ajustes en el data editor ...
     
@@ -3209,7 +3165,7 @@ def pagina_mis_turnos():
             # Mostrar leyenda después de las estadísticas
             st.markdown("---")
             with st.expander("🎨 Leyenda de códigos", expanded=False):
-                mostrar_leyenda()
+                mostrar_leyenda(inside_expander=True)
             
             # Opción para exportar al final
             st.markdown("---")
@@ -3280,7 +3236,6 @@ def pagina_calendario():
     with col_fecha3:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("📅 Ver Calendario", use_container_width=True, type="primary"):
-            # Simplemente recargar la página
             st.rerun()
     
     # Obtener ID del empleado
@@ -3302,9 +3257,10 @@ def pagina_calendario():
         else:
             st.success(f"✅ Tienes {dias_con_turno} días con turnos asignados en {mes} {ano}")
             
-            # Mostrar leyenda de colores si hay turnos
+            # Mostrar leyenda de colores si hay turnos - VERSIÓN CORREGIDA
             with st.expander("🎨 Leyenda de Colores", expanded=False):
-                mostrar_leyenda()
+                # Pasar inside_expander=True para evitar crear otro expander dentro
+                mostrar_leyenda(inside_expander=True)
         
         # Generar calendario
         generar_calendario_simple(mes_numero, ano, turnos)
