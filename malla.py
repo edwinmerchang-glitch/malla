@@ -63,173 +63,117 @@ else:
 BACKUP_DIR.mkdir(exist_ok=True, parents=True)
 
 # ============================================================================
-# CSS PERSONALIZADO (MOBILE-FIRST)
+# CSS PERSONALIZADO (MOBILE-FIRST RESPONSIVE)
 # ============================================================================
 st.markdown("""
 <style>
     /* Configuración base para móviles */
     @media (max-width: 768px) {
+        /* Reducir tamaño de fuente */
         .main-header {
             font-size: 1.8rem !important;
-            text-align: center;
-            padding: 10px 5px;
-            margin-bottom: 1rem;
+            padding: 10px !important;
         }
         
-        /* Ajustar columnas para móviles */
-        .stDataFrame {
-            overflow-x: auto !important;
-            font-size: 0.9em !important;
-        }
-        
-        /* Botones más grandes en móvil */
-        .stButton > button {
+        /* Ajustar columnas */
+        .stColumn {
             width: 100% !important;
-            margin: 5px 0;
+            margin-bottom: 10px !important;
+        }
+        
+        /* Botones más grandes */
+        .stButton > button {
+            min-height: 48px !important;
+            font-size: 16px !important;
             padding: 12px !important;
-            font-size: 1em !important;
         }
         
         /* Inputs más grandes */
         .stTextInput > div > div > input,
         .stSelectbox > div > div > select,
         .stNumberInput > div > div > input {
-            font-size: 16px !important; /* Previene zoom en iOS */
+            font-size: 16px !important;
             padding: 12px !important;
+            min-height: 48px !important;
         }
         
-        /* Sidebar ajustable */
-        .css-1d391kg {
-            width: 100% !important;
-        }
-        
-        /* Tablas scrollables */
+        /* Tablas responsivas */
         .dataframe {
-            font-size: 0.8em !important;
+            font-size: 12px !important;
+        }
+        
+        /* Ajustar dataframes */
+        div[data-testid="stDataFrame"] {
+            max-width: 100% !important;
+            overflow-x: auto !important;
+        }
+        
+        /* Sidebar más compacta */
+        section[data-testid="stSidebar"] {
+            min-width: 200px !important;
+            max-width: 100% !important;
         }
         
         /* Ajustar métricas */
-        .metric-value {
-            font-size: 1.5em !important;
+        div[data-testid="stMetricValue"] {
+            font-size: 1.4rem !important;
         }
         
-        .metric-label {
-            font-size: 0.8em !important;
+        div[data-testid="stMetricLabel"] {
+            font-size: 0.8rem !important;
         }
     }
     
-    /* Estilos generales */
-    .main-header {
-        font-size: 2.5rem;
-        color: #1E3A8A;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
+    /* Estilos generales que mejoran la experiencia móvil */
     
-    .auto-save-notice {
-        background-color: #e8f4fd;
-        color: #0c5460;
-        padding: 10px;
-        border-radius: 5px;
-        border: 1px solid #bee5eb;
-        margin: 10px 0;
-        text-align: center;
-        font-size: 0.9em;
-    }
-    
-    .metric-card {
-        background-color: #f8f9fa;
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px solid #dee2e6;
-        margin-bottom: 10px;
-    }
-    
-    .info-card {
-        background-color: #f8f9fa;
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px solid #dee2e6;
-        margin: 10px 0;
-        font-size: 0.9em;
-    }
-    
-    .streamlit-cloud-warning {
-        background-color: #fff3cd;
-        color: #856404;
-        padding: 10px;
-        border-radius: 5px;
-        border: 1px solid #ffeaa7;
-        margin: 10px 0;
-        text-align: center;
-        font-weight: bold;
-        font-size: 0.9em;
-    }
-    
-    .stat-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 12px;
-        border-radius: 10px;
-        margin: 5px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        font-size: 0.9em;
-    }
-    
-    .stat-value {
-        font-size: 1.5em;
-        font-weight: bold;
-        margin: 5px 0;
-    }
-    
-    .stat-label {
-        font-size: 0.8em;
-        opacity: 0.9;
-    }
-    
-    /* Botones táctiles (mejor para móvil) */
-    .mobile-friendly-btn {
-        padding: 14px 20px !important;
-        margin: 8px 0;
+    /* Mejorar botones para toque */
+    .stButton > button {
         border-radius: 8px !important;
-        font-size: 1em !important;
-        min-height: 48px !important; /* Tamaño táctil mínimo */
+        border-width: 2px !important;
     }
     
-    /* Contenedores responsivos */
-    .mobile-container {
-        padding: 10px !important;
-        margin: 5px !important;
+    /* Mejorar inputs para toque */
+    .stTextInput > div > div > input {
+        border-radius: 8px !important;
     }
     
-    /* Tablas responsivas */
-    .responsive-table {
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch !important; /* Scroll suave en iOS */
+    /* Asegurar que los selects sean fáciles de tocar */
+    .stSelectbox > div > div {
+        border-radius: 8px !important;
     }
     
-    /* Ajustar dataframes para móvil */
-    div[data-testid="stDataFrame"] {
-        font-size: 0.85em !important;
+    /* Mejorar experiencia de tablas */
+    .dataframe th, .dataframe td {
+        padding: 8px 4px !important;
+        min-width: 50px !important;
     }
     
-    /* Expanders más grandes en móvil */
+    /* Ajustar expansores */
     .streamlit-expanderHeader {
+        font-size: 1rem !important;
         padding: 12px !important;
-        font-size: 1em !important;
     }
     
-    /* Ajustar columnas en móvil */
-    @media (max-width: 768px) {
-        .stColumn {
-            padding: 5px !important;
-        }
-        
-        /* Reduce el padding en dataframes */
-        .dataframe th, .dataframe td {
-            padding: 6px 4px !important;
-            min-width: 50px !important;
-        }
+    /* Scroll suave en iOS */
+    .element-container {
+        -webkit-overflow-scrolling: touch !important;
+    }
+    
+    /* Ajustar spacing general */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+    }
+    
+    /* Clases personalizadas para mejor responsividad */
+    .mobile-optimized {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    .touch-friendly {
+        min-height: 44px !important;
+        min-width: 44px !important;
     }
 </style>
 """, unsafe_allow_html=True)
