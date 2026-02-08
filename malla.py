@@ -69,111 +69,74 @@ st.markdown("""
 <style>
     /* Configuración base para móviles */
     @media (max-width: 768px) {
-        /* Reducir tamaño de fuente */
-        .main-header {
-            font-size: 1.8rem !important;
-            padding: 10px !important;
-        }
-        
-        /* Ajustar columnas */
-        .stColumn {
-            width: 100% !important;
-            margin-bottom: 10px !important;
-        }
-        
-        /* Botones más grandes */
-        .stButton > button {
-            min-height: 48px !important;
-            font-size: 16px !important;
-            padding: 12px !important;
-        }
-        
-        /* Inputs más grandes */
-        .stTextInput > div > div > input,
-        .stSelectbox > div > div > select,
-        .stNumberInput > div > div > input {
-            font-size: 16px !important;
-            padding: 12px !important;
-            min-height: 48px !important;
-        }
-        
-        /* Tablas responsivas */
-        .dataframe {
-            font-size: 12px !important;
-        }
-        
-        /* Ajustar dataframes */
-        div[data-testid="stDataFrame"] {
-            max-width: 100% !important;
-            overflow-x: auto !important;
-        }
-        
-        /* Sidebar más compacta */
-        section[data-testid="stSidebar"] {
-            min-width: 200px !important;
-            max-width: 100% !important;
-        }
-        
-        /* Ajustar métricas */
-        div[data-testid="stMetricValue"] {
-            font-size: 1.4rem !important;
-        }
-        
-        div[data-testid="stMetricLabel"] {
-            font-size: 0.8rem !important;
-        }
+        /* ... tus estilos existentes ... */
     }
     
-    /* Estilos generales que mejoran la experiencia móvil */
+    /* ESTILOS NUEVOS PARA COLUMNAS INMOVILIZADAS */
     
-    /* Mejorar botones para toque */
-    .stButton > button {
-        border-radius: 8px !important;
-        border-width: 2px !important;
+    /* Contenedor de la tabla */
+    .stDataFrame [data-testid="stDataFrameResizable"] {
+        overflow-x: auto !important;
+        position: relative !important;
     }
     
-    /* Mejorar inputs para toque */
-    .stTextInput > div > div > input {
-        border-radius: 8px !important;
+    /* Tabla principal */
+    .stDataFrame table {
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+        min-width: 100% !important;
     }
     
-    /* Asegurar que los selects sean fáciles de tocar */
-    .stSelectbox > div > div {
-        border-radius: 8px !important;
+    /* Inmovilizar columnas desde CC (generalmente la 4ta columna) */
+    .stDataFrame th:nth-child(-n+4),
+    .stDataFrame td:nth-child(-n+4) {
+        position: sticky !important;
+        background-color: white !important;
+        z-index: 10 !important;
     }
     
-    /* Mejorar experiencia de tablas */
-    .dataframe th, .dataframe td {
-        padding: 8px 4px !important;
-        min-width: 50px !important;
+    /* Posicionamiento específico */
+    .stDataFrame th:nth-child(1),
+    .stDataFrame td:nth-child(1) {
+        left: 0 !important;
     }
     
-    /* Ajustar expansores */
-    .streamlit-expanderHeader {
-        font-size: 1rem !important;
-        padding: 12px !important;
+    .stDataFrame th:nth-child(2),
+    .stDataFrame td:nth-child(2) {
+        left: 50px !important; /* Ancho estimado columna 1 */
     }
     
-    /* Scroll suave en iOS */
-    .element-container {
-        -webkit-overflow-scrolling: touch !important;
+    .stDataFrame th:nth-child(3),
+    .stDataFrame td:nth-child(3) {
+        left: 150px !important; /* Ancho estimado columna 2 */
     }
     
-    /* Ajustar spacing general */
-    .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
+    .stDataFrame th:nth-child(4),
+    .stDataFrame td:nth-child(4) {
+        left: 300px !important; /* Ancho estimado columna 3 */
+        border-right: 2px solid #dee2e6 !important;
     }
     
-    /* Clases personalizadas para mejor responsividad */
-    .mobile-optimized {
-        width: 100% !important;
-        max-width: 100% !important;
+    /* Sombra para indicar columna fija */
+    .stDataFrame td:nth-child(4),
+    .stDataFrame th:nth-child(4) {
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
     }
     
-    .touch-friendly {
-        min-height: 44px !important;
-        min-width: 44px !important;
+    /* Encabezados con fondo */
+    .stDataFrame th:nth-child(-n+4) {
+        background-color: #f8f9fa !important;
+        z-index: 20 !important;
+    }
+    
+    /* Mejorar visibilidad de CC */
+    .stDataFrame td:nth-child(4) {
+        font-weight: 600 !important;
+        background-color: #f0f7ff !important;
+    }
+    
+    .stDataFrame th:nth-child(4) {
+        background-color: #e3f2fd !important;
     }
 </style>
 """, unsafe_allow_html=True)
