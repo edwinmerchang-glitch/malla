@@ -1158,8 +1158,8 @@ def mostrar_barra_usuario():
     if st.session_state.auth['is_authenticated']:
         user_info = st.session_state.auth['user_data']
         
-        # Layout responsivo
-        col1, col2 = st.columns([3, 1])
+        # Layout responsivo - CORREGIDO: Definir todas las columnas necesarias
+        col1, col2, col3, col4 = st.columns([3, 1, 1, 1])  # Añadidas col3 y col4
         
         with col1:
             st.markdown(f"""
@@ -1171,11 +1171,13 @@ def mostrar_barra_usuario():
             """, unsafe_allow_html=True)
         
         with col2:
-            if st.button("🚪 Salir", use_container_width=True, key="btn_logout"):
-                logout()
-            
-            # En móvil, ocultamos la info de guardado para ahorrar espacio
-            if not st.session_state.get('is_mobile', False):  # Solo mostrar en desktop
+            # Botón de recarga
+            if st.button("🔄 Recargar", use_container_width=True, key="btn_recargar"):
+                st.rerun()
+        
+        with col3:
+            # Mostrar info de último guardado (solo en desktop)
+            if not st.session_state.get('is_mobile', False):
                 if st.session_state.last_save:
                     tiempo_transcurrido = obtener_hora_colombia() - st.session_state.last_save
                     minutos = int(tiempo_transcurrido.total_seconds() / 60)
@@ -1185,14 +1187,12 @@ def mostrar_barra_usuario():
                         tiempo_texto = "Hace 1 min"
                     else:
                         tiempo_texto = f"Hace {minutos} min"
-                    st.caption(f"💾 {tiempo_texto}")
-        
-        with col3:
-            if st.button("🔄 Recargar", use_container_width=True):
-                st.rerun()
+                    st.markdown(f"<div style='text-align: center; padding: 10px;'><small>💾 {tiempo_texto}</small></div>", 
+                               unsafe_allow_html=True)
         
         with col4:
-            if st.button("🚪 Cerrar Sesión", use_container_width=True):
+            # Botón de cerrar sesión
+            if st.button("🚪 Cerrar", use_container_width=True, key="btn_logout", type="secondary"):
                 logout()
 
 def mostrar_sidebar():
