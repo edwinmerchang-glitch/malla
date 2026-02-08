@@ -1976,25 +1976,34 @@ def pagina_malla():
             
             malla_editable = st.session_state.malla_actual.copy()
             column_config = {}
-            day_columns = [col for col in malla_editable.columns if '/' in str(col)]
-            opciones_codigos = list(st.session_state.codigos_turno.keys())
-            if "" in opciones_codigos:
-                opciones_codigos.remove("")
-            
-            for col in malla_editable.columns:
-                if col in day_columns:
-                    column_config[col] = st.column_config.SelectboxColumn(
-                        col,
-                        width="small",
-                        options=[""] + opciones_codigos,
-                        help="Selecciona el código del turno"
-                    )
-                elif col in ['N°', 'CC']:
-                    column_config[col] = st.column_config.Column(width="small", disabled=True)
-                elif col == 'APELLIDOS Y NOMBRES':
-                    column_config[col] = st.column_config.Column(width="medium", disabled=True)
-                elif col in ['CARGO', 'DEPARTAMENTO', 'ESTADO']:
-                    column_config[col] = st.column_config.Column(disabled=True)
+day_columns = [col for col in malla_editable.columns if '/' in str(col)]
+opciones_codigos = list(st.session_state.codigos_turno.keys())
+if "" in opciones_codigos:
+    opciones_codigos.remove("")
+
+# Configurar todas las columnas
+for col in malla_editable.columns:
+    if col in day_columns:
+        column_config[col] = st.column_config.SelectboxColumn(
+            col,
+            width="small",
+            options=[""] + opciones_codigos,
+            help="Selecciona el código del turno"
+        )
+    elif col == 'CC':
+        # Columna CC inmovilizada a la izquierda
+        column_config[col] = st.column_config.Column(
+            "CC",
+            width="small",
+            disabled=True,
+            required=True
+        )
+    elif col in ['N°']:
+        column_config[col] = st.column_config.Column(width="small", disabled=True)
+    elif col == 'APELLIDOS Y NOMBRES':
+        column_config[col] = st.column_config.Column(width="medium", disabled=True)
+    elif col in ['CARGO', 'DEPARTAMENTO', 'ESTADO']:
+        column_config[col] = st.column_config.Column(disabled=True)
             
             edited_df = st.data_editor(
                 malla_editable,
