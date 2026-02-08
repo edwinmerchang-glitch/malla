@@ -1966,10 +1966,7 @@ def pagina_malla():
     else:
         mostrar_leyenda(inside_expander=True)
     
-    # ... resto del código permanece igual pero con ajustes en el data editor ...
-    
-    mostrar_leyenda()
-    
+      
     if st.session_state.malla_actual.empty:
         st.warning("⚠️ No hay malla de turnos cargada. Presiona 'Cargar Malla' para ver los datos.")
     else:
