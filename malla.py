@@ -1329,14 +1329,16 @@ def mostrar_leyenda():
     with st.expander("📋 Códigos de Turno (Leyenda de Colores)", expanded=False):
         st.markdown("**Selecciona un código para ver su información detallada:**")
         
-        # Crear una lista desplegable con los códigos
+        # Crear una lista desplegable con los códigos - CLAVE ÚNICA
         opciones_leyenda = [""] + [f"{codigo}: {info.get('nombre', 'Sin nombre')}" 
                                   for codigo, info in items]
         
+        # Usar una clave única basada en la página actual
+        current_page = st.session_state.get('current_page', 'unknown')
         codigo_seleccionado = st.selectbox(
             "Buscar código:",
             options=opciones_leyenda,
-            key="selector_codigo_leyenda"
+            key=f"selector_codigo_leyenda_{current_page}_{id(items)}"  # Clave única
         )
         
         if codigo_seleccionado and codigo_seleccionado != "":
