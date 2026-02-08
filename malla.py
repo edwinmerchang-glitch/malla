@@ -3257,10 +3257,11 @@ def pagina_calendario():
         else:
             st.success(f"✅ Tienes {dias_con_turno} días con turnos asignados en {mes} {ano}")
             
-            # Mostrar leyenda de colores si hay turnos - VERSIÓN CORREGIDA
-            with st.expander("🎨 Leyenda de Colores", expanded=False):
-                # Pasar inside_expander=True para evitar crear otro expander dentro
-                mostrar_leyenda(inside_expander=True)
+            # Mostrar leyenda de colores si hay turnos - SIN EXPANDER INTERNO
+            # Aquí pasamos inside_expander=False para que muestre la leyenda directamente
+            st.markdown("#### 🎨 Leyenda de Colores")
+            # Llamar a mostrar_leyenda pero sin crear expander dentro de otro
+            mostrar_leyenda_simplificada()  # Necesitarás crear esta función
         
         # Generar calendario
         generar_calendario_simple(mes_numero, ano, turnos)
