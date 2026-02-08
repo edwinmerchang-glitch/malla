@@ -1408,15 +1408,13 @@ def generar_estadisticas_turnos(mes, ano):
     try:
         conn = get_connection()
         
-        # 1. Estadísticas por día
+        # 1. Estadísticas por día - SIN códigos usados
         query_dias = '''
             SELECT mt.dia, 
                    COUNT(mt.id) as total_turnos,
                    COUNT(CASE WHEN mt.codigo_turno IS NOT NULL AND mt.codigo_turno != '' THEN 1 END) as turnos_asignados,
-                   COUNT(CASE WHEN mt.codigo_turno IS NULL OR mt.codigo_turno = '' THEN 1 END) as turnos_vacios,
-                   GROUP_CONCAT(DISTINCT ct.nombre) as codigos_dia
+                   COUNT(CASE WHEN mt.codigo_turno IS NULL OR mt.codigo_turno = '' THEN 1 END) as turnos_vacios
             FROM malla_turnos mt
-            LEFT JOIN codigos_turno ct ON mt.codigo_turno = ct.codigo
             WHERE mt.mes = ? AND mt.ano = ?
             GROUP BY mt.dia
             ORDER BY mt.dia
