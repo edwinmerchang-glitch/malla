@@ -1329,39 +1329,25 @@ def mostrar_leyenda(inside_expander=False):
         st.info("No hay códigos de turno configurados.")
         return
     
-    # Si ya estamos dentro de un expander, mostrar directamente
-    if inside_expander:
-        st.markdown("**Códigos disponibles:**")
+    # CORRECCIÓN: Siempre mostrar en un expander, no usar inside_expander
+    with st.expander("🎨 Leyenda de códigos de turno", expanded=False):
+        st.markdown("**Códigos disponibles (haz clic en una celda para seleccionar):**")
         
-        # Organizar en una tabla compacta
+        # Organizar en columnas responsivas
         cols_per_row = 4
-        cols = st.columns(cols_per_row)
+        num_items = len(items)
+        num_rows = (num_items + cols_per_row - 1) // cols_per_row
         
-        for idx, (codigo, info) in enumerate(items):
-            with cols[idx % cols_per_row]:
-                color = info.get("color", "#FFFFFF")
-                nombre = info.get("nombre", "Sin nombre")
-                horas = info.get("horas", 0)
-                
-                st.markdown(f"""
-                <div style="margin-bottom: 8px; padding: 8px; background: #f9f9f9; 
-                           border-radius: 4px; border-left: 4px solid {color};">
-                    <div style="font-weight: bold; font-size: 0.95em;">{codigo}</div>
-                    <div style="font-size: 0.8em; color: #666;">{nombre[:20]}{'...' if len(nombre) > 20 else ''}</div>
-                    <div style="font-size: 0.75em; color: #888;">{horas}h</div>
-                </div>
-                """, unsafe_allow_html=True)
-    else:
-        # Crear un expander para la leyenda
-        with st.expander("🎨 Leyenda de códigos", expanded=False):
-            st.markdown("**Códigos disponibles:**")
-            
-            # Organizar en una tabla compacta
-            cols_per_row = 4
+        for row in range(num_rows):
             cols = st.columns(cols_per_row)
+            start_idx = row * cols_per_row
+            end_idx = min(start_idx + cols_per_row, num_items)
             
-            for idx, (codigo, info) in enumerate(items):
-                with cols[idx % cols_per_row]:
+            for idx in range(start_idx, end_idx):
+                codigo, info = items[idx]
+                col_idx = idx % cols_per_row
+                
+                with cols[col_idx]:
                     color = info.get("color", "#FFFFFF")
                     nombre = info.get("nombre", "Sin nombre")
                     horas = info.get("horas", 0)
