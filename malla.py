@@ -1659,7 +1659,7 @@ def mostrar_estadisticas_avanzadas(mes, ano):
         else:
             st.info("No hay datos de turnos por departamento.")
     
-    with tab3:
+        with tab3:
         # Estadísticas por código de turno
         if not estadisticas['por_codigo'].empty:
             st.markdown("#### 🔢 Uso de Códigos de Turno")
@@ -1672,18 +1672,22 @@ def mostrar_estadisticas_avanzadas(mes, ano):
                     return f'background-color: {val}; color: white;'
                 return ''
             
-            styled_df = df_codigos.style.applymap(color_row, subset=['color'])
+            # Primero renombrar las columnas
+            df_codigos_renombrado = df_codigos.rename(columns={
+                'codigo': 'Código',
+                'nombre': 'Descripción',
+                'color': 'Color',
+                'veces_asignado': 'Veces Asignado',
+                'total_horas': 'Total Horas',
+                'empleados_distintos': 'Empleados',
+                'departamentos_distintos': 'Departamentos'
+            })
+            
+            # Luego aplicar estilos
+            styled_df = df_codigos_renombrado.style.applymap(color_row, subset=['Color'])
             
             st.dataframe(
-                styled_df.rename(columns={
-                    'codigo': 'Código',
-                    'nombre': 'Descripción',
-                    'color': 'Color',
-                    'veces_asignado': 'Veces Asignado',
-                    'total_horas': 'Total Horas',
-                    'empleados_distintos': 'Empleados',
-                    'departamentos_distintos': 'Departamentos'
-                }),
+                styled_df,
                 use_container_width=True,
                 hide_index=True
             )
