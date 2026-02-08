@@ -1154,26 +1154,24 @@ def pagina_login():
 # COMPONENTES DE INTERFAZ
 # ============================================================================
 def mostrar_barra_usuario():
-    """Mostrar barra superior con información del usuario - Optimizado para móvil"""
+    """Mostrar barra superior con información del usuario - Responsiva"""
     if st.session_state.auth['is_authenticated']:
         user_info = st.session_state.auth['user_data']
         
-        # En móvil, mostramos menos información
-        col1, col2 = st.columns([3, 2])
+        # Layout responsivo
+        col1, col2 = st.columns([3, 1])
         
         with col1:
             st.markdown(f"""
-            <div style="background-color: #1E3A8A; color: white; padding: 8px 15px; 
+            <div style="background-color: #1E3A8A; color: white; padding: 10px 15px; 
                        border-radius: 5px; margin-bottom: 10px; font-size: 0.9em;">
-                <div><strong>👤 {user_info['nombre'].split()[0] if user_info['nombre'] else 'Usuario'}</strong></div>
-                <div style="font-size: 0.8em;">
-                    {st.session_state.auth['role'].title()} | {user_info.get('departamento', 'N/A')}
-                </div>
+                <strong>👤 {user_info['nombre']}</strong><br>
+                <small>Rol: {st.session_state.auth['role'].title()} | Depto: {user_info.get('departamento', 'N/A')}</small>
             </div>
             """, unsafe_allow_html=True)
         
         with col2:
-            if st.button("🚪 Salir", use_container_width=True, type="secondary"):
+            if st.button("🚪 Salir", use_container_width=True, key="btn_logout"):
                 logout()
             
             # En móvil, ocultamos la info de guardado para ahorrar espacio
@@ -3528,14 +3526,19 @@ def pagina_info_sistema():
                 </div>
                 """, unsafe_allow_html=True)
 
+# ============================================================================
+# FUNCIÓN PRINCIPAL - VERSIÓN CORREGIDA
+# ============================================================================
 def main():
     """Función principal que gestiona toda la aplicación"""
-    # Detectar dispositivo
-    st.session_state.is_mobile = es_dispositivo_movil()
-    
     # Inicializar session state
     if 'app_initialized' not in st.session_state:
         inicializar_session_state()
+    
+    # NO usar detección de dispositivo móvil - usar CSS responsivo en su lugar
+    # Solo inicializar la variable si no existe
+    if 'is_mobile' not in st.session_state:
+        st.session_state.is_mobile = False  # Por defecto, asumir desktop
     
     # Asegurar que codigos_turno esté inicializado
     if 'codigos_turno' not in st.session_state:
@@ -3545,14 +3548,11 @@ def main():
         pagina_login()
         return
     
-    # En móvil, ajustar layout
-    if st.session_state.is_mobile:
-        st.markdown('<div class="mobile-container">', unsafe_allow_html=True)
-    
+    # Mostrar barra de usuario y sidebar
     mostrar_barra_usuario()
     mostrar_sidebar()
     
-    if st.session_state.auth['role'] == 'admin' and not st.session_state.is_mobile:
+    if st.session_state.auth['role'] == 'admin':
         monitoreo_sistema()
     
     # Mapeo de páginas disponibles
@@ -3590,32 +3590,24 @@ def main():
         # Página por defecto
         pagina_malla()
     
-    # Cerrar contenedor móvil
-    if st.session_state.is_mobile:
-        st.markdown('</div>', unsafe_allow_html=True)
-    
     # Footer
     st.markdown("---")
     hora_colombia = obtener_hora_colombia()
     
-    # Footer más compacto para móvil
-    if st.session_state.is_mobile:
-        footer_text = f"""
-        <div style='text-align: center; color: #6c757d; padding: 10px; font-size: 0.8em;'>
-        📊 Edwin Merchán | {hora_colombia.strftime('%H:%M')}
-        """
-    else:
-        footer_text = f"""
-        <div style='text-align: center; color: #6c757d; padding: 20px;'>
-        📊 Creado por Edwin Merchán | © 2026 | Versión 2.0 | 
-        Hora Colombia: {hora_colombia.strftime('%H:%M')}
-        """
+    # Footer responsivo
+    footer_text = f"""
+    <div style='text-align: center; color: #6c757d; padding: 10px; font-size: 0.9em;'>
+    📊 Malla de Turnos Locatel | {hora_colombia.strftime('%H:%M')} 🇨🇴
+    </div>
+    """
     
-    if IS_STREAMLIT_CLOUD and not st.session_state.is_mobile:
+    if IS_STREAMLIT_CLOUD:
         backups = list(BACKUP_DIR.glob("turnos_backup_*.db"))
-        footer_text += f"| ☁️ Backups: {len(backups)}"
-    
-    footer_text += "</div>"
+        footer_text = f"""
+        <div style='text-align: center; color: #6c757d; padding: 10px; font-size: 0.9em;'>
+        📊 Malla de Turnos Locatel | Hora: {hora_colombia.strftime('%H:%M')} | Backups: {len(backups)}
+        </div>
+        """
     
     st.markdown(footer_text, unsafe_allow_html=True)
     
