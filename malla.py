@@ -2552,8 +2552,8 @@ def pagina_mis_turnos():
         else:
             st.success(f"✅ Tienes {len(turnos_con_codigo)} días con turnos asignados en {mes_seleccionado} {ano}")
             
-            # Mostrar estadísticas
-            st.markdown("#### 📊 Estadísticas del Mes")
+            # Mostrar tabla detallada PRIMERO
+            st.markdown("#### 📋 Lista de Turnos")
             
             total_horas = 0
             turnos_detallados = []
@@ -2571,30 +2571,14 @@ def pagina_mis_turnos():
                     'Color': turno_info.get("color", "#FFFFFF")
                 })
             
-            col_stats1, col_stats2, col_stats3, col_stats4 = st.columns(4)
-            with col_stats1:
-                st.metric("Días con turno", len(turnos_con_codigo))
-            with col_stats2:
-                st.metric("Horas totales", total_horas)
-            with col_stats3:
-                promedio = total_horas / len(turnos_con_codigo) if turnos_con_codigo else 0
-                st.metric("Promedio/día", f"{promedio:.1f}h")
-            with col_stats4:
-                num_dias = calendar.monthrange(ano, mes_numero)[1]
-                porcentaje = (len(turnos_con_codigo) / num_dias) * 100
-                st.metric("Cobertura", f"{porcentaje:.1f}%")
-            
-            # Mostrar tabla detallada - VERSIÓN CORREGIDA
-            st.markdown("#### 📋 Lista de Turnos")
-            
             df_turnos = pd.DataFrame(turnos_detallados)
             
-            # Crear tabla con colores - CORRECCIÓN APLICADA
+            # Crear tabla con colores
             def aplicar_color_fila(row):
                 color = df_turnos.loc[row.name, 'Color'] if row.name in df_turnos.index else '#FFFFFF'
                 return [f'background-color: {color}' for _ in row]
             
-            # Primero seleccionar solo las columnas que queremos mostrar
+            # Seleccionar columnas para mostrar
             df_display = df_turnos[['Día', 'Código', 'Turno', 'Horas']].copy()
             
             # Aplicar el estilo al DataFrame de visualización
@@ -2607,11 +2591,33 @@ def pagina_mis_turnos():
                 hide_index=True
             )
             
-            # Mostrar leyenda
+            # MOSTRAR ESTADÍSTICAS AL FINAL
+            st.markdown("---")
+            st.markdown("#### 📊 Estadísticas del Mes")
+            
+            col_stats1, col_stats2, col_stats3, col_stats4 = st.columns(4)
+            
+            with col_stats1:
+                st.metric("Días con turno", len(turnos_con_codigo))
+            
+            with col_stats2:
+                st.metric("Horas totales", total_horas)
+            
+            with col_stats3:
+                promedio = total_horas / len(turnos_con_codigo) if turnos_con_codigo else 0
+                st.metric("Promedio/día", f"{promedio:.1f}h")
+            
+            with col_stats4:
+                num_dias = calendar.monthrange(ano, mes_numero)[1]
+                porcentaje = (len(turnos_con_codigo) / num_dias) * 100
+                st.metric("Cobertura", f"{porcentaje:.1f}%")
+            
+            # Mostrar leyenda después de las estadísticas
+            st.markdown("---")
             with st.expander("🎨 Leyenda de códigos", expanded=False):
                 mostrar_leyenda()
             
-            # Opción para exportar
+            # Opción para exportar al final
             st.markdown("---")
             csv = df_turnos[['Día', 'Código', 'Turno', 'Horas']].to_csv(index=False)
             st.download_button(
