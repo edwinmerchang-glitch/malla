@@ -1247,7 +1247,7 @@ def aplicar_estilo_dataframe(df):
     return df.style
 
 def mostrar_leyenda():
-    """Mostrar leyenda de colores mejorada"""
+    """Mostrar leyenda de colores en un expander debajo de la tabla"""
     if 'codigos_turno' not in st.session_state or not st.session_state.codigos_turno:
         st.info("No hay códigos de turno configurados.")
         return
@@ -1261,31 +1261,78 @@ def mostrar_leyenda():
         st.info("No hay códigos de turno configurados.")
         return
     
-    st.markdown("**Códigos de turno:**")
-    
-    # Organizar en 3 columnas
-    num_cols = 3
-    cols = st.columns(num_cols)
-    
-    for idx, (codigo, info) in enumerate(items):
-        with cols[idx % num_cols]:
-            color = info.get("color", "#FFFFFF")
-            nombre = info.get("nombre", "Sin nombre")
-            horas = info.get("horas", 0)
+    # Crear expander con la leyenda
+    with st.expander("📋 Códigos de Turno (Leyenda de Colores)", expanded=False):
+        st.markdown("**Selecciona un código para ver su información detallada:**")
+        
+        # Crear una lista desplegable con los códigos
+        opciones_leyenda = [""] + [f"{codigo}: {info.get('nombre', 'Sin nombre')}" 
+                                  for codigo, info in items]
+        
+        codigo_seleccionado = st.selectbox(
+            "Buscar código:",
+            options=opciones_leyenda,
+            key="selector_codigo_leyenda"
+        )
+        
+        if codigo_seleccionado and codigo_seleccionado != "":
+            # Extraer el código del texto seleccionado
+            codigo = codigo_seleccionado.split(":")[0].strip()
             
-            st.markdown(f"""
-            <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; 
-                       background: white; border-radius: 5px; border: 1px solid #e0e0e0;
-                       box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <div style="width: 25px; height: 25px; background-color: {color}; 
-                         margin-right: 12px; border-radius: 4px; border: 1px solid #ccc;"></div>
-                <div style="flex: 1;">
-                    <div style="font-weight: bold; font-size: 1.1em;">{codigo}</div>
-                    <div style="font-size: 0.85em; color: #666; margin-top: 2px;">{nombre}</div>
-                    <div style="font-size: 0.8em; color: #888;">{horas} horas</div>
+            if codigo in codigos:
+                info = codigos[codigo]
+                color = info.get("color", "#FFFFFF")
+                nombre = info.get("nombre", "Sin nombre")
+                horas = info.get("horas", 0)
+                
+                # Mostrar información detallada del código seleccionado
+                st.markdown(f"""
+                <div style="display: flex; align-items: center; padding: 15px; 
+                           background: white; border-radius: 5px; border: 2px solid #e0e0e0;
+                           margin-bottom: 10px;">
+                    <div style="width: 40px; height: 40px; background-color: {color}; 
+                             margin-right: 15px; border-radius: 5px; border: 1px solid #ccc;"></div>
+                    <div style="flex: 1;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="font-weight: bold; font-size: 1.2em;">{codigo}</span>
+                                <span style="margin-left: 10px; color: #666;">{nombre}</span>
+                            </div>
+                            <span style="background-color: #f0f0f0; padding: 3px 8px; border-radius: 3px;">
+                                {horas} horas
+                            </span>
+                        </div>
+                        <div style="margin-top: 5px;">
+                            <span style="color: #888; font-size: 0.9em;">
+                                Color: <code>{color}</code>
+                            </span>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+        
+        # Mostrar todos los códigos en una vista compacta
+        st.markdown("---")
+        st.markdown("**Todos los códigos disponibles:**")
+        
+        # Organizar en una tabla compacta
+        cols_per_row = 4
+        cols = st.columns(cols_per_row)
+        
+        for idx, (codigo, info) in enumerate(items):
+            with cols[idx % cols_per_row]:
+                color = info.get("color", "#FFFFFF")
+                nombre = info.get("nombre", "Sin nombre")
+                horas = info.get("horas", 0)
+                
+                st.markdown(f"""
+                <div style="margin-bottom: 8px; padding: 8px; background: #f9f9f9; 
+                           border-radius: 4px; border-left: 4px solid {color};">
+                    <div style="font-weight: bold; font-size: 0.95em;">{codigo}</div>
+                    <div style="font-size: 0.8em; color: #666;">{nombre[:20]}{'...' if len(nombre) > 20 else ''}</div>
+                    <div style="font-size: 0.75em; color: #888;">{horas}h</div>
+                </div>
+                """, unsafe_allow_html=True)
 
 def extraer_horas_desde_codigo(codigo):
     """
