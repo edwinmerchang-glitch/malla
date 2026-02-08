@@ -1274,7 +1274,7 @@ def aplicar_estilo_dataframe(df):
     return df.style
 
 def mostrar_leyenda(inside_expander=False):
-    """Mostrar leyenda de colores - VERSIÓN CORREGIDA
+    """Mostrar leyenda de colores - VERSIÓN MEJORADA
     
     Args:
         inside_expander (bool): Si se llama desde dentro de otro expander
@@ -1292,28 +1292,32 @@ def mostrar_leyenda(inside_expander=False):
         st.info("No hay códigos de turno configurados.")
         return
     
-    # SIEMPRE crear un expander para la leyenda
-    with st.expander("🎨 Leyenda de códigos", expanded=False):
+    # Si estamos dentro de otro expander, mostrar directamente
+    if inside_expander:
         st.markdown("**Códigos disponibles:**")
-        
-        # Organizar en una tabla compacta
-        cols_per_row = 4
-        cols = st.columns(cols_per_row)
-        
-        for idx, (codigo, info) in enumerate(items):
-            with cols[idx % cols_per_row]:
-                color = info.get("color", "#FFFFFF")
-                nombre = info.get("nombre", "Sin nombre")
-                horas = info.get("horas", 0)
-                
-                st.markdown(f"""
-                <div style="margin-bottom: 8px; padding: 8px; background: #f9f9f9; 
-                           border-radius: 4px; border-left: 4px solid {color};">
-                    <div style="font-weight: bold; font-size: 0.95em;">{codigo}</div>
-                    <div style="font-size: 0.8em; color: #666;">{nombre[:20]}{'...' if len(nombre) > 20 else ''}</div>
-                    <div style="font-size: 0.75em; color: #888;">{horas}h</div>
-                </div>
-                """, unsafe_allow_html=True)
+    else:
+        # Crear un expander solo si no estamos dentro de otro
+        with st.expander("🎨 Leyenda de códigos", expanded=False):
+            st.markdown("**Códigos disponibles:**")
+    
+    # Organizar en una tabla compacta
+    cols_per_row = 4
+    cols = st.columns(cols_per_row)
+    
+    for idx, (codigo, info) in enumerate(items):
+        with cols[idx % cols_per_row]:
+            color = info.get("color", "#FFFFFF")
+            nombre = info.get("nombre", "Sin nombre")
+            horas = info.get("horas", 0)
+            
+            st.markdown(f"""
+            <div style="margin-bottom: 8px; padding: 8px; background: #f9f9f9; 
+                       border-radius: 4px; border-left: 4px solid {color};">
+                <div style="font-weight: bold; font-size: 0.95em;">{codigo}</div>
+                <div style="font-size: 0.8em; color: #666;">{nombre[:20]}{'...' if len(nombre) > 20 else ''}</div>
+                <div style="font-size: 0.75em; color: #888;">{horas}h</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 def extraer_horas_desde_codigo(codigo):
     """
