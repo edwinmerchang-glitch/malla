@@ -1310,12 +1310,8 @@ def aplicar_estilo_dataframe(df):
         return styled_df
     return df.style
 
-def mostrar_leyenda(inside_expander=False):
-    """Mostrar leyenda de colores - VERSIÓN CORREGIDA
-    
-    Args:
-        inside_expander (bool): Si se llama desde dentro de otro expander
-    """
+def mostrar_leyenda():
+    """Mostrar leyenda de colores - VERSIÓN SIMPLIFICADA"""
     if 'codigos_turno' not in st.session_state or not st.session_state.codigos_turno:
         st.info("No hay códigos de turno configurados.")
         return
@@ -1329,7 +1325,7 @@ def mostrar_leyenda(inside_expander=False):
         st.info("No hay códigos de turno configurados.")
         return
     
-    # SIEMPRE crear un expander para la leyenda
+    # Crear un expander para la leyenda
     with st.expander("🎨 Leyenda de códigos", expanded=False):
         st.markdown("**Códigos disponibles:**")
         
@@ -3250,10 +3246,9 @@ def pagina_calendario():
         else:
             st.success(f"✅ Tienes {dias_con_turno} días con turnos asignados en {mes} {ano}")
             
-            # Mostrar leyenda de colores si hay turnos - VERSIÓN CORREGIDA
-            with st.expander("🎨 Leyenda de Colores", expanded=False):
-                # Pasar inside_expander=True para evitar crear otro expander dentro
-                mostrar_leyenda(inside_expander=True)
+            # Mostrar leyenda de colores si hay turnos - CORRECCIÓN APLICADA
+            # NO usar inside_expander=True aquí ya que no estamos dentro de un expander
+            mostrar_leyenda()
         
         # Generar calendario
         generar_calendario_simple(mes_numero, ano, turnos)
