@@ -1956,13 +1956,6 @@ def mostrar_estadisticas_avanzadas(mes, ano):
 # ============================================================================
 # PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
 # ============================================================================
-# ============================================================================
-# PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
-# ============================================================================
-# ============================================================================
-# PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
-# ============================================================================
-
 def pagina_malla():
     """Página principal - Malla de turnos CON ESTADÍSTICAS - Optimizada para móvil"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
@@ -2113,50 +2106,62 @@ def pagina_malla():
             # Mostrar estadísticas avanzadas después de guardar cambios
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
-else:
-    st.info("👁️ Vista de solo lectura - No puedes editar")
-    
-    df = st.session_state.malla_actual.copy()
-    
-    # NOTA IMPORTANTE: Verificar que hay más de 3 columnas
-    if len(df.columns) <= 3:
-        # Si solo hay 3 o menos columnas, mostrar todo normal
-        st.dataframe(df, height=600, use_container_width=True)
-    else:
-        # Crear un layout con dos columnas
-        col_fijas, col_desplazables = st.columns([3, 7])
         
-        with col_fijas:
-            st.markdown("#### 🏷️ Información Fija")
-            # Asegurar que la tabla tenga colores según los códigos de turno
-            df_fijo = df.iloc[:, :3].copy()
+        # AQUÍ ESTÁ EL CAMBIO IMPORTANTE: else para vista de solo lectura
+        else:
+            st.info("👁️ Vista de solo lectura - No puedes editar")
             
-            # Aplicar algún formato si es necesario
-            st.dataframe(
-                df_fijo,
-                height=600,
-                use_container_width=True
-            )
-        
-        with col_desplazables:
-            st.markdown("#### 📅 Turnos por Día")
-            # Para las columnas de días, podemos aplicar colores
-            df_dias = df.iloc[:, 3:].copy()
+            df = st.session_state.malla_actual.copy()
             
-            # Crear una copia para aplicar estilos si es necesario
-            st.dataframe(
-                df_dias,
-                height=600,
-                use_container_width=True
-            )
-        
-        # Opcional: Mostrar leyenda de colores debajo
-        with st.expander("🎨 Leyenda de colores", expanded=False):
-            mostrar_leyenda(inside_expander=True)
-    
-    # Mostrar estadísticas para vista de solo lectura también
-    if rol in ['admin', 'supervisor']:
-        mostrar_estadisticas_avanzadas(mes_numero, ano)
+            # Verificar que hay más de 3 columnas
+            if len(df.columns) <= 3:
+                # Si solo hay 3 o menos columnas, mostrar todo normal
+                st.dataframe(df, height=600, use_container_width=True)
+            else:
+                # Crear un layout con dos columnas
+                col_fijas, col_desplazables = st.columns([3, 7])
+                
+                with col_fijas:
+                    st.markdown("#### 🏷️ Información Fija")
+                    # Mostrar las primeras 3 columnas (fijas)
+                    df_fijo = df.iloc[:, :3].copy()
+                    st.dataframe(
+                        df_fijo,
+                        height=600,
+                        use_container_width=True
+                    )
+                
+                with col_desplazables:
+                    st.markdown("#### 📅 Turnos por Día")
+                    # Mostrar el resto de columnas (desplazables)
+                    df_dias = df.iloc[:, 3:].copy()
+                    st.dataframe(
+                        df_dias,
+                        height=600,
+                        use_container_width=True
+                    )
+                
+                # Información para el usuario
+                st.info("""
+                **📋 Vista dividida:**
+                - **← Izquierda:** Información del empleado (fija)
+                - **→ Derecha:** Turnos por día (desplazable horizontalmente)
+                """)
+                
+                # Botón para descargar la tabla completa
+                st.markdown("---")
+                csv = df.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="📥 Descargar tabla completa (CSV)",
+                    data=csv,
+                    file_name=f"malla_{mes_seleccionado}_{ano}_completa.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+            
+            # Mostrar estadísticas para vista de solo lectura también
+            if rol in ['admin', 'supervisor']:
+                mostrar_estadisticas_avanzadas(mes_numero, ano)
 # Continúa con las demás funciones...
 
 def pagina_backup():
