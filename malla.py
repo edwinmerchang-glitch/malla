@@ -2114,9 +2114,21 @@ def pagina_malla():
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
         else:
-            st.info("👁️ Vista de solo lectura - No puedes editar")
-            styled_df = aplicar_estilo_dataframe(st.session_state.malla_actual)
-            mostrar_malla_congelada(df_malla)
+    st.info("👁️ Vista de solo lectura - No puedes editar")
+    styled_df = aplicar_estilo_dataframe(st.session_state.malla_actual)
+
+    st.dataframe(
+        styled_df,
+        column_config={
+            styled_df.columns[0]: st.column_config.Column(pinned="left"),
+            styled_df.columns[1]: st.column_config.Column(pinned="left"),
+            styled_df.columns[2]: st.column_config.Column(pinned="left"),
+            styled_df.columns[3]: st.column_config.Column(pinned="left"),
+        },
+        use_container_width=True,
+        height=600
+    )
+
 
             
             # Mostrar estadísticas para vista de solo lectura también
