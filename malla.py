@@ -2012,57 +2012,98 @@ def pagina_malla():
         
         rol = st.session_state.auth['role']
         
-        if check_permission("write"):
+        # AQUÍ ESTÁ EL CAMBIO: Solo mostrar tabla dividida para quienes pueden editar
+        if check_permission("write"):  # Admin y supervisor - TABLA DIVIDIDA
             st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', unsafe_allow_html=True)
             
-            malla_editable = st.session_state.malla_actual.copy()
-            column_config = {}
-            day_columns = [col for col in malla_editable.columns if '/' in str(col)]
+            df = st.session_state.malla_actual.copy()
             
-            # Obtener opciones de códigos para los selectboxes
-            if 'codigos_turno' in st.session_state:
-                opciones_codigos = list(st.session_state.codigos_turno.keys())
-                # Filtrar código vacío si existe
-                if "" in opciones_codigos:
-                    opciones_codigos.remove("")
-            else:
-                opciones_codigos = []
+            # Separar columnas fijas y de días
+            columnas_fijas = []
+            columnas_dias = []
             
-            # Configurar columnas
-            for col in malla_editable.columns:
-                if col in day_columns:
-                    column_config[col] = st.column_config.SelectboxColumn(
+            # Identificar columnas (las primeras son fijas, las de fecha son días)
+            for col in df.columns:
+                if '/' in str(col):  # Es una columna de día
+                    columnas_dias.append(col)
+                else:
+                    columnas_fijas.append(col)
+            
+            # Crear dos dataframes separados
+            df_fijo = df[columnas_fijas].copy()
+            df_dias = df[columnas_dias].copy()
+            
+            # Mostrar en dos columnas
+            col_fijas, col_desplazables = st.columns([3, 7])
+            
+            with col_fijas:
+                st.markdown("#### 🏷️ Información del Empleado")
+                # Mostrar información fija (solo lectura)
+                column_config_fijo = {}
+                for col in df_fijo.columns:
+                    column_config_fijo[col] = st.column_config.Column(col, disabled=True)
+                
+                st.dataframe(
+                    df_fijo,
+                    column_config=column_config_fijo,
+                    hide_index=True,
+                    use_container_width=True,
+                    height=600
+                )
+            
+            with col_desplazables:
+                st.markdown("#### 📅 Turnos por Día (Editable)")
+                
+                # Obtener opciones de códigos para los selectboxes
+                if 'codigos_turno' in st.session_state:
+                    opciones_codigos = list(st.session_state.codigos_turno.keys())
+                    # Filtrar código vacío si existe
+                    if "" in opciones_codigos:
+                        opciones_codigos.remove("")
+                else:
+                    opciones_codigos = []
+                
+                # Configurar columnas editables para los días
+                column_config_dias = {}
+                for col in df_dias.columns:
+                    column_config_dias[col] = st.column_config.SelectboxColumn(
                         col,
                         width="small",
                         options=[""] + opciones_codigos,
                         help="Selecciona el código del turno"
                     )
-                elif col in ['N°', 'CC']:
-                    column_config[col] = st.column_config.Column(width="small", disabled=True)
-                elif col == 'APELLIDOS Y NOMBRES':
-                    column_config[col] = st.column_config.Column(width="medium", disabled=True)
-                elif col in ['CARGO', 'DEPARTAMENTO', 'ESTADO']:
-                    column_config[col] = st.column_config.Column(disabled=True)
+                
+                # Asegurarse de que todas las celdas tengan valores válidos
+                df_dias_edit = df_dias.copy()
+                for col in df_dias_edit.columns:
+                    df_dias_edit[col] = df_dias_edit[col].fillna("").astype(str)
+                    for idx, val in enumerate(df_dias_edit[col]):
+                        if val not in [""] + opciones_codigos:
+                            df_dias_edit.at[idx, col] = ""
+                
+                # Mostrar editor solo para las columnas de días
+                edited_dias_df = st.data_editor(
+                    df_dias_edit,
+                    column_config=column_config_dias,
+                    hide_index=True,
+                    use_container_width=True,
+                    height=600,
+                    num_rows="fixed",
+                    key=f"editor_dias_{mes_numero}_{ano}"
+                )
             
-            # Asegurarse de que todas las celdas de días tengan valores válidos
-            for col in day_columns:
-                malla_editable[col] = malla_editable[col].fillna("").astype(str)
-                for idx, val in enumerate(malla_editable[col]):
-                    if val not in [""] + opciones_codigos:
-                        malla_editable.at[idx, col] = ""
-            
-            edited_df = st.data_editor(
-                malla_editable,
-                column_config=column_config,
-                hide_index=True,
-                use_container_width=True,
-                height=600,
-                num_rows="fixed",
-                key=f"editor_malla_{mes_numero}_{ano}"
-            )
+            # Información para el usuario
+            st.info("""
+            **📋 Vista dividida para edición:**
+            - **← Izquierda:** Información del empleado (fija, solo lectura)
+            - **→ Derecha:** Turnos por día (editable, desplazable horizontalmente)
+            """)
             
             st.markdown("---")
             st.markdown("### 💾 Acciones de Guardado")
+            
+            # Reconstruir el dataframe completo con los cambios
+            edited_df = pd.concat([df_fijo, edited_dias_df], axis=1)
             
             col1, col2, col3 = st.columns(3)
             
@@ -2095,7 +2136,7 @@ def pagina_malla():
                 if st.button("🗑️ Limpiar Todos", use_container_width=True, type="secondary"):
                     if st.checkbox("¿Confirmar que quieres limpiar TODOS los turnos de este mes?"):
                         malla_vacia = edited_df.copy()
-                        for col in day_columns:
+                        for col in columnas_dias:
                             malla_vacia[col] = ""
                         
                         cambios = guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
@@ -2103,65 +2144,33 @@ def pagina_malla():
                         st.success(f"✅ {cambios} turnos limpiados")
                         st.rerun()
             
-            # Mostrar estadísticas avanzadas después de guardar cambios
+            # Mostrar estadísticas avanzadas
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
         
-        # AQUÍ ESTÁ EL CAMBIO IMPORTANTE: else para vista de solo lectura
-        else:
+        # PARA EMPLEADOS (SOLO LECTURA): Mostrar tabla completa normal
+        else:  # Empleados con solo lectura
             st.info("👁️ Vista de solo lectura - No puedes editar")
             
             df = st.session_state.malla_actual.copy()
             
-            # Verificar que hay más de 3 columnas
-            if len(df.columns) <= 3:
-                # Si solo hay 3 o menos columnas, mostrar todo normal
-                st.dataframe(df, height=600, use_container_width=True)
-            else:
-                # Crear un layout con dos columnas
-                col_fijas, col_desplazables = st.columns([3, 7])
-                
-                with col_fijas:
-                    st.markdown("#### 🏷️ Información Fija")
-                    # Mostrar las primeras 3 columnas (fijas)
-                    df_fijo = df.iloc[:, :3].copy()
-                    st.dataframe(
-                        df_fijo,
-                        height=600,
-                        use_container_width=True
-                    )
-                
-                with col_desplazables:
-                    st.markdown("#### 📅 Turnos por Día")
-                    # Mostrar el resto de columnas (desplazables)
-                    df_dias = df.iloc[:, 3:].copy()
-                    st.dataframe(
-                        df_dias,
-                        height=600,
-                        use_container_width=True
-                    )
-                
-                # Información para el usuario
-                st.info("""
-                **📋 Vista dividida:**
-                - **← Izquierda:** Información del empleado (fija)
-                - **→ Derecha:** Turnos por día (desplazable horizontalmente)
-                """)
-                
-                # Botón para descargar la tabla completa
-                st.markdown("---")
-                csv = df.to_csv(index=False, encoding='utf-8-sig')
-                st.download_button(
-                    label="📥 Descargar tabla completa (CSV)",
-                    data=csv,
-                    file_name=f"malla_{mes_seleccionado}_{ano}_completa.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
+            # Mostrar tabla completa normal
+            st.dataframe(
+                df,
+                height=600,
+                use_container_width=True
+            )
             
-            # Mostrar estadísticas para vista de solo lectura también
-            if rol in ['admin', 'supervisor']:
-                mostrar_estadisticas_avanzadas(mes_numero, ano)
+            # Botón para descargar la tabla completa
+            st.markdown("---")
+            csv = df.to_csv(index=False, encoding='utf-8-sig')
+            st.download_button(
+                label="📥 Descargar tabla completa (CSV)",
+                data=csv,
+                file_name=f"malla_{mes_seleccionado}_{ano}_completa.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
 # Continúa con las demás funciones...
 
 def pagina_backup():
