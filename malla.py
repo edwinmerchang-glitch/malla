@@ -548,7 +548,7 @@ def get_malla_turnos(mes, ano):
     
     # ===== CAMBIO CRÍTICO: Usar "DÍA 1", "DÍA 2" - SIN BARRAS =====
     for dia in range(1, num_dias + 1):
-        col_name = f'DÍA {dia}'  # SIMPLE Y ÚNICO
+        col_name = f'D{dia:02d}'  # SIMPLE Y ÚNICO
         df_base[col_name] = ""
         
         for idx, row in df_base.iterrows():
@@ -635,7 +635,7 @@ def guardar_malla_turnos(df_malla, mes, ano):
             emp_id = id_por_cedula[cedula]
             
             for dia in range(1, num_dias + 1):
-                col_name = f'DÍA {dia}'  # MISMO FORMATO
+                col_name = f'D{dia:02d}'  # MISMO FORMATO
                 if col_name in row:
                     codigo = row[col_name]
                     
@@ -1774,7 +1774,7 @@ def pagina_malla():
         columnas_dias = []
         
         for col in df.columns:
-            if 'DÍA' in str(col):  # Detecta las columnas de días
+            if col.startswith('D') and col[1:].isdigit():  # Detecta las columnas de días
                 columnas_dias.append(col)
             else:
                 columnas_fijas.append(col)
