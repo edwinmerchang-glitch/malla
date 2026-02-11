@@ -19,6 +19,7 @@ import calendar
 import sqlite3
 import os
 import streamlit.components.v1 as components
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
 import shutil
 import time
 import pytz
@@ -1310,6 +1311,39 @@ def aplicar_estilo_dataframe(df):
         return styled_df
     return df.style
 
+def mostrar_malla_congelada(df):
+    gb = GridOptionsBuilder.from_dataframe(df)
+
+    gb.configure_default_column(
+        resizable=True,
+        sortable=True,
+        filter=True,
+        minWidth=80
+    )
+
+    # 🔒 Congelar la columna 3
+    col_fija = df.columns[2]
+    gb.configure_column(col_fija, pinned="left")
+
+    # 🔒 Congelar la fila 1
+    gb.configure_grid_options(
+        pinnedTopRowData=[df.iloc[0].to_dict()]
+    )
+
+    gridOptions = gb.build()
+
+    AgGrid(
+        df,
+        gridOptions=gridOptions,
+        height=600,
+        fit_columns_on_grid_load=False,
+        data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+        update_mode=GridUpdateMode.NO_UPDATE,
+        enable_enterprise_modules=True,
+        theme="balham"
+    )
+
+
 def mostrar_leyenda(inside_expander=False):
     """Mostrar leyenda de colores - VERSIÓN SIMPLIFICADA
     
@@ -2082,7 +2116,8 @@ def pagina_malla():
         else:
             st.info("👁️ Vista de solo lectura - No puedes editar")
             styled_df = aplicar_estilo_dataframe(st.session_state.malla_actual)
-            st.dataframe(styled_df, use_container_width=True, height=600)
+            mostrar_malla_congelada(df_malla)
+
             
             # Mostrar estadísticas para vista de solo lectura también
             if rol in ['admin', 'supervisor']:
