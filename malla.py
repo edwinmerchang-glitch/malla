@@ -2013,10 +2013,10 @@ def pagina_malla():
     else:
         st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
         
-        # OPCIONAL: Si quieres mantener el rol para otra cosa
         rol = st.session_state.auth['role']
         
         if check_permission("write"):
+            # CÓDIGO PARA ADMIN/SUPERVISOR (EDICIÓN)
             st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', unsafe_allow_html=True)
             
             malla_editable = st.session_state.malla_actual.copy()
@@ -2026,34 +2026,34 @@ def pagina_malla():
             # Obtener opciones de códigos para los selectboxes
             if 'codigos_turno' in st.session_state:
                 opciones_codigos = list(st.session_state.codigos_turno.keys())
-                # Filtrar código vacío si existe
                 if "" in opciones_codigos:
                     opciones_codigos.remove("")
             else:
                 opciones_codigos = []
             
-            # Configurar columnas - CORRECCIÓN AQUÍ
-            for col in malla_editable.columns:
+            # Configurar columnas - CON COLUMNAS FIJAS
+            for idx, col in enumerate(malla_editable.columns):
                 if col in day_columns:
-                    # Esta es la parte importante: SelectboxColumn debe tener opciones válidas
                     column_config[col] = st.column_config.SelectboxColumn(
                         col,
                         width="small",
-                        options=[""] + opciones_codigos,  # Incluye opción vacía
+                        options=[""] + opciones_codigos,
                         help="Selecciona el código del turno"
                     )
-                elif col in ['N°', 'CC']:
-                    column_config[col] = st.column_config.Column(width="small", disabled=True)
-                elif col == 'APELLIDOS Y NOMBRES':
-                    column_config[col] = st.column_config.Column(width="medium", disabled=True)
-                elif col in ['CARGO', 'DEPARTAMENTO', 'ESTADO']:
-                    column_config[col] = st.column_config.Column(disabled=True)
+                else:
+                    # Fijar las primeras 4 columnas
+                    if idx < 4:  # Columnas 0, 1, 2, 3
+                        column_config[col] = st.column_config.Column(
+                            width="small" if idx == 0 else "medium",
+                            disabled=True,
+                            help=f"Columna fija"
+                        )
+                    else:
+                        column_config[col] = st.column_config.Column(disabled=True)
             
-            # Asegurarse de que todas las celdas de días tengan valores válidos
+            # Asegurar que todas las celdas de días tengan valores válidos
             for col in day_columns:
-                # Reemplazar valores NaN o inválidos con cadena vacía
                 malla_editable[col] = malla_editable[col].fillna("").astype(str)
-                # Filtrar valores que no estén en las opciones
                 for idx, val in enumerate(malla_editable[col]):
                     if val not in [""] + opciones_codigos:
                         malla_editable.at[idx, col] = ""
@@ -2068,107 +2068,52 @@ def pagina_malla():
                 key=f"editor_malla_{mes_numero}_{ano}"
             )
             
-            st.markdown("---")
-            st.markdown("### 💾 Acciones de Guardado")
+            # ... (resto del código de guardado para admin/supervisor) ...
             
-            col1, col2, col3 = st.columns(3)
+        else:
+            # CÓDIGO PARA VISTA SOLO LECTURA (EMPLEADOS)
+            st.info("👁️ Vista de solo lectura - No puedes editar")
             
-            with col1:
-                if st.button("💾 Guardar Cambios Ahora", use_container_width=True, type="primary"):
-                    with st.spinner("Guardando cambios..."):
-                        try:
-                            cambios = guardar_malla_turnos_con_backup(edited_df, mes_numero, ano)
-                            
-                            if cambios > 0:
-                                st.session_state.last_save = obtener_hora_colombia()
-                                st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
-                                
-                                st.success(f"✅ {cambios} cambios guardados exitosamente!")
-                                registrar_log("guardar_malla", f"{mes_seleccionado} {ano} - {cambios} cambios")
-                                st.rerun()
-                            else:
-                                st.warning("⚠️ No se detectaron cambios para guardar")
-                                
-                        except Exception as e:
-                            st.error(f"❌ Error al guardar: {str(e)}")
+            df = st.session_state.malla_actual.copy()
             
-            with col2:
-                if st.button("🔄 Recargar desde BD", use_container_width=True):
-                    st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
-                    st.success("✅ Malla recargada desde base de datos")
-                    st.rerun()
+            # USAR AgGrid PARA FIJAR COLUMNAS EN VISTA SOLO LECTURA
+            gb = GridOptionsBuilder.from_dataframe(df)
             
-            with col3:
-                if st.button("🗑️ Limpiar Todos", use_container_width=True, type="secondary"):
-                    if st.checkbox("¿Confirmar que quieres limpiar TODOS los turnos de este mes?"):
-                        malla_vacia = edited_df.copy()
-                        for col in day_columns:
-                            malla_vacia[col] = ""
-                        
-                        cambios = guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
-                        st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
-                        st.success(f"✅ {cambios} turnos limpiados")
-                        st.rerun()
+            # Configurar todas las columnas
+            for col in df.columns:
+                gb.configure_column(col, 
+                                   minWidth=100, 
+                                   maxWidth=200,
+                                   resizable=True,
+                                   sortable=True,
+                                   filter=False)  # Desactivar filtro para mejor rendimiento
             
-            # Mostrar estadísticas avanzadas después de guardar cambios
-            if rol in ['admin', 'supervisor']:
-                mostrar_estadisticas_avanzadas(mes_numero, ano)
-            else:
-                st.info("👁️ Vista de solo lectura - No puedes editar")
-                
-                df = st.session_state.malla_actual.copy()
-                
-                # Solución CSS para fijar columnas con st.dataframe
-                st.markdown("""
-                <style>
-                /* Contenedor de la tabla */
-                div[data-testid="stDataFrame"] > div:first-child {
-                    overflow-x: auto !important;
-                    position: relative;
-                }
-                
-                /* Fijar primera columna */
-                div[data-testid="stDataFrame"] table thead th:first-child,
-                div[data-testid="stDataFrame"] table tbody td:first-child {
-                    position: sticky !important;
-                    left: 0 !important;
-                    background-color: white !important;
-                    z-index: 100 !important;
-                    border-right: 2px solid #ddd !important;
-                }
-                
-                /* Fijar segunda columna */
-                div[data-testid="stDataFrame"] table thead th:nth-child(2),
-                div[data-testid="stDataFrame"] table tbody td:nth-child(2) {
-                    position: sticky !important;
-                    left: 80px !important;  /* Ancho columna 1 */
-                    background-color: white !important;
-                    z-index: 100 !important;
-                    border-right: 2px solid #ddd !important;
-                }
-                
-                /* Fijar tercera columna */
-                div[data-testid="stDataFrame"] table thead th:nth-child(3),
-                div[data-testid="stDataFrame"] table tbody td:nth-child(3) {
-                    position: sticky !important;
-                    left: 200px !important;  /* Ancho columna 1 + 2 */
-                    background-color: white !important;
-                    z-index: 100 !important;
-                    border-right: 2px solid #ddd !important;
-                }
-                </style>
-                """, unsafe_allow_html=True)
-                
-                # Mostrar tabla normal
-                st.dataframe(
-                    df,
-                    use_container_width=True,
-                    height=600
-                )
+            # FIJAR LAS PRIMERAS 4 COLUMNAS (índices 0, 1, 2, 3)
+            if len(df.columns) >= 4:
+                # Ajustar anchos según el contenido típico
+                gb.configure_column(df.columns[0], pinned="left", width=60)    # N°
+                gb.configure_column(df.columns[1], pinned="left", width=150)   # CARGO
+                gb.configure_column(df.columns[2], pinned="left", width=200)   # APELLIDOS Y NOMBRES
+                gb.configure_column(df.columns[3], pinned="left", width=120)   # CC
             
-            # Mostrar estadísticas para vista de solo lectura también
-            if rol in ['admin', 'supervisor']:
-                mostrar_estadisticas_avanzadas(mes_numero, ano)
+            # Configurar opciones de la grilla
+            gridOptions = gb.build()
+            
+            # Mostrar la tabla con AgGrid
+            AgGrid(
+                df,
+                gridOptions=gridOptions,
+                height=600,
+                fit_columns_on_grid_load=False,
+                data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+                update_mode=GridUpdateMode.NO_UPDATE,
+                enable_enterprise_modules=True,
+                theme="balham"
+            )
+        
+        # Mostrar estadísticas según el rol
+        if rol in ['admin', 'supervisor']:
+            mostrar_estadisticas_avanzadas(mes_numero, ano)
 
 def pagina_backup():
     """Página completa de backup y restauración"""
