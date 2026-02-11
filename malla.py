@@ -2114,49 +2114,142 @@ def pagina_malla():
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
             else:
-               st.info("👁️ Vista de solo lectura - No puedes editar")
-    
-               df = st.session_state.malla_actual.copy()
-    
-               # Configurar AgGrid
-               gb = GridOptionsBuilder.from_dataframe(df)
-    
-               # Configurar columnas por defecto
-               gb.configure_default_column(
-                   resizable=True,
-                   sortable=False,
-                   filter=False,
-                   minWidth=80
-               )
-    
-               # 🔒 Congelar las primeras 3 columnas
-               if len(df.columns) > 0:
-                   gb.configure_column(df.columns[0], pinned="left", width=70)  # N°
-               if len(df.columns) > 1:
-                   gb.configure_column(df.columns[1], pinned="left", width=120)  # CARGO
-               if len(df.columns) > 2:
-                   gb.configure_column(df.columns[2], pinned="left", width=180)  # APELLIDOS Y NOMBRES
-    
-               # Configurar las columnas de días
-               for idx, col in enumerate(df.columns):
-                   if '/' in str(col):  # Columnas de días
-                       gb.configure_column(col, width=70, cellStyle={'textAlign': 'center'})
-                   elif idx > 2:  # Otras columnas (CC, DEPARTAMENTO, etc)
-                       gb.configure_column(col, width=100)
-    
-               gridOptions = gb.build()
-    
-               # Mostrar la tabla
-               AgGrid(
-                   df,
-                   gridOptions=gridOptions,
-                   height=600,
-                   fit_columns_on_grid_load=False,
-                   theme="streamlit",
-                   update_mode=GridUpdateMode.NO_UPDATE,
-                   enable_enterprise_modules=False
-                )
+                st.info("👁️ Vista de solo lectura - No puedes editar")
 
+                df = st.session_state.malla_actual.copy()
+                
+                # Debug: Ver las columnas que tenemos
+                # st.write(f"Columnas totales: {len(df.columns)}")
+                # st.write(f"Primeras 5 columnas: {df.columns[:5].tolist()}")
+                
+                # Crear el builder de opciones
+                gb = GridOptionsBuilder.from_dataframe(df)
+                
+                # Configurar todas las columnas por defecto
+                gb.configure_default_column(
+                    resizable=True,
+                    sortable=False,
+                    filter=False,
+                    minWidth=80,
+                    maxWidth=200
+                )
+                
+                # 🔒 CONGELAR LAS PRIMERAS 3 COLUMNAS
+                # Verificar que tenemos al menos 3 columnas
+                if len(df.columns) >= 3:
+                    # Columna 0 (primera)
+                    gb.configure_column(
+                        df.columns[0],  # Normalmente "N°"
+                        pinned="left",
+                        lockPinned=True,
+                        lockPosition="left",
+                        width=80,
+                        suppressMovable=True,
+                        cellStyle={'fontWeight': 'bold'}
+                    )
+                    
+                    # Columna 1 (segunda)
+                    gb.configure_column(
+                        df.columns[1],  # Normalmente "CARGO"
+                        pinned="left",
+                        lockPinned=True,
+                        lockPosition="left",
+                        width=150,
+                        suppressMovable=True
+                    )
+                    
+                    # Columna 2 (tercera)
+                    gb.configure_column(
+                        df.columns[2],  # Normalmente "APELLIDOS Y NOMBRES"
+                        pinned="left",
+                        lockPinned=True,
+                        lockPosition="left",
+                        width=250,
+                        suppressMovable=True
+                    )
+                else:
+                    # Si hay menos de 3 columnas, fijar las que haya
+                    for idx in range(min(3, len(df.columns))):
+                        gb.configure_column(
+                            df.columns[idx],
+                            pinned="left",
+                            lockPinned=True,
+                            width=120
+                        )
+                
+                # Configurar las columnas restantes (desde la 4ta en adelante)
+                if len(df.columns) > 3:
+                    for idx in range(3, len(df.columns)):
+                        col_name = df.columns[idx]
+                        # Si es una columna de día (contiene "/")
+                        if '/' in str(col_name):
+                            gb.configure_column(
+                                col_name,
+                                width=80,
+                                cellStyle={'textAlign': 'center'},
+                                suppressMovable=False
+                            )
+                        else:
+                            gb.configure_column(
+                                col_name,
+                                width=120,
+                                suppressMovable=False
+                            )
+                
+                # Opciones generales del grid
+                gb.configure_grid_options(
+                    rowHeight=35,
+                    headerHeight=35,
+                    suppressRowClickSelection=True,
+                    suppressHorizontalScroll=False,
+                    alwaysShowHorizontalScroll=True,
+                    enableRangeSelection=False,
+                    suppressMovableColumns=False,
+                    suppressColumnMoveAnimation=False,
+                    animateRows=True,
+                    pagination=False,
+                    domLayout='normal'
+                )
+                
+                # Obtener las opciones configuradas
+                gridOptions = gb.build()
+                
+                # Agregar color a las celdas según código de turno
+                def colorizar_celdas(params):
+                    if params.value and str(params.value).strip() != '':
+                        codigo = str(params.value).strip()
+                        if 'codigos_turno' in st.session_state and codigo in st.session_state.codigos_turno:
+                            color = st.session_state.codigos_turno[codigo].get("color", "#FFFFFF")
+                            return {
+                                'backgroundColor': color,
+                                'color': 'black',
+                                'fontWeight': 'bold',
+                                'textAlign': 'center'
+                            }
+                    return None
+                
+                # Aplicar color a todas las columnas de días
+                for col in df.columns:
+                    if '/' in str(col):  # Columnas de días
+                        gridOptions['columnDefs'][df.columns.get_loc(col)]['cellStyle'] = colorizar_celdas
+                
+                # Mostrar la tabla
+                AgGrid(
+                    df,
+                    gridOptions=gridOptions,
+                    height=600,
+                    width='100%',
+                    theme="streamlit",  # Puedes cambiar a "balham", "alpine", "material"
+                    update_mode=GridUpdateMode.NO_UPDATE,
+                    enable_enterprise_modules=False,
+                    fit_columns_on_grid_load=False,
+                    reload_data=True,
+                    allow_unsafe_jscode=False
+                )
+            
+            # Mostrar estadísticas para vista de solo lectura también
+            if rol in ['admin', 'supervisor']:
+                mostrar_estadisticas_avanzadas(mes_numero, ano)
 
             
             # Mostrar estadísticas para vista de solo lectura también
