@@ -2012,57 +2012,8 @@ def pagina_malla():
         st.warning("⚠️ No hay malla de turnos cargada. Presiona 'Cargar Malla' para ver los datos.")
     else:
         st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
-    
-        # ==========================================
-        # TOOLBAR DE VISIBILIDAD (MOSTRAR/OCULTAR COLUMNAS)
-        # ==========================================
-        with st.expander("👁️ Configurar Columnas (Mostrar/Ocultar)", expanded=False):
-            st.info("Seleccione las columnas que desea visualizar en la malla.")
-            
-            # Obtenemos todas las columnas actuales del DataFrame de la malla
-            todas_las_cols = st.session_state.malla_actual.columns.tolist()
-            
-            # Definimos columnas que suelen ser obligatorias o fijas
-            cols_fijas = ["N°", "CARGO", "APELLIDOS Y NOMBRES"]
-            
-            # Filtramos los días (columnas que tienen formato de fecha como '1/10/2024')
-            cols_dias = [c for c in todas_las_cols if "/" in str(c)]
-            
-            # Creamos el selector multiselect
-            columnas_seleccionadas = st.multiselect(
-                "Columnas visibles:",
-                options=todas_las_cols,
-                default=cols_fijas + cols_dias,
-                help="Las columnas desmarcadas se ocultarán en la tabla de abajo."
-            )
         
-        # ==========================================
-        # MODIFICAR LA CONFIGURACIÓN DE AGGRID
-        # ==========================================
-        df_display = st.session_state.malla_actual.copy()
-        gb = GridOptionsBuilder.from_dataframe(df_display)
-        
-        # Aplicamos la visibilidad dinámica a TODAS las columnas
-        for col in todas_las_cols:
-            # Si la columna no está en la selección del toolbar, la ocultamos
-            ocultar = col not in columnas_seleccionadas
-            
-            if col == "APELLIDOS Y NOMBRES":
-                gb.configure_column(col, pinned='left', width=220, hide=ocultar)
-            elif col == "N°":
-                gb.configure_column(col, pinned='left', width=60, hide=ocultar)
-            else:
-                gb.configure_column(col, hide=ocultar)
-        
-        # Continuar con el resto de tu configuración...
-        gb.configure_default_column(
-            resizable=True,
-            sortable=True,
-            filter=True,
-            minWidth=80
-        )
-        
-        # Solo el rol se define aquí
+        # OPCIONAL: Si quieres mantener el rol para otra cosa
         rol = st.session_state.auth['role']
         
         if check_permission("write"):
@@ -2162,62 +2113,62 @@ def pagina_malla():
             # Mostrar estadísticas avanzadas después de guardar cambios
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
-        else:
-            st.info("👁️ Vista de solo lectura - No puedes editar")
+            else:
+                st.info("👁️ Vista de solo lectura - No puedes editar")
+                
+                df = st.session_state.malla_actual.copy()
+                
+                # Solución CSS para fijar columnas con st.dataframe
+                st.markdown("""
+                <style>
+                /* Contenedor de la tabla */
+                div[data-testid="stDataFrame"] > div:first-child {
+                    overflow-x: auto !important;
+                    position: relative;
+                }
+                
+                /* Fijar primera columna */
+                div[data-testid="stDataFrame"] table thead th:first-child,
+                div[data-testid="stDataFrame"] table tbody td:first-child {
+                    position: sticky !important;
+                    left: 0 !important;
+                    background-color: white !important;
+                    z-index: 100 !important;
+                    border-right: 2px solid #ddd !important;
+                }
+                
+                /* Fijar segunda columna */
+                div[data-testid="stDataFrame"] table thead th:nth-child(2),
+                div[data-testid="stDataFrame"] table tbody td:nth-child(2) {
+                    position: sticky !important;
+                    left: 80px !important;  /* Ancho columna 1 */
+                    background-color: white !important;
+                    z-index: 100 !important;
+                    border-right: 2px solid #ddd !important;
+                }
+                
+                /* Fijar tercera columna */
+                div[data-testid="stDataFrame"] table thead th:nth-child(3),
+                div[data-testid="stDataFrame"] table tbody td:nth-child(3) {
+                    position: sticky !important;
+                    left: 200px !important;  /* Ancho columna 1 + 2 */
+                    background-color: white !important;
+                    z-index: 100 !important;
+                    border-right: 2px solid #ddd !important;
+                }
+                </style>
+                """, unsafe_allow_html=True)
+                
+                # Mostrar tabla normal
+                st.dataframe(
+                    df,
+                    use_container_width=True,
+                    height=600
+                )
             
-            df = st.session_state.malla_actual.copy()
-            
-            # Solución CSS para fijar columnas con st.dataframe
-            st.markdown("""
-            <style>
-            /* Contenedor de la tabla */
-            div[data-testid="stDataFrame"] > div:first-child {
-                overflow-x: auto !important;
-                position: relative;
-            }
-            
-            /* Fijar primera columna */
-            div[data-testid="stDataFrame"] table thead th:first-child,
-            div[data-testid="stDataFrame"] table tbody td:first-child {
-                position: sticky !important;
-                left: 0 !important;
-                background-color: white !important;
-                z-index: 100 !important;
-                border-right: 2px solid #ddd !important;
-            }
-            
-            /* Fijar segunda columna */
-            div[data-testid="stDataFrame"] table thead th:nth-child(2),
-            div[data-testid="stDataFrame"] table tbody td:nth-child(2) {
-                position: sticky !important;
-                left: 80px !important;  /* Ancho columna 1 */
-                background-color: white !important;
-                z-index: 100 !important;
-                border-right: 2px solid #ddd !important;
-            }
-            
-            /* Fijar tercera columna */
-            div[data-testid="stDataFrame"] table thead th:nth-child(3),
-            div[data-testid="stDataFrame"] table tbody td:nth-child(3) {
-                position: sticky !important;
-                left: 200px !important;  /* Ancho columna 1 + 2 */
-                background-color: white !important;
-                z-index: 100 !important;
-                border-right: 2px solid #ddd !important;
-            }
-            </style>
-            """, unsafe_allow_html=True)
-            
-            # Mostrar tabla normal
-            st.dataframe(
-                df,
-                use_container_width=True,
-                height=600
-            )
-        
-        # Mostrar estadísticas para vista de solo lectura también
-        if rol in ['admin', 'supervisor']:
-            mostrar_estadisticas_avanzadas(mes_numero, ano)
+            # Mostrar estadísticas para vista de solo lectura también
+            if rol in ['admin', 'supervisor']:
+                mostrar_estadisticas_avanzadas(mes_numero, ano)
 
 def pagina_backup():
     """Página completa de backup y restauración"""
