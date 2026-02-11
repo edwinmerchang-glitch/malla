@@ -1321,14 +1321,18 @@ def mostrar_malla_congelada(df):
         minWidth=80
     )
 
-    # 🔒 Congelar la columna 3
-    col_fija = df.columns[2]
-    gb.configure_column(col_fija, pinned="left")
+    # 🔍 Barra lateral de filtros tipo Excel
+    gb.configure_side_bar()
 
-    # 🔒 Congelar la fila 1
+    # 🔎 Filtros flotantes bajo encabezados
     gb.configure_grid_options(
-        pinnedTopRowData=[df.iloc[0].to_dict()]
+        floatingFilter=True,
+        enableRangeSelection=True
     )
+
+    # 🔒 Congelar columna N° y nombres
+    gb.configure_column("N°", pinned="left")
+    gb.configure_column("APELLIDOS Y NOMBRES", pinned="left")
 
     gridOptions = gb.build()
 
@@ -1342,6 +1346,7 @@ def mostrar_malla_congelada(df):
         enable_enterprise_modules=True,
         theme="balham"
     )
+
 
 
 def mostrar_leyenda(inside_expander=False):
