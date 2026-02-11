@@ -1968,7 +1968,7 @@ def pagina_malla():
         st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
         
         # Aplicar estilos para tablas sincronizadas
-        aplicar_estilos_tabla_sincronizada()  # <-- Añadir esta línea
+        aplicar_estilos_tabla_sincronizada()
         
         rol = st.session_state.auth['role']
         
@@ -1979,6 +1979,10 @@ def pagina_malla():
             df = st.session_state.malla_actual.copy()
             
             # ... resto del código para la tabla editable ...
+            # (aquí debe ir el código específico para mostrar la tabla editable)
+            
+            # Por ejemplo:
+            st.info("🔄 Esta sección está en desarrollo - Tabla editable con scroll sincronizado")
             
         else:  # Empleados con solo lectura
             st.info("👁️ Vista de solo lectura - No puedes editar")
