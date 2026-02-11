@@ -1779,6 +1779,7 @@ def pagina_malla():
                 columnas_fijas.append(col)
         
         # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON ÍCONO DE COLUMNAS =====
+        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON ÍCONO DE COLUMNAS =====
         if check_permission("write"):
             st.markdown("💡 **Los cambios se guardan automáticamente al salir de la celda**")
             
@@ -1789,36 +1790,26 @@ def pagina_malla():
             ✅ Puedes **mostrar/ocultar**, **reordenar** y **congelar** columnas
             """, icon="👆")
             
-            # CONFIGURACIÓN MÍNIMA - SOLO COLUMNAS FIJAS COMO LECTURA
-            column_config = {}
+            # ===== NUEVO: CREAR UNA COPIA DEL DATAFRAME =====
+            df_display = df.copy()
             
-            # Solo configuramos las columnas fijas como solo lectura
-            for col in columnas_fijas:
-                width = "small"
-                if col in ["APELLIDOS Y NOMBRES"]:
-                    width = "large"
-                elif col in ["CARGO"]:
-                    width = "medium"
-                
-                column_config[col] = st.column_config.TextColumn(
-                    col,
-                    disabled=True,  # Solo lectura
-                    width=width
-                )
+            # Convertir todas las columnas a string para evitar problemas
+            for col in df_display.columns:
+                df_display[col] = df_display[col].astype(str).replace('nan', '').replace('None', '')
             
-            # IMPORTANTE: NO configuramos las columnas de días
-            # Esto permite que Streamlit muestre el ícono de configuración
+            # ===== IMPORTANTE: NO USAR column_config EN ABSOLUTO =====
+            # Para que aparezca el ícono, NO debemos usar column_config
             
-            # MOSTRAR TABLA CON EDITOR
             edited_df = st.data_editor(
-                df,
-                column_config=column_config,  # SOLO columnas fijas configuradas
+                df_display,
                 hide_index=True,
                 use_container_width=True,
                 height=600,
                 num_rows="fixed",
-                key=f"malla_editor_{mes_numero}_{ano}_{rol}"  # Key única por rol
+                key=f"malla_editor_simple_{mes_numero}_{ano}_{rol}"
             )
+            
+            # Resto del código igual...
             
             # Limpiar valores inválidos
             for col in columnas_dias:
