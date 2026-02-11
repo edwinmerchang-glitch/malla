@@ -1779,7 +1779,6 @@ def pagina_malla():
             else:
                 columnas_fijas.append(col)
         
-        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON ÍCONO =====
 # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON ÍCONO GARANTIZADO =====
 if check_permission("write"):
     st.markdown("💡 **Los cambios se guardan automáticamente al salir de la celda**")
@@ -1790,21 +1789,20 @@ if check_permission("write"):
     for col in df_display.columns:
         df_display[col] = df_display[col].astype(str).replace('nan', '').replace('None', '')
     
-    # ===== SOLUCIÓN DEFINITIVA PARA EL ÍCONO =====
-    # 1. NO usar num_rows="fixed"
-    # 2. Usar key DINÁMICO (con timestamp) para forzar recreación
-    # 3. Asegurar que hay suficientes columnas
-    
-    import time
-    editor_key = f"malla_editor_{mes_numero}_{ano}_{int(time.time())}"
+    # ===== SOLUCIÓN DEFINITIVA: num_rows="fixed" =====
+    editor_key = f"malla_editor_{mes_numero}_{ano}"
     
     edited_df = st.data_editor(
         df_display,
         hide_index=True,
         use_container_width=True,
         height=600,
-        num_rows="dynamic",  # CAMBIO CRÍTICO: "dynamic" en lugar de "fixed"
-        key=editor_key       # Key única para cada renderizado
+        num_rows="fixed",  # ✅ CAMBIO CRÍTICO: ESTO HACE QUE APAREZCA EL ÍCONO
+        key=editor_key,
+        column_config={   # ✅ OPCIONAL: configuración adicional
+            **{col: st.column_config.Column(col) for col in df_display.columns if not col.startswith('D')},
+            **{col: st.column_config.TextColumn(col, width="small") for col in df_display.columns if col.startswith('D')}
+        }
     )
     
     # Mensaje INSTRUCTIVO - MÁS VISIBLE
@@ -2244,17 +2242,26 @@ else:
     column_order = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 
                    'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO', 'ID_OCULTO']
     
-    # ===== SOLUCIÓN PARA EMPLEADOS =====
-    import time
-    editor_key = f"editor_empleados_{int(time.time())}"
-    
-    edited_df = st.data_editor(
-        df_display[column_order],
-        hide_index=True,
-        use_container_width=True,
-        num_rows="dynamic",  # CRÍTICO: usar "dynamic"
-        key=editor_key
-    )
+# ===== SOLUCIÓN PARA EMPLEADOS =====
+edited_df = st.data_editor(
+    df_display[column_order],
+    hide_index=True,
+    use_container_width=True,
+    num_rows="fixed",  # ✅ CAMBIO CRÍTICO: ESTO HACE QUE APAREZCA EL ÍCONO
+    key="editor_empleados_fixed",  # ✅ Key estática (no dinámica)
+    column_config={   # ✅ Configuración adicional
+        "N°": st.column_config.NumberColumn("N°", width="small"),
+        "CARGO": st.column_config.TextColumn("CARGO", width="medium"),
+        "APELLIDOS Y NOMBRES": st.column_config.TextColumn("APELLIDOS Y NOMBRES", width="large"),
+        "CC": st.column_config.TextColumn("CC", width="medium"),
+        "DEPARTAMENTO": st.column_config.TextColumn("DEPARTAMENTO", width="medium"),
+        "ESTADO": st.column_config.SelectboxColumn("ESTADO", width="small", options=["Activo", "Vacaciones", "Licencia", "Inactivo"]),
+        "HORA_INICIO": st.column_config.TextColumn("HORA_INICIO", width="small"),
+        "HORA_FIN": st.column_config.TextColumn("HORA_FIN", width="small"),
+        "FECHA_REGISTRO": st.column_config.TextColumn("FECHA_REGISTRO", width="medium", disabled=True),
+        "ID_OCULTO": st.column_config.NumberColumn("ID_OCULTO", width="small", disabled=True)
+    }
+)
     
     # Instrucciones VISIBLES
     st.info("""
@@ -2674,15 +2681,21 @@ def pagina_usuarios():
         ✅ Puedes **mostrar/ocultar**, **reordenar** y **congelar** columnas
         """, icon="👆")
         
-        # ===== EDITOR DE USUARIOS - SIN column_config =====
-        # IMPORTANTE: Sin column_config para que aparezca el ícono
-        edited_df = st.data_editor(
-            df_display,
-            hide_index=True,
-            use_container_width=True,
-            num_rows="fixed",
-            key="editor_usuarios_admin"
-        )
+# ===== EDITOR DE USUARIOS - CON column_config =====
+edited_df = st.data_editor(
+    df_display,
+    hide_index=True,
+    use_container_width=True,
+    num_rows="fixed",  # ✅ CORRECTO: fixed permite el ícono
+    key="editor_usuarios_admin_fixed",
+    column_config={   # ✅ Añadir configuración explícita
+        "USUARIO": st.column_config.TextColumn("USUARIO", width="small", disabled=True),
+        "NOMBRE_COMPLETO": st.column_config.TextColumn("NOMBRE_COMPLETO", width="large"),
+        "ROL": st.column_config.SelectboxColumn("ROL", width="small", options=list(ROLES.keys())),
+        "DEPARTAMENTO": st.column_config.TextColumn("DEPARTAMENTO", width="medium"),
+        "FECHA_CREACION": st.column_config.TextColumn("FECHA_CREACION", width="medium", disabled=True)
+    }
+)
         
         if st.button("💾 Guardar Cambios de Usuarios", use_container_width=True):
             try:
