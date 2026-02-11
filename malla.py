@@ -2210,120 +2210,115 @@ def pagina_empleados():
             st.rerun()
     
     st.markdown("---")
-    st.markdown("### 📋 Lista de Empleados")
+        st.markdown("### 📋 Lista de Empleados")
     
     if st.session_state.empleados_df.empty:
         st.warning("No hay empleados registrados.")
-    else:
-        df_editable = st.session_state.empleados_df.copy()
-        
-        df_display = df_editable.rename(columns={
-            'id': 'ID_OCULTO',
-            'numero': 'N°',
-            'cargo': 'CARGO',
-            'nombre_completo': 'APELLIDOS Y NOMBRES',
-            'cedula': 'CC',
-            'departamento': 'DEPARTAMENTO',
-            'estado': 'ESTADO',
-            'hora_inicio': 'HORA_INICIO',
-            'hora_fin': 'HORA_FIN',
-            'created_at': 'FECHA_REGISTRO'
-        })
-        
-        df_display = df_display.fillna({
-            'CARGO': '',
-            'APELLIDOS Y NOMBRES': '',
-            'CC': '',
-            'DEPARTAMENTO': '',
-            'ESTADO': 'Activo',
-            'HORA_INICIO': '',
-            'HORA_FIN': '',
-            'FECHA_REGISTRO': ''
-        })
-        
-        column_order = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 
-                       'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO', 'ID_OCULTO']
-        
-        # ===== SOLUCIÓN PARA EMPLEADOS - CON ÍCONO =====
-        edited_df = st.data_editor(
-            df_display[column_order],
-            column_config={
-                "N°": st.column_config.NumberColumn("N°", width="small", disabled=True),
-                "CARGO": st.column_config.TextColumn("CARGO", width="medium"),
-                "APELLIDOS Y NOMBRES": st.column_config.TextColumn("APELLIDOS Y NOMBRES", width="large"),
-                "CC": st.column_config.TextColumn("CC", width="medium"),
-                "DEPARTAMENTO": st.column_config.SelectboxColumn(
-                    "DEPARTAMENTO", 
-                    width="medium", 
-                    options=st.session_state.configuracion.get('departamentos', [])
-                ),
-                "ESTADO": st.column_config.SelectboxColumn(
-                    "ESTADO", 
-                    width="small", 
-                    options=["Activo", "Vacaciones", "Licencia", "Inactivo"]
-                ),
-                "HORA_INICIO": st.column_config.TextColumn("HORA_INICIO", width="small"),
-                "HORA_FIN": st.column_config.TextColumn("HORA_FIN", width="small"),
-                "FECHA_REGISTRO": st.column_config.TextColumn("FECHA_REGISTRO", width="medium", disabled=True),
-                "ID_OCULTO": st.column_config.NumberColumn("ID_OCULTO", width="small", disabled=True)
-            },
-            hide_index=True,
-            use_container_width=True,
-            num_rows="fixed",  # ✅ CRÍTICO: fixed para que aparezca el ícono
-            key="editor_empleados_fixed"
-        )
-        
-        # Instrucciones VISIBLES
-        st.info("""
-        **👆 CONFIGURACIÓN DE COLUMNAS**  
-        Busca el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
-        Allí encontrarás las opciones para **mostrar/ocultar**, **reordenar** y **congelar** columnas
-        """, icon="🔧")
+        return
     
-    # Instrucciones VISIBLES
+    # ===== PROCESAMIENTO DE DATAFRAME =====
+    df_editable = st.session_state.empleados_df.copy()
+    
+    df_display = df_editable.rename(columns={
+        'id': 'ID_OCULTO',
+        'numero': 'N°',
+        'cargo': 'CARGO',
+        'nombre_completo': 'APELLIDOS Y NOMBRES',
+        'cedula': 'CC',
+        'departamento': 'DEPARTAMENTO',
+        'estado': 'ESTADO',
+        'hora_inicio': 'HORA_INICIO',
+        'hora_fin': 'HORA_FIN',
+        'created_at': 'FECHA_REGISTRO'
+    })
+    
+    df_display = df_display.fillna({
+        'CARGO': '',
+        'APELLIDOS Y NOMBRES': '',
+        'CC': '',
+        'DEPARTAMENTO': '',
+        'ESTADO': 'Activo',
+        'HORA_INICIO': '',
+        'HORA_FIN': '',
+        'FECHA_REGISTRO': ''
+    })
+    
+    column_order = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 
+                   'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO', 'ID_OCULTO']
+    
+    # ===== EDITOR DE DATOS CON ÍCONO =====
+    edited_df = st.data_editor(
+        df_display[column_order],
+        column_config={
+            "N°": st.column_config.NumberColumn("N°", width="small", disabled=True),
+            "CARGO": st.column_config.TextColumn("CARGO", width="medium"),
+            "APELLIDOS Y NOMBRES": st.column_config.TextColumn("APELLIDOS Y NOMBRES", width="large"),
+            "CC": st.column_config.TextColumn("CC", width="medium"),
+            "DEPARTAMENTO": st.column_config.SelectboxColumn(
+                "DEPARTAMENTO", 
+                width="medium", 
+                options=st.session_state.configuracion.get('departamentos', [])
+            ),
+            "ESTADO": st.column_config.SelectboxColumn(
+                "ESTADO", 
+                width="small", 
+                options=["Activo", "Vacaciones", "Licencia", "Inactivo"]
+            ),
+            "HORA_INICIO": st.column_config.TextColumn("HORA_INICIO", width="small"),
+            "HORA_FIN": st.column_config.TextColumn("HORA_FIN", width="small"),
+            "FECHA_REGISTRO": st.column_config.TextColumn("FECHA_REGISTRO", width="medium", disabled=True),
+            "ID_OCULTO": st.column_config.NumberColumn("ID_OCULTO", width="small", disabled=True)
+        },
+        hide_index=True,
+        use_container_width=True,
+        num_rows="fixed",
+        key="editor_empleados_fixed"
+    )
+    
+    # ===== MENSAJE DE CONFIGURACIÓN =====
     st.info("""
     **👆 CONFIGURACIÓN DE COLUMNAS**  
     Busca el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
     Allí encontrarás las opciones para **mostrar/ocultar**, **reordenar** y **congelar** columnas
     """, icon="🔧")
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("💾 Guardar Cambios", use_container_width=True, key="btn_guardar_empleados"):
-                try:
-                    cambios, errores = guardar_empleados(edited_df)
-                    if cambios > 0:
-                        st.success(f"✅ {cambios} cambios guardados correctamente")
-                        crear_backup_automatico()
-                        st.info("📦 Backup automático creado")
-                        st.rerun()
+    
+    # ===== BOTONES DE ACCIÓN =====
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("💾 Guardar Cambios", use_container_width=True, key="btn_guardar_empleados"):
+            try:
+                cambios, errores = guardar_empleados(edited_df)
+                if cambios > 0:
+                    st.success(f"✅ {cambios} cambios guardados correctamente")
+                    crear_backup_automatico()
+                    st.session_state.empleados_df = get_empleados()
+                    st.rerun()
+                else:
+                    if errores:
+                        for error in errores:
+                            st.error(error)
                     else:
-                        if errores:
-                            for error in errores:
-                                st.error(error)
-                        else:
-                            st.warning("⚠️ No se realizaron cambios")
-                except Exception as e:
-                    st.error(f"❌ Error al guardar: {str(e)}")
-                    import traceback
-                    st.error(f"Detalles: {traceback.format_exc()}")
-        
-        with col2:
-            if st.button("🔄 Recargar desde BD", use_container_width=True, key="btn_recargar_empleados"):
-                st.session_state.empleados_df = get_empleados()
-                st.success("✅ Datos recargados desde base de datos")
-                st.rerun()
-        
-        with col3:
-            csv = df_display[['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 
-                             'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO']].to_csv(index=False)
-            st.download_button(
-                label="📥 Exportar CSV",
-                data=csv,
-                file_name="empleados.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
+                        st.warning("⚠️ No se realizaron cambios")
+            except Exception as e:
+                st.error(f"❌ Error al guardar: {str(e)}")
+    
+    with col2:
+        if st.button("🔄 Recargar desde BD", use_container_width=True, key="btn_recargar_empleados"):
+            st.session_state.empleados_df = get_empleados()
+            st.success("✅ Datos recargados desde base de datos")
+            st.rerun()
+    
+    with col3:
+        csv_data = df_display[['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 
+                              'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO']].to_csv(index=False)
+        st.download_button(
+            label="📥 Exportar CSV",
+            data=csv_data,
+            file_name="empleados.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
 
 def agregar_empleado():
     """Agregar nuevo empleado a la base de datos"""
