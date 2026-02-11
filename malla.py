@@ -2206,11 +2206,10 @@ def pagina_empleados():
     # Agregar nuevo empleado
     st.markdown("### ➕ Agregar Nuevo Empleado")
     with st.expander("Click para expandir", expanded=False):
-        if agregar_empleado():
-            st.rerun()
+        agregar_empleado()
     
     st.markdown("---")
-        st.markdown("### 📋 Lista de Empleados")
+    st.markdown("### 📋 Lista de Empleados")
     
     if st.session_state.empleados_df.empty:
         st.warning("No hay empleados registrados.")
@@ -2396,8 +2395,6 @@ def agregar_empleado():
             st.success(f"✅ Empleado {nombre.upper()} agregado correctamente")
             registrar_log("agregar_empleado", f"{nombre.upper()} - {cargo} - CC: {cc}")
             st.session_state.empleados_df = get_empleados()
-            
-            # Crear backup después de agregar empleado
             crear_backup_automatico()
             
             return True
