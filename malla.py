@@ -1779,114 +1779,116 @@ def pagina_malla():
             else:
                 columnas_fijas.append(col)
         
-# ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON ÍCONO GARANTIZADO =====
-if check_permission("write"):
-    st.markdown("💡 **Los cambios se guardan automáticamente al salir de la celda**")
-    
-    df_display = df.copy()
-    
-    # Convertir todo a string
-    for col in df_display.columns:
-        df_display[col] = df_display[col].astype(str).replace('nan', '').replace('None', '')
-    
-    # ===== SOLUCIÓN DEFINITIVA: num_rows="fixed" =====
-    editor_key = f"malla_editor_{mes_numero}_{ano}"
-    
-    edited_df = st.data_editor(
-        df_display,
-        hide_index=True,
-        use_container_width=True,
-        height=600,
-        num_rows="fixed",  # ✅ CAMBIO CRÍTICO: ESTO HACE QUE APAREZCA EL ÍCONO
-        key=editor_key,
-        column_config={   # ✅ OPCIONAL: configuración adicional
-            **{col: st.column_config.Column(col) for col in df_display.columns if not col.startswith('D')},
-            **{col: st.column_config.TextColumn(col, width="small") for col in df_display.columns if col.startswith('D')}
-        }
-    )
-    
-    # Mensaje INSTRUCTIVO - MÁS VISIBLE
-    st.success("""
-    ### 🎯 **¡EL ÍCONO YA DEBE ESTAR VISIBLE!**
-    
-    **👆 Busca en la ESQUINA SUPERIOR DERECHA de la tabla:**
-    
-    | Ícono | Función |
-    |-------|---------|
-    | **⫶ (tres puntos)** | Menú principal |
-    | **👁️ (ojo)** | Mostrar/ocultar columnas |
-    | **↕️ (flechas)** | Reordenar columnas |
-    | **📌 (chinche)** | Congelar columnas |
-    
-    ---
-    **🔄 Si no ves el ícono:**
-    1. Espera 2 segundos a que la tabla termine de cargar
-    2. Haz clic en cualquier celda de la tabla
-    3. Mueve el mouse a la esquina superior derecha
-    """, icon="✨")
-            
-            # Mensaje INSTRUCTIVO
-            st.success("""
-            ✅ **¡EL ÍCONO DE CONFIGURACIÓN YA ESTÁ DISPONIBLE!**  
-            👆 Busca el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
-            Haz clic ahí para mostrar/ocultar y reordenar columnas.
-            """, icon="🎯")
-            
-            # Limpiar valores
-            for col in columnas_dias:
-                if col in edited_df.columns:
-                    edited_df[col] = edited_df[col].astype(str).replace('nan', '').replace('None', '')
-            
-            # BOTONES DE ACCIÓN
-            st.markdown("---")
-            st.markdown("### 💾 Acciones de Guardado")
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                if st.button("💾 Guardar Cambios", use_container_width=True, type="primary"):
-                    with st.spinner("Guardando cambios..."):
-                        try:
-                            # Asegurar columnas de días
-                            for col in columnas_dias:
-                                if col not in edited_df.columns:
-                                    edited_df[col] = ""
-                            
-                            cambios = guardar_malla_turnos_con_backup(edited_df, mes_numero, ano)
-                            
-                            if cambios > 0:
-                                st.session_state.last_save = obtener_hora_colombia()
-                                st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
-                                st.success(f"✅ {cambios} cambios guardados")
-                                registrar_log("guardar_malla", f"{mes_seleccionado} {ano} - {cambios} cambios")
-                                st.rerun()
-                            else:
-                                st.warning("⚠️ No se detectaron cambios")
-                                
-                        except Exception as e:
-                            st.error(f"❌ Error al guardar: {str(e)}")
-            
-            with col2:
-                if st.button("🔄 Recargar", use_container_width=True):
-                    st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
-                    st.success("✅ Malla recargada")
-                    st.rerun()
-            
-            with col3:
-                if st.button("🗑️ Limpiar Todo", use_container_width=True, type="secondary"):
-                    if st.checkbox("¿Confirmar limpieza total?"):
-                        malla_vacia = df.copy()
+    # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON ÍCONO GARANTIZADO =====
+    if check_permission("write"):
+        st.markdown("💡 **Los cambios se guardan automáticamente al salir de la celda**")
+        
+        df_display = df.copy()
+        
+        # Convertir todo a string
+        for col in df_display.columns:
+            df_display[col] = df_display[col].astype(str).replace('nan', '').replace('None', '')
+        
+        # Identificar columnas de días
+        columnas_dias = [col for col in df_display.columns if col.startswith('D') and col[1:].isdigit()]
+        
+        # Configuración de columnas
+        column_config = {}
+        
+        # Columnas fijas (sin configuración especial)
+        for col in df_display.columns:
+            if col not in columnas_dias:
+                column_config[col] = st.column_config.Column(col, disabled=False)
+        
+        # Columnas de días (más angostas)
+        for col in columnas_dias:
+            column_config[col] = st.column_config.TextColumn(
+                col, 
+                width="small",
+                max_chars=3,
+                help=f"Turno para {col}"
+            )
+        
+        # ===== SOLUCIÓN DEFINITIVA: num_rows="fixed" =====
+        edited_df = st.data_editor(
+            df_display,
+            column_config=column_config,
+            hide_index=True,
+            use_container_width=True,
+            height=600,
+            num_rows="fixed",  # ✅ CAMBIO CRÍTICO: ESTO HACE QUE APAREZCA EL ÍCONO
+            key=f"malla_editor_{mes_numero}_{ano}"  # ✅ Key ESTÁTICA (no timestamp)
+        )
+        
+        # Mensaje INSTRUCTIVO - CORREGIDA LA INDENTACIÓN
+        st.success("""
+        ### 🎯 **¡EL ÍCONO YA DEBE ESTAR VISIBLE!**
+        
+        **👆 Busca en la ESQUINA SUPERIOR DERECHA de la tabla:**
+        
+        | Ícono | Función |
+        |-------|---------|
+        | **⫶ (tres puntos)** | Menú principal |
+        | **👁️ (ojo)** | **MOSTRAR/OCULTAR COLUMNAS** |
+        | **↕️ (flechas)** | Reordenar columnas |
+        | **📌 (chinche)** | Congelar columnas |
+        """, icon="✨")
+        
+        # Limpiar valores
+        for col in columnas_dias:
+            if col in edited_df.columns:
+                edited_df[col] = edited_df[col].astype(str).replace('nan', '').replace('None', '')
+        
+        # BOTONES DE ACCIÓN
+        st.markdown("---")
+        st.markdown("### 💾 Acciones de Guardado")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("💾 Guardar Cambios", use_container_width=True, type="primary"):
+                with st.spinner("Guardando cambios..."):
+                    try:
+                        # Asegurar columnas de días
                         for col in columnas_dias:
-                            malla_vacia[col] = ""
+                            if col not in edited_df.columns:
+                                edited_df[col] = ""
                         
-                        cambios = guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
-                        st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
-                        st.success(f"✅ Turnos limpiados")
-                        st.rerun()
-            
-            # Estadísticas
-            if rol in ['admin', 'supervisor']:
-                mostrar_estadisticas_avanzadas(mes_numero, ano)
+                        cambios = guardar_malla_turnos_con_backup(edited_df, mes_numero, ano)
+                        
+                        if cambios > 0:
+                            st.session_state.last_save = obtener_hora_colombia()
+                            st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+                            st.success(f"✅ {cambios} cambios guardados")
+                            registrar_log("guardar_malla", f"{mes_seleccionado} {ano} - {cambios} cambios")
+                            st.rerun()
+                        else:
+                            st.warning("⚠️ No se detectaron cambios")
+                            
+                    except Exception as e:
+                        st.error(f"❌ Error al guardar: {str(e)}")
+        
+        with col2:
+            if st.button("🔄 Recargar", use_container_width=True):
+                st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+                st.success("✅ Malla recargada")
+                st.rerun()
+        
+        with col3:
+            if st.button("🗑️ Limpiar Todo", use_container_width=True, type="secondary"):
+                if st.checkbox("¿Confirmar limpieza total?"):
+                    malla_vacia = df.copy()
+                    for col in columnas_dias:
+                        malla_vacia[col] = ""
+                    
+                    cambios = guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
+                    st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+                    st.success(f"✅ Turnos limpiados")
+                    st.rerun()
+        
+        # Estadísticas
+        if rol in ['admin', 'supervisor']:
+            mostrar_estadisticas_avanzadas(mes_numero, ano)
         
         # ===== EMPLEADOS: SOLO LECTURA =====
         else:
@@ -2208,60 +2210,75 @@ def pagina_empleados():
             st.rerun()
     
     st.markdown("---")
-st.markdown("### 📋 Lista de Empleados")
-
-if st.session_state.empleados_df.empty:
-    st.warning("No hay empleados registrados.")
-else:
-    df_editable = st.session_state.empleados_df.copy()
+    st.markdown("### 📋 Lista de Empleados")
     
-    df_display = df_editable.rename(columns={
-        'id': 'ID_OCULTO',
-        'numero': 'N°',
-        'cargo': 'CARGO',
-        'nombre_completo': 'APELLIDOS Y NOMBRES',
-        'cedula': 'CC',
-        'departamento': 'DEPARTAMENTO',
-        'estado': 'ESTADO',
-        'hora_inicio': 'HORA_INICIO',
-        'hora_fin': 'HORA_FIN',
-        'created_at': 'FECHA_REGISTRO'
-    })
-    
-    df_display = df_display.fillna({
-        'CARGO': '',
-        'APELLIDOS Y NOMBRES': '',
-        'CC': '',
-        'DEPARTAMENTO': '',
-        'ESTADO': 'Activo',
-        'HORA_INICIO': '',
-        'HORA_FIN': '',
-        'FECHA_REGISTRO': ''
-    })
-    
-    column_order = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 
-                   'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO', 'ID_OCULTO']
-    
-# ===== SOLUCIÓN PARA EMPLEADOS =====
-edited_df = st.data_editor(
-    df_display[column_order],
-    hide_index=True,
-    use_container_width=True,
-    num_rows="fixed",  # ✅ CAMBIO CRÍTICO: ESTO HACE QUE APAREZCA EL ÍCONO
-    key="editor_empleados_fixed",  # ✅ Key estática (no dinámica)
-    column_config={   # ✅ Configuración adicional
-        "N°": st.column_config.NumberColumn("N°", width="small"),
-        "CARGO": st.column_config.TextColumn("CARGO", width="medium"),
-        "APELLIDOS Y NOMBRES": st.column_config.TextColumn("APELLIDOS Y NOMBRES", width="large"),
-        "CC": st.column_config.TextColumn("CC", width="medium"),
-        "DEPARTAMENTO": st.column_config.TextColumn("DEPARTAMENTO", width="medium"),
-        "ESTADO": st.column_config.SelectboxColumn("ESTADO", width="small", options=["Activo", "Vacaciones", "Licencia", "Inactivo"]),
-        "HORA_INICIO": st.column_config.TextColumn("HORA_INICIO", width="small"),
-        "HORA_FIN": st.column_config.TextColumn("HORA_FIN", width="small"),
-        "FECHA_REGISTRO": st.column_config.TextColumn("FECHA_REGISTRO", width="medium", disabled=True),
-        "ID_OCULTO": st.column_config.NumberColumn("ID_OCULTO", width="small", disabled=True)
-    }
-)
+    if st.session_state.empleados_df.empty:
+        st.warning("No hay empleados registrados.")
+    else:
+        df_editable = st.session_state.empleados_df.copy()
+        
+        df_display = df_editable.rename(columns={
+            'id': 'ID_OCULTO',
+            'numero': 'N°',
+            'cargo': 'CARGO',
+            'nombre_completo': 'APELLIDOS Y NOMBRES',
+            'cedula': 'CC',
+            'departamento': 'DEPARTAMENTO',
+            'estado': 'ESTADO',
+            'hora_inicio': 'HORA_INICIO',
+            'hora_fin': 'HORA_FIN',
+            'created_at': 'FECHA_REGISTRO'
+        })
+        
+        df_display = df_display.fillna({
+            'CARGO': '',
+            'APELLIDOS Y NOMBRES': '',
+            'CC': '',
+            'DEPARTAMENTO': '',
+            'ESTADO': 'Activo',
+            'HORA_INICIO': '',
+            'HORA_FIN': '',
+            'FECHA_REGISTRO': ''
+        })
+        
+        column_order = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 
+                       'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO', 'ID_OCULTO']
+        
+        # ===== SOLUCIÓN PARA EMPLEADOS - CON ÍCONO =====
+        edited_df = st.data_editor(
+            df_display[column_order],
+            column_config={
+                "N°": st.column_config.NumberColumn("N°", width="small", disabled=True),
+                "CARGO": st.column_config.TextColumn("CARGO", width="medium"),
+                "APELLIDOS Y NOMBRES": st.column_config.TextColumn("APELLIDOS Y NOMBRES", width="large"),
+                "CC": st.column_config.TextColumn("CC", width="medium"),
+                "DEPARTAMENTO": st.column_config.SelectboxColumn(
+                    "DEPARTAMENTO", 
+                    width="medium", 
+                    options=st.session_state.configuracion.get('departamentos', [])
+                ),
+                "ESTADO": st.column_config.SelectboxColumn(
+                    "ESTADO", 
+                    width="small", 
+                    options=["Activo", "Vacaciones", "Licencia", "Inactivo"]
+                ),
+                "HORA_INICIO": st.column_config.TextColumn("HORA_INICIO", width="small"),
+                "HORA_FIN": st.column_config.TextColumn("HORA_FIN", width="small"),
+                "FECHA_REGISTRO": st.column_config.TextColumn("FECHA_REGISTRO", width="medium", disabled=True),
+                "ID_OCULTO": st.column_config.NumberColumn("ID_OCULTO", width="small", disabled=True)
+            },
+            hide_index=True,
+            use_container_width=True,
+            num_rows="fixed",  # ✅ CRÍTICO: fixed para que aparezca el ícono
+            key="editor_empleados_fixed"
+        )
+        
+        # Instrucciones VISIBLES
+        st.info("""
+        **👆 CONFIGURACIÓN DE COLUMNAS**  
+        Busca el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
+        Allí encontrarás las opciones para **mostrar/ocultar**, **reordenar** y **congelar** columnas
+        """, icon="🔧")
     
     # Instrucciones VISIBLES
     st.info("""
