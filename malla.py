@@ -1714,10 +1714,10 @@ def mostrar_estadisticas_avanzadas(mes, ano):
                     st.plotly_chart(fig, use_container_width=True)
 
 # ============================================================================
-# PÁGINA PRINCIPAL - MALLA DE TURNOS (TABLA UNIFICADA)
+# PÁGINA PRINCIPAL - MALLA DE TURNOS (CON ÍCONO DE COLUMNAS)
 # ============================================================================
 def pagina_malla():
-    """Página principal - Malla de turnos CON SELECTBOXES GARANTIZADOS"""
+    """Página principal - Malla de turnos CON ÍCONO DE CONFIGURACIÓN DE COLUMNAS"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
     
     # Selectores de mes y año
@@ -1778,39 +1778,21 @@ def pagina_malla():
             else:
                 columnas_fijas.append(col)
         
-        # ===== SOLUCIÓN PARA STREAMLIT CLOUD - SELECTBOXES GARANTIZADOS =====
-        if 'codigos_turno' in st.session_state:
-            # Obtener códigos válidos y asegurar que sean strings
-            opciones_codigos_raw = list(st.session_state.codigos_turno.keys())
-            
-            # Filtrar código vacío
-            opciones_codigos_raw = [c for c in opciones_codigos_raw if c != ""]
-            
-            # ORDENAR CÓDIGOS: números primero, luego letras
-            codigos_numericos = sorted([c for c in opciones_codigos_raw if str(c).replace('-', '').isdigit()], 
-                                      key=lambda x: int(str(x).replace('-', '')) if str(x).replace('-', '').isdigit() else 0)
-            codigos_texto = sorted([c for c in opciones_codigos_raw if not str(c).replace('-', '').isdigit()])
-            
-            # Lista final de opciones: vacío + códigos ordenados
-            opciones_codigos = [""] + codigos_numericos + codigos_texto
-            
-            # DEBUG - Mostrar qué códigos se están cargando (solo para admin)
-            if rol == "admin":
-                with st.expander("🔧 Diagnóstico - Códigos cargados", expanded=False):
-                    st.write(f"**Total códigos:** {len(opciones_codigos)-1}")
-                    st.write(f"**Códigos:** {', '.join([str(c) for c in opciones_codigos if c != ''])}")
-        else:
-            opciones_codigos = [""]
-            st.warning("⚠️ No hay códigos de turno configurados")
-        
-        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE =====
+        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON ÍCONO DE COLUMNAS =====
         if check_permission("write"):
             st.markdown("💡 **Los cambios se guardan automáticamente al salir de la celda**")
             
-            # CONFIGURACIÓN DE COLUMNAS
+            # === MENSAJE CLARO PARA EL ÍCONO DE COLUMNAS ===
+            st.success("""
+            🔧 **CONFIGURACIÓN DE COLUMNAS DISPONIBLE**  
+            ✅ Haz clic en el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
+            ✅ Puedes **mostrar/ocultar**, **reordenar** y **congelar** columnas
+            """, icon="👆")
+            
+            # CONFIGURACIÓN MÍNIMA - SOLO COLUMNAS FIJAS COMO LECTURA
             column_config = {}
             
-            # Columnas fijas (solo lectura)
+            # Solo configuramos las columnas fijas como solo lectura
             for col in columnas_fijas:
                 width = "small"
                 if col in ["APELLIDOS Y NOMBRES"]:
@@ -1820,47 +1802,30 @@ def pagina_malla():
                 
                 column_config[col] = st.column_config.TextColumn(
                     col,
-                    disabled=True,
+                    disabled=True,  # Solo lectura
                     width=width
                 )
             
-            # ===== CONFIGURACIÓN ESPECÍFICA PARA SELECTBOXES =====
-            for col in columnas_dias:
-                # Convertir todos los valores a string y asegurar que sean válidos
-                df[col] = df[col].astype(str).replace('nan', '').replace('None', '')
-                
-                # Para cada celda, asegurar que el valor esté en las opciones
-                for idx, val in enumerate(df[col]):
-                    if val not in opciones_codigos:
-                        df.at[idx, col] = ""  # Resetear valores inválidos
-                
-                column_config[col] = st.column_config.SelectboxColumn(
-                    col,
-                    width="small",
-                    options=opciones_codigos,  # Lista completa de opciones
-                    required=False,
-                    default=""  # Valor por defecto vacío
-                )
+            # IMPORTANTE: NO configuramos las columnas de días
+            # Esto permite que Streamlit muestre el ícono de configuración
             
-            # MOSTRAR TABLA
+            # MOSTRAR TABLA CON EDITOR
             edited_df = st.data_editor(
                 df,
-                column_config=column_config,
+                column_config=column_config,  # SOLO columnas fijas configuradas
                 hide_index=True,
                 use_container_width=True,
                 height=600,
                 num_rows="fixed",
-                key=f"malla_editor_{mes_numero}_{ano}_{len(opciones_codigos)}"  # Key única con contador
+                key=f"malla_editor_{mes_numero}_{ano}_{rol}"  # Key única por rol
             )
             
-            # INSTRUCCIONES CLARAS
-            st.success("""
-            **✅ SELECTBOXES ACTIVADOS:** 
-            - Cada celda de día tiene un menú desplegable con todos los códigos
-            - Haz clic en cualquier celda de día para ver las opciones
-            - Selecciona el código de turno correspondiente
-            """)
+            # Limpiar valores inválidos
+            for col in columnas_dias:
+                if col in edited_df.columns:
+                    edited_df[col] = edited_df[col].astype(str).replace('nan', '').replace('None', '')
             
+            # BOTONES DE ACCIÓN
             st.markdown("---")
             st.markdown("### 💾 Acciones de Guardado")
             
@@ -1895,7 +1860,8 @@ def pagina_malla():
                     if st.checkbox("¿Confirmar limpieza total?"):
                         malla_vacia = edited_df.copy()
                         for col in columnas_dias:
-                            malla_vacia[col] = ""
+                            if col in malla_vacia.columns:
+                                malla_vacia[col] = ""
                         
                         cambios = guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
                         st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
@@ -1906,7 +1872,7 @@ def pagina_malla():
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
         
-        # ===== EMPLEADOS: SOLO LECTURA =====
+        # ===== EMPLEADOS: SOLO LECTURA (SIN ÍCONO) =====
         else:
             st.info("👁️ Vista de solo lectura")
             
@@ -1930,7 +1896,6 @@ def pagina_malla():
                 mime="text/csv",
                 use_container_width=True
             )
-
 # ============================================================================
 # PÁGINAS SECUNDARIAS
 # ============================================================================
@@ -2194,8 +2159,11 @@ def importar_backup_json(json_str):
         print(f"❌ Error al importar JSON: {str(e)}")
         return False
 
+# ============================================================================
+# PÁGINA DE EMPLEADOS (CON ÍCONO DE COLUMNAS PARA ADMIN/SUPERVISOR)
+# ============================================================================
 def pagina_empleados():
-    """Página de gestión de empleados"""
+    """Página de gestión de empleados - CON ÍCONO DE CONFIGURACIÓN DE COLUMNAS"""
     if not check_permission("write"):
         st.error("⛔ No tienes permisos para gestionar empleados")
         return
@@ -2256,32 +2224,20 @@ def pagina_empleados():
         column_order = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 
                        'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO', 'ID_OCULTO']
         
-        column_config = {
-            "N°": st.column_config.NumberColumn("N°", width="small", disabled=True),
-            "CARGO": st.column_config.TextColumn("Cargo", width="medium"),
-            "APELLIDOS Y NOMBRES": st.column_config.TextColumn("Nombre", width="large"),
-            "CC": st.column_config.TextColumn("Cédula", width="medium"),
-            "DEPARTAMENTO": st.column_config.SelectboxColumn(
-                "Departamento",
-                options=st.session_state.configuracion['departamentos']
-            ),
-            "ESTADO": st.column_config.SelectboxColumn(
-                "Estado",
-                options=["Activo", "Vacaciones", "Licencia", "Inactivo"]
-            ),
-            "HORA_INICIO": st.column_config.TextColumn("Hora Inicio", width="small"),
-            "HORA_FIN": st.column_config.TextColumn("Hora Fin", width="small"),
-            "FECHA_REGISTRO": st.column_config.DatetimeColumn("Fecha Registro", disabled=True),
-            "ID_OCULTO": st.column_config.NumberColumn("ID", disabled=True, width="small")
-        }
+        # === MENSAJE CLARO PARA EL ÍCONO DE COLUMNAS ===
+        st.success("""
+        🔧 **CONFIGURACIÓN DE COLUMNAS DISPONIBLE**  
+        ✅ Haz clic en el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
+        ✅ Puedes **mostrar/ocultar**, **reordenar** y **congelar** columnas
+        """, icon="👆")
         
+        # EDITOR DE EMPLEADOS - SIN column_config PARA QUE APAREZCA EL ÍCONO
         edited_df = st.data_editor(
             df_display[column_order],
-            column_config=column_config,
             hide_index=True,
             use_container_width=True,
             num_rows="fixed",
-            key="editor_empleados"
+            key="editor_empleados_admin"
         )
         
         col1, col2, col3 = st.columns(3)
@@ -2656,8 +2612,11 @@ def pagina_configuracion():
             except Exception as e:
                 st.error(f"❌ Error al guardar configuración: {str(e)}")
 
+# ============================================================================
+# PÁGINA DE USUARIOS (SOLO ADMIN, CON ÍCONO DE COLUMNAS)
+# ============================================================================
 def pagina_usuarios():
-    """Página de gestión de usuarios para administradores"""
+    """Página de gestión de usuarios para administradores - CON ÍCONO DE COLUMNAS"""
     if not check_permission("manage_users"):
         st.error("⛔ No tienes permisos para gestionar usuarios")
         return
@@ -2686,30 +2645,20 @@ def pagina_usuarios():
             'created_at': 'FECHA_CREACION'
         })
         
-        column_config = {
-            "USUARIO": st.column_config.TextColumn("Usuario", width="small", required=True),
-            "NOMBRE_COMPLETO": st.column_config.TextColumn("Nombre", width="medium", required=True),
-            "ROL": st.column_config.SelectboxColumn(
-                "Rol",
-                options=list(ROLES.keys()),
-                width="small",
-                required=True
-            ),
-            "DEPARTAMENTO": st.column_config.SelectboxColumn(
-                "Departamento",
-                options=st.session_state.configuracion['departamentos'],
-                width="medium"
-            ),
-            "FECHA_CREACION": st.column_config.DatetimeColumn("Fecha Creación", disabled=True)
-        }
+        # === MENSAJE CLARO PARA EL ÍCONO DE COLUMNAS ===
+        st.success("""
+        🔧 **CONFIGURACIÓN DE COLUMNAS DISPONIBLE**  
+        ✅ Haz clic en el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
+        ✅ Puedes **mostrar/ocultar**, **reordenar** y **congelar** columnas
+        """, icon="👆")
         
+        # EDITOR DE USUARIOS - SIN column_config PARA QUE APAREZCA EL ÍCONO
         edited_df = st.data_editor(
             df_display,
-            column_config=column_config,
             hide_index=True,
             use_container_width=True,
             num_rows="fixed",
-            key="editor_usuarios"
+            key="editor_usuarios_admin"
         )
         
         if st.button("💾 Guardar Cambios de Usuarios", use_container_width=True):
