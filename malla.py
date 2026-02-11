@@ -2052,7 +2052,7 @@ def pagina_malla():
                 )
             
             with col_desplazables:
-                st.markdown("#### 📅 Turnos por Día (Editable)")
+                #st.markdown("#### 📅 Turnos por Día (Editable)")
                 
                 # Obtener opciones de códigos para los selectboxes
                 if 'codigos_turno' in st.session_state:
