@@ -19,41 +19,7 @@ import calendar
 import sqlite3
 import os
 import streamlit.components.v1 as components
-from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
-
-df = st.session_state.malla_actual.copy()
-
-gb = GridOptionsBuilder.from_dataframe(df)
-
-# ⚠️ CLAVE: congelar columnas correctamente
-for col in df.columns[:4]:
-    gb.configure_column(col, pinned="left")
-
-# Mejor comportamiento tipo Excel
-gb.configure_default_column(
-    resizable=True,
-    sortable=True,
-    filter=True
-)
-
-# Opciones grid
-gb.configure_grid_options(
-    alwaysShowHorizontalScroll=True,
-    suppressDragLeaveHidesColumns=True,
-    domLayout="normal"
-)
-
-gridOptions = gb.build()
-
-AgGrid(
-    df,
-    gridOptions=gridOptions,
-    height=600,
-    fit_columns_on_grid_load=False,
-    allow_unsafe_jscode=True,
-    theme="alpine"
-)
-
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
 import shutil
 import time
 import pytz
