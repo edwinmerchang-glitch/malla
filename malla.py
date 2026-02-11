@@ -2037,7 +2037,7 @@ def pagina_malla():
             col_fijas, col_desplazables = st.columns([3, 7])
             
             with col_fijas:
-                st.markdown("#### 🏷️ Información del Empleado")
+                #st.markdown("#### 🏷️ Información del Empleado")
                 # Mostrar información fija (solo lectura)
                 column_config_fijo = {}
                 for col in df_fijo.columns:
