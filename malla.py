@@ -2113,21 +2113,32 @@ def pagina_malla():
             # Mostrar estadísticas avanzadas después de guardar cambios
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
-        else:
-            st.info("👁️ Vista de solo lectura - No puedes editar")
-    
-            df = st.session_state.malla_actual.copy()
+             else:
+                 st.info("👁️ Vista de solo lectura - No puedes editar")
 
-            st.dataframe(
-               df,
-               column_config={
-                   df.columns[0]: st.column_config.Column(pinned="left"),
-                   df.columns[1]: st.column_config.Column(pinned="left"),
-                   df.columns[2]: st.column_config.Column(pinned="left"),
-                   df.columns[3]: st.column_config.Column(pinned="left"),
-               },
-               use_container_width=True,
-               height=600
+                 df = st.session_state.malla_actual.copy()
+
+                 gb = GridOptionsBuilder.from_dataframe(df)
+
+                 # 🔒 Congelar columnas 0 → 3
+                 gb.configure_columns(df.columns[0:4], pinned="left")
+
+                 # ⚙️ Opciones visuales tipo Excel
+                 gb.configure_grid_options(
+                     enableRangeSelection=True,
+                     rowSelection="single",
+                     suppressRowClickSelection=True
+    )
+
+                 gridOptions = gb.build()
+
+                 AgGrid(
+                     df,
+                     gridOptions=gridOptions,
+                     height=600,
+                     fit_columns_on_grid_load=False,
+                     theme="streamlit",
+                     update_mode=GridUpdateMode.NO_UPDATE
     )
 
 
