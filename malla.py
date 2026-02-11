@@ -1749,139 +1749,163 @@ def pagina_malla():
         else:
             opciones_codigos = []
         
+        # ===== CSS PARA COLUMNAS FIJAS (SIN usar pinned=True) =====
+        st.markdown("""
+        <style>
+            /* Contenedor para scroll horizontal */
+            .stDataFrame {
+                overflow-x: auto !important;
+                overflow-y: visible !important;
+                position: relative !important;
+                width: 100% !important;
+            }
+            
+            /* Hacer que la tabla sea de ancho completo */
+            .stDataFrame table {
+                width: max-content !important;
+                min-width: 100% !important;
+                border-collapse: collapse !important;
+            }
+            
+            /* FIJAR COLUMNAS DE INFORMACIÓN DEL EMPLEADO */
+            /* N° - Primera columna */
+            .stDataFrame th:first-child,
+            .stDataFrame td:first-child {
+                position: sticky !important;
+                left: 0 !important;
+                z-index: 100 !important;
+                background-color: white !important;
+                border-right: 2px solid #1E3A8A !important;
+                box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1) !important;
+            }
+            
+            /* CARGO - Segunda columna */
+            .stDataFrame th:nth-child(2),
+            .stDataFrame td:nth-child(2) {
+                position: sticky !important;
+                left: 60px !important;
+                z-index: 99 !important;
+                background-color: white !important;
+                border-right: 1px solid #e0e0e0 !important;
+            }
+            
+            /* APELLIDOS Y NOMBRES - Tercera columna */
+            .stDataFrame th:nth-child(3),
+            .stDataFrame td:nth-child(3) {
+                position: sticky !important;
+                left: 200px !important;
+                z-index: 98 !important;
+                background-color: white !important;
+                border-right: 1px solid #e0e0e0 !important;
+            }
+            
+            /* CC - Cuarta columna */
+            .stDataFrame th:nth-child(4),
+            .stDataFrame td:nth-child(4) {
+                position: sticky !important;
+                left: 400px !important;
+                z-index: 97 !important;
+                background-color: white !important;
+                border-right: 1px solid #e0e0e0 !important;
+            }
+            
+            /* DEPARTAMENTO - Quinta columna */
+            .stDataFrame th:nth-child(5),
+            .stDataFrame td:nth-child(5) {
+                position: sticky !important;
+                left: 500px !important;
+                z-index: 96 !important;
+                background-color: white !important;
+                border-right: 1px solid #e0e0e0 !important;
+            }
+            
+            /* ESTADO - Sexta columna */
+            .stDataFrame th:nth-child(6),
+            .stDataFrame td:nth-child(6) {
+                position: sticky !important;
+                left: 620px !important;
+                z-index: 95 !important;
+                background-color: white !important;
+                border-right: 2px solid #1E3A8A !important;
+            }
+            
+            /* Asegurar que las celdas fijas mantengan su fondo al hacer scroll */
+            .stDataFrame td:is(:first-child, :nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)) {
+                background-color: white !important;
+            }
+            
+            /* Estilo para el hover en celdas fijas */
+            .stDataFrame tr:hover td:is(:first-child, :nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)) {
+                background-color: #f5f5f5 !important;
+            }
+            
+            /* Ajuste para modo oscuro */
+            @media (prefers-color-scheme: dark) {
+                .stDataFrame td:is(:first-child, :nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)),
+                .stDataFrame th:is(:first-child, :nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)) {
+                    background-color: #0E1117 !important;
+                    color: #FAFAFA !important;
+                }
+                
+                .stDataFrame tr:hover td:is(:first-child, :nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)) {
+                    background-color: #1E1E1E !important;
+                }
+            }
+            
+            /* Ajuste para mobile */
+            @media (max-width: 768px) {
+                .stDataFrame th:nth-child(2),
+                .stDataFrame td:nth-child(2) {
+                    left: 50px !important;
+                }
+                .stDataFrame th:nth-child(3),
+                .stDataFrame td:nth-child(3) {
+                    left: 150px !important;
+                }
+                .stDataFrame th:nth-child(4),
+                .stDataFrame td:nth-child(4) {
+                    left: 280px !important;
+                }
+                .stDataFrame th:nth-child(5),
+                .stDataFrame td:nth-child(5) {
+                    left: 360px !important;
+                }
+                .stDataFrame th:nth-child(6),
+                .stDataFrame td:nth-child(6) {
+                    left: 460px !important;
+                }
+            }
+            
+            /* Mejorar la barra de scroll */
+            .stDataFrame::-webkit-scrollbar {
+                height: 10px !important;
+            }
+            
+            .stDataFrame::-webkit-scrollbar-track {
+                background: #f1f1f1 !important;
+                border-radius: 5px !important;
+            }
+            
+            .stDataFrame::-webkit-scrollbar-thumb {
+                background: #888 !important;
+                border-radius: 5px !important;
+            }
+            
+            .stDataFrame::-webkit-scrollbar-thumb:hover {
+                background: #555 !important;
+            }
+        </style>
+        """, unsafe_allow_html=True)
+        
         # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON COLUMNAS FIJAS =====
         if check_permission("write"):
             st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', 
                        unsafe_allow_html=True)
             
-            # ===== SOLUCIÓN: USAR COMPONENTE PERSONALIZADO PARA COLUMNAS FIJAS =====
-            st.markdown("""
-            <style>
-                /* Estilos para el contenedor de la tabla con scroll */
-                .fixed-columns-container {
-                    position: relative;
-                    overflow-x: auto;
-                    overflow-y: visible;
-                    width: 100%;
-                    margin-top: 10px;
-                }
-                
-                /* Para navegadores webkit (Chrome, Safari, Edge) */
-                .fixed-columns-container::-webkit-scrollbar {
-                    height: 8px;
-                }
-                
-                .fixed-columns-container::-webkit-scrollbar-thumb {
-                    background: #888;
-                    border-radius: 4px;
-                }
-                
-                .fixed-columns-container::-webkit-scrollbar-track {
-                    background: #f1f1f1;
-                }
-                
-                /* Ajuste para mobile */
-                @media (max-width: 768px) {
-                    .fixed-columns-container {
-                        overflow-x: auto;
-                    }
-                }
-            </style>
-            """, unsafe_allow_html=True)
-            
-            # Agregar CSS adicional para las columnas fijas
-            st.markdown("""
-            <style>
-                /* Estilo para la tabla con columnas fijas */
-                div[data-testid="stDataFrame"] div[data-testid="stDataFrameResizable"] {
-                    position: relative !important;
-                }
-                
-                /* Fijar las primeras 6 columnas (información del empleado) */
-                div[data-testid="stDataFrame"] th:first-child,
-                div[data-testid="stDataFrame"] td:first-child {
-                    position: sticky !important;
-                    left: 0;
-                    background-color: white;
-                    z-index: 10;
-                    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
-                }
-                
-                div[data-testid="stDataFrame"] th:nth-child(2),
-                div[data-testid="stDataFrame"] td:nth-child(2) {
-                    position: sticky !important;
-                    left: 60px; /* Ajustar según el ancho de la primera columna */
-                    background-color: white;
-                    z-index: 9;
-                    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
-                }
-                
-                div[data-testid="stDataFrame"] th:nth-child(3),
-                div[data-testid="stDataFrame"] td:nth-child(3) {
-                    position: sticky !important;
-                    left: 180px; /* Ajustar según ancho acumulado */
-                    background-color: white;
-                    z-index: 8;
-                    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
-                }
-                
-                div[data-testid="stDataFrame"] th:nth-child(4),
-                div[data-testid="stDataFrame"] td:nth-child(4) {
-                    position: sticky !important;
-                    left: 320px; /* Ajustar según ancho acumulado */
-                    background-color: white;
-                    z-index: 7;
-                    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
-                }
-                
-                div[data-testid="stDataFrame"] th:nth-child(5),
-                div[data-testid="stDataFrame"] td:nth-child(5) {
-                    position: sticky !important;
-                    left: 420px; /* Ajustar según ancho acumulado */
-                    background-color: white;
-                    z-index: 6;
-                    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
-                }
-                
-                div[data-testid="stDataFrame"] th:nth-child(6),
-                div[data-testid="stDataFrame"] td:nth-child(6) {
-                    position: sticky !important;
-                    left: 520px; /* Ajustar según ancho acumulado */
-                    background-color: white;
-                    z-index: 5;
-                    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
-                }
-                
-                /* Asegurar que el fondo de las celdas fijas sea sólido */
-                div[data-testid="stDataFrame"] td:is(:nth-child(1), :nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)) {
-                    background-color: white !important;
-                }
-                
-                /* Ajuste para cuando hay scroll horizontal */
-                div[data-testid="stDataFrame"] table {
-                    border-collapse: separate !important;
-                    border-spacing: 0 !important;
-                }
-                
-                /* Borde derecho para indicar separación */
-                div[data-testid="stDataFrame"] th:nth-child(6),
-                div[data-testid="stDataFrame"] td:nth-child(6) {
-                    border-right: 2px solid #1E3A8A !important;
-                }
-                
-                /* Ajuste para modo oscuro */
-                @media (prefers-color-scheme: dark) {
-                    div[data-testid="stDataFrame"] td:is(:nth-child(1), :nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)) {
-                        background-color: #0E1117 !important;
-                    }
-                }
-            </style>
-            """, unsafe_allow_html=True)
-            
-            # CONFIGURACIÓN DE COLUMNAS
+            # CONFIGURACIÓN DE COLUMNAS - SIN pinned=True
             column_config = {}
             
-            # Columnas fijas (solo lectura) - Ahora con sticky
+            # Columnas fijas (solo lectura)
             for col in columnas_fijas:
                 # Ajustar ancho según la columna
                 width = "small"
@@ -1893,8 +1917,8 @@ def pagina_malla():
                 column_config[col] = st.column_config.Column(
                     col,
                     disabled=True,
-                    width=width,
-                    pinned=True  # Esta propiedad indica que debe fijarse
+                    width=width
+                    # SIN pinned=True - eliminado
                 )
             
             # Columnas de días (editables con selectbox)
@@ -1914,10 +1938,7 @@ def pagina_malla():
                     if val not in [""] + opciones_codigos:
                         df.at[idx, col] = ""
             
-            # ===== ENVOLVER LA TABLA EN UN CONTENEDOR CON SCROLL =====
-            st.markdown('<div class="fixed-columns-container">', unsafe_allow_html=True)
-            
-            # MOSTRAR TABLA ÚNICA CON COLUMNAS FIJAS
+            # MOSTRAR TABLA ÚNICA CON COLUMNAS FIJAS (por CSS)
             edited_df = st.data_editor(
                 df,
                 column_config=column_config,
@@ -1928,13 +1949,12 @@ def pagina_malla():
                 key=f"malla_editor_unificado_{mes_numero}_{ano}"
             )
             
-            st.markdown('</div>', unsafe_allow_html=True)
-            
             # Instrucciones para el usuario
-            st.info("""
-            **📌 Columnas Fijas:** Las primeras 6 columnas (N°, CARGO, NOMBRE, CC, DEPARTAMENTO, ESTADO) están **fijas** y permanecen visibles al desplazarte horizontalmente.
-            
-            **➡️ Desplázate hacia la derecha** para ver y editar los días del mes.
+            st.success("""
+            **📌 COLUMNAS FIJAS ACTIVADAS:** 
+            - Las columnas de información del empleado (N°, CARGO, NOMBRE, CC, DEPARTAMENTO, ESTADO) están **fijas** ✅
+            - **Desplázate horizontalmente** → para ver los días del mes
+            - Las columnas fijas permanecerán visibles siempre
             """)
             
             st.markdown("---")
@@ -1985,48 +2005,6 @@ def pagina_malla():
         # ===== EMPLEADOS: SOLO LECTURA =====
         else:
             st.info("👁️ Vista de solo lectura - No puedes editar")
-            
-            # Aplicar CSS para columnas fijas también en vista de solo lectura
-            st.markdown("""
-            <style>
-                /* Fijar columnas en vista de solo lectura */
-                div[data-testid="stDataFrame"] th:first-child,
-                div[data-testid="stDataFrame"] td:first-child,
-                div[data-testid="stDataFrame"] th:nth-child(2),
-                div[data-testid="stDataFrame"] td:nth-child(2),
-                div[data-testid="stDataFrame"] th:nth-child(3),
-                div[data-testid="stDataFrame"] td:nth-child(3),
-                div[data-testid="stDataFrame"] th:nth-child(4),
-                div[data-testid="stDataFrame"] td:nth-child(4),
-                div[data-testid="stDataFrame"] th:nth-child(5),
-                div[data-testid="stDataFrame"] td:nth-child(5),
-                div[data-testid="stDataFrame"] th:nth-child(6),
-                div[data-testid="stDataFrame"] td:nth-child(6) {
-                    position: sticky !important;
-                    background-color: white;
-                    z-index: 5;
-                    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
-                }
-                
-                div[data-testid="stDataFrame"] th:nth-child(1),
-                div[data-testid="stDataFrame"] td:nth-child(1) { left: 0; }
-                div[data-testid="stDataFrame"] th:nth-child(2),
-                div[data-testid="stDataFrame"] td:nth-child(2) { left: 60px; }
-                div[data-testid="stDataFrame"] th:nth-child(3),
-                div[data-testid="stDataFrame"] td:nth-child(3) { left: 180px; }
-                div[data-testid="stDataFrame"] th:nth-child(4),
-                div[data-testid="stDataFrame"] td:nth-child(4) { left: 320px; }
-                div[data-testid="stDataFrame"] th:nth-child(5),
-                div[data-testid="stDataFrame"] td:nth-child(5) { left: 420px; }
-                div[data-testid="stDataFrame"] th:nth-child(6),
-                div[data-testid="stDataFrame"] td:nth-child(6) { left: 520px; }
-                
-                div[data-testid="stDataFrame"] th:nth-child(6),
-                div[data-testid="stDataFrame"] td:nth-child(6) {
-                    border-right: 2px solid #1E3A8A !important;
-                }
-            </style>
-            """, unsafe_allow_html=True)
             
             # Función para colorear celdas
             def color_cell(val):
