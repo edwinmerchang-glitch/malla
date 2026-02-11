@@ -1675,7 +1675,7 @@ def mostrar_estadisticas_avanzadas(mes, ano):
 # PÁGINA PRINCIPAL - MALLA DE TURNOS (TABLA UNIFICADA)
 # ============================================================================
 def pagina_malla():
-    """Página principal - Malla de turnos CON TABLA UNIFICADA (SIN DIVISIÓN)"""
+    """Página principal - Malla de turnos CON TABLA UNIFICADA Y COLUMNAS FIJAS"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
     
     # Selectores de mes y año
@@ -1749,20 +1749,152 @@ def pagina_malla():
         else:
             opciones_codigos = []
         
-        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE COMPLETA (UNIFICADA) =====
+        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON COLUMNAS FIJAS =====
         if check_permission("write"):
             st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', 
                        unsafe_allow_html=True)
             
+            # ===== SOLUCIÓN: USAR COMPONENTE PERSONALIZADO PARA COLUMNAS FIJAS =====
+            st.markdown("""
+            <style>
+                /* Estilos para el contenedor de la tabla con scroll */
+                .fixed-columns-container {
+                    position: relative;
+                    overflow-x: auto;
+                    overflow-y: visible;
+                    width: 100%;
+                    margin-top: 10px;
+                }
+                
+                /* Para navegadores webkit (Chrome, Safari, Edge) */
+                .fixed-columns-container::-webkit-scrollbar {
+                    height: 8px;
+                }
+                
+                .fixed-columns-container::-webkit-scrollbar-thumb {
+                    background: #888;
+                    border-radius: 4px;
+                }
+                
+                .fixed-columns-container::-webkit-scrollbar-track {
+                    background: #f1f1f1;
+                }
+                
+                /* Ajuste para mobile */
+                @media (max-width: 768px) {
+                    .fixed-columns-container {
+                        overflow-x: auto;
+                    }
+                }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            # Agregar CSS adicional para las columnas fijas
+            st.markdown("""
+            <style>
+                /* Estilo para la tabla con columnas fijas */
+                div[data-testid="stDataFrame"] div[data-testid="stDataFrameResizable"] {
+                    position: relative !important;
+                }
+                
+                /* Fijar las primeras 6 columnas (información del empleado) */
+                div[data-testid="stDataFrame"] th:first-child,
+                div[data-testid="stDataFrame"] td:first-child {
+                    position: sticky !important;
+                    left: 0;
+                    background-color: white;
+                    z-index: 10;
+                    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
+                }
+                
+                div[data-testid="stDataFrame"] th:nth-child(2),
+                div[data-testid="stDataFrame"] td:nth-child(2) {
+                    position: sticky !important;
+                    left: 60px; /* Ajustar según el ancho de la primera columna */
+                    background-color: white;
+                    z-index: 9;
+                    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
+                }
+                
+                div[data-testid="stDataFrame"] th:nth-child(3),
+                div[data-testid="stDataFrame"] td:nth-child(3) {
+                    position: sticky !important;
+                    left: 180px; /* Ajustar según ancho acumulado */
+                    background-color: white;
+                    z-index: 8;
+                    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
+                }
+                
+                div[data-testid="stDataFrame"] th:nth-child(4),
+                div[data-testid="stDataFrame"] td:nth-child(4) {
+                    position: sticky !important;
+                    left: 320px; /* Ajustar según ancho acumulado */
+                    background-color: white;
+                    z-index: 7;
+                    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
+                }
+                
+                div[data-testid="stDataFrame"] th:nth-child(5),
+                div[data-testid="stDataFrame"] td:nth-child(5) {
+                    position: sticky !important;
+                    left: 420px; /* Ajustar según ancho acumulado */
+                    background-color: white;
+                    z-index: 6;
+                    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
+                }
+                
+                div[data-testid="stDataFrame"] th:nth-child(6),
+                div[data-testid="stDataFrame"] td:nth-child(6) {
+                    position: sticky !important;
+                    left: 520px; /* Ajustar según ancho acumulado */
+                    background-color: white;
+                    z-index: 5;
+                    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
+                }
+                
+                /* Asegurar que el fondo de las celdas fijas sea sólido */
+                div[data-testid="stDataFrame"] td:is(:nth-child(1), :nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)) {
+                    background-color: white !important;
+                }
+                
+                /* Ajuste para cuando hay scroll horizontal */
+                div[data-testid="stDataFrame"] table {
+                    border-collapse: separate !important;
+                    border-spacing: 0 !important;
+                }
+                
+                /* Borde derecho para indicar separación */
+                div[data-testid="stDataFrame"] th:nth-child(6),
+                div[data-testid="stDataFrame"] td:nth-child(6) {
+                    border-right: 2px solid #1E3A8A !important;
+                }
+                
+                /* Ajuste para modo oscuro */
+                @media (prefers-color-scheme: dark) {
+                    div[data-testid="stDataFrame"] td:is(:nth-child(1), :nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)) {
+                        background-color: #0E1117 !important;
+                    }
+                }
+            </style>
+            """, unsafe_allow_html=True)
+            
             # CONFIGURACIÓN DE COLUMNAS
             column_config = {}
             
-            # Columnas fijas (solo lectura)
+            # Columnas fijas (solo lectura) - Ahora con sticky
             for col in columnas_fijas:
+                # Ajustar ancho según la columna
+                width = "small"
+                if col in ["APELLIDOS Y NOMBRES"]:
+                    width = "large"
+                elif col in ["CARGO"]:
+                    width = "medium"
+                
                 column_config[col] = st.column_config.Column(
                     col,
                     disabled=True,
-                    width="medium" if col in ["APELLIDOS Y NOMBRES", "CARGO"] else "small"
+                    width=width,
+                    pinned=True  # Esta propiedad indica que debe fijarse
                 )
             
             # Columnas de días (editables con selectbox)
@@ -1782,7 +1914,10 @@ def pagina_malla():
                     if val not in [""] + opciones_codigos:
                         df.at[idx, col] = ""
             
-            # MOSTRAR TABLA ÚNICA Y COMPLETA - SIN DIVISIÓN DE COLUMNAS
+            # ===== ENVOLVER LA TABLA EN UN CONTENEDOR CON SCROLL =====
+            st.markdown('<div class="fixed-columns-container">', unsafe_allow_html=True)
+            
+            # MOSTRAR TABLA ÚNICA CON COLUMNAS FIJAS
             edited_df = st.data_editor(
                 df,
                 column_config=column_config,
@@ -1793,13 +1928,14 @@ def pagina_malla():
                 key=f"malla_editor_unificado_{mes_numero}_{ano}"
             )
             
-            #st.info("""
-            #**📋 VISTA UNIFICADA:** 
-            #- **Columnas fijas** (N°, CARGO, NOMBRE, CC, DEPARTAMENTO, etc.) → Solo lectura
-            #- **Columnas de días** → Seleccionables con códigos de turno
-            #- **Desplázate horizontalmente** para ver todos los días del mes
-            #- **NO hay división de columnas** - Todo está en UNA SOLA TABLA
-            #""")
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Instrucciones para el usuario
+            st.info("""
+            **📌 Columnas Fijas:** Las primeras 6 columnas (N°, CARGO, NOMBRE, CC, DEPARTAMENTO, ESTADO) están **fijas** y permanecen visibles al desplazarte horizontalmente.
+            
+            **➡️ Desplázate hacia la derecha** para ver y editar los días del mes.
+            """)
             
             st.markdown("---")
             st.markdown("### 💾 Acciones de Guardado")
@@ -1850,7 +1986,49 @@ def pagina_malla():
         else:
             st.info("👁️ Vista de solo lectura - No puedes editar")
             
-            # Mostrar tabla completa con estilo de colores
+            # Aplicar CSS para columnas fijas también en vista de solo lectura
+            st.markdown("""
+            <style>
+                /* Fijar columnas en vista de solo lectura */
+                div[data-testid="stDataFrame"] th:first-child,
+                div[data-testid="stDataFrame"] td:first-child,
+                div[data-testid="stDataFrame"] th:nth-child(2),
+                div[data-testid="stDataFrame"] td:nth-child(2),
+                div[data-testid="stDataFrame"] th:nth-child(3),
+                div[data-testid="stDataFrame"] td:nth-child(3),
+                div[data-testid="stDataFrame"] th:nth-child(4),
+                div[data-testid="stDataFrame"] td:nth-child(4),
+                div[data-testid="stDataFrame"] th:nth-child(5),
+                div[data-testid="stDataFrame"] td:nth-child(5),
+                div[data-testid="stDataFrame"] th:nth-child(6),
+                div[data-testid="stDataFrame"] td:nth-child(6) {
+                    position: sticky !important;
+                    background-color: white;
+                    z-index: 5;
+                    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
+                }
+                
+                div[data-testid="stDataFrame"] th:nth-child(1),
+                div[data-testid="stDataFrame"] td:nth-child(1) { left: 0; }
+                div[data-testid="stDataFrame"] th:nth-child(2),
+                div[data-testid="stDataFrame"] td:nth-child(2) { left: 60px; }
+                div[data-testid="stDataFrame"] th:nth-child(3),
+                div[data-testid="stDataFrame"] td:nth-child(3) { left: 180px; }
+                div[data-testid="stDataFrame"] th:nth-child(4),
+                div[data-testid="stDataFrame"] td:nth-child(4) { left: 320px; }
+                div[data-testid="stDataFrame"] th:nth-child(5),
+                div[data-testid="stDataFrame"] td:nth-child(5) { left: 420px; }
+                div[data-testid="stDataFrame"] th:nth-child(6),
+                div[data-testid="stDataFrame"] td:nth-child(6) { left: 520px; }
+                
+                div[data-testid="stDataFrame"] th:nth-child(6),
+                div[data-testid="stDataFrame"] td:nth-child(6) {
+                    border-right: 2px solid #1E3A8A !important;
+                }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            # Función para colorear celdas
             def color_cell(val):
                 if pd.isna(val) or val == '':
                     return 'background-color: #FFFFFF;'
