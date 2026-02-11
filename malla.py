@@ -2114,49 +2114,47 @@ def pagina_malla():
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
             else:
-                st.info("👁️ Vista de solo lectura - No puedes editar")
+               st.info("👁️ Vista de solo lectura - No puedes editar")
     
-                df = st.session_state.malla_actual.copy()
+               df = st.session_state.malla_actual.copy()
     
-                # Configurar AgGrid con columnas congeladas
-                gb = GridOptionsBuilder.from_dataframe(df)
+               # Configurar AgGrid
+               gb = GridOptionsBuilder.from_dataframe(df)
     
-                # Configurar ancho de columnas
-                gb.configure_default_column(
-                    resizable=True,
-                    sortable=True,
-                    filter=False,
-                    minWidth=100
-                )
+               # Configurar columnas por defecto
+               gb.configure_default_column(
+                   resizable=True,
+                   sortable=False,
+                   filter=False,
+                   minWidth=80
+               )
     
-                # Configurar las primeras 3 columnas para que sean más angostas
-                if len(df.columns) >= 1:
-                    gb.configure_column(df.columns[0], width=80, pinned="left")  # Columna 0
-                if len(df.columns) >= 2:
-                    gb.configure_column(df.columns[1], width=120, pinned="left")  # Columna 1
-                if len(df.columns) >= 3:
-                    gb.configure_column(df.columns[2], width=150, pinned="left")  # Columna 2
+               # 🔒 Congelar las primeras 3 columnas
+               if len(df.columns) > 0:
+                   gb.configure_column(df.columns[0], pinned="left", width=70)  # N°
+               if len(df.columns) > 1:
+                   gb.configure_column(df.columns[1], pinned="left", width=120)  # CARGO
+               if len(df.columns) > 2:
+                   gb.configure_column(df.columns[2], pinned="left", width=180)  # APELLIDOS Y NOMBRES
     
-                # Configurar opciones de visualización
-                gb.configure_grid_options(
-                    enableRangeSelection=False,
-                    rowSelection="single",
-                    suppressRowClickSelection=True,
-                    domLayout='normal'  # o 'autoHeight' si prefieres altura automática
-                )
+               # Configurar las columnas de días
+               for idx, col in enumerate(df.columns):
+                   if '/' in str(col):  # Columnas de días
+                       gb.configure_column(col, width=70, cellStyle={'textAlign': 'center'})
+                   elif idx > 2:  # Otras columnas (CC, DEPARTAMENTO, etc)
+                       gb.configure_column(col, width=100)
     
-                # Construir opciones
-                gridOptions = gb.build()
+               gridOptions = gb.build()
     
-                # Mostrar la tabla
-                AgGrid(
-                    df,
-                    gridOptions=gridOptions,
-                    height=600,
-                    fit_columns_on_grid_load=False,
-                    theme="streamlit",  # o "balham" para otro estilo
-                    update_mode=GridUpdateMode.NO_UPDATE,
-                    enable_enterprise_modules=False  # Desactivar para mejor rendimiento
+               # Mostrar la tabla
+               AgGrid(
+                   df,
+                   gridOptions=gridOptions,
+                   height=600,
+                   fit_columns_on_grid_load=False,
+                   theme="streamlit",
+                   update_mode=GridUpdateMode.NO_UPDATE,
+                   enable_enterprise_modules=False
                 )
 
 
