@@ -446,20 +446,29 @@ def get_empleados():
     return df
 
 def get_codigos_turno():
-    """Obtener todos los códigos de turno"""
-    conn = get_connection()
-    df = pd.read_sql("SELECT * FROM codigos_turno", conn)
-    conn.close()
-    
-    codigos_dict = {"": {"color": "#FFFFFF", "nombre": "Sin Asignar", "horas": 0}}
-    for _, row in df.iterrows():
-        codigos_dict[row['codigo']] = {
-            "color": row['color'],
-            "nombre": row['nombre'],
-            "horas": row['horas']
-        }
-    
-    return codigos_dict
+    """Obtener todos los códigos de turno - VERSIÓN OPTIMIZADA"""
+    try:
+        conn = get_connection()
+        df = pd.read_sql("SELECT * FROM codigos_turno ORDER BY codigo", conn)
+        conn.close()
+        
+        codigos_dict = {"": {"color": "#FFFFFF", "nombre": "Sin Asignar", "horas": 0}}
+        
+        for _, row in df.iterrows():
+            # Asegurar que el código sea string
+            codigo = str(row['codigo']).strip()
+            codigos_dict[codigo] = {
+                "color": str(row['color']),
+                "nombre": str(row['nombre']),
+                "horas": int(row['horas']) if pd.notna(row['horas']) else 0
+            }
+        
+        print(f"✅ Códigos cargados: {len(codigos_dict)-1} códigos")
+        return codigos_dict
+        
+    except Exception as e:
+        print(f"❌ Error al cargar códigos: {str(e)}")
+        return {"": {"color": "#FFFFFF", "nombre": "Sin Asignar", "horas": 0}}
 
 def get_configuracion():
     """Obtener configuración del sistema"""
@@ -1708,7 +1717,7 @@ def mostrar_estadisticas_avanzadas(mes, ano):
 # PÁGINA PRINCIPAL - MALLA DE TURNOS (TABLA UNIFICADA)
 # ============================================================================
 def pagina_malla():
-    """Página principal - Malla de turnos SIN COLUMNAS FIJAS (versión estable)"""
+    """Página principal - Malla de turnos CON SELECTBOXES GARANTIZADOS"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
     
     # Selectores de mes y año
@@ -1728,8 +1737,7 @@ def pagina_malla():
         ano = st.selectbox("Año:", [2026, 2025, 2024, 2027], index=0)
     
     with col3:
-        if st.button("🔄 Cargar Malla", use_container_width=True, 
-                    help="Cargar o actualizar la malla de turnos"):
+        if st.button("🔄 Cargar Malla", use_container_width=True):
             st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
             st.session_state.mes_actual = mes_numero
             st.session_state.ano_actual = ano
@@ -1745,13 +1753,12 @@ def pagina_malla():
                 data=csv,
                 file_name=f"malla_{mes_seleccionado}_{ano}.csv",
                 mime="text/csv",
-                use_container_width=True,
-                help="Descargar como archivo CSV"
+                use_container_width=True
             )
     
-    # LEYENDA DE CÓDIGOS - SIN EXPANDER ANIDADO
-    # Llamamos directamente a la función sin expander adicional
-    mostrar_leyenda(inside_expander=False)
+    # Leyenda de códigos
+    with st.expander("🎨 Leyenda de códigos de turno", expanded=False):
+        mostrar_leyenda(inside_expander=True)
     
     if st.session_state.malla_actual.empty:
         st.warning("⚠️ No hay malla de turnos cargada. Presiona 'Cargar Malla' para ver los datos.")
@@ -1766,60 +1773,76 @@ def pagina_malla():
         columnas_dias = []
         
         for col in df.columns:
-            if '/' in str(col):  # Es una columna de día
+            if '/' in str(col):
                 columnas_dias.append(col)
             else:
                 columnas_fijas.append(col)
         
-        # Obtener opciones de códigos
+        # ===== SOLUCIÓN PARA STREAMLIT CLOUD - SELECTBOXES GARANTIZADOS =====
         if 'codigos_turno' in st.session_state:
-            opciones_codigos = list(st.session_state.codigos_turno.keys())
-            if "" in opciones_codigos:
-                opciones_codigos.remove("")
+            # Obtener códigos válidos y asegurar que sean strings
+            opciones_codigos_raw = list(st.session_state.codigos_turno.keys())
+            
+            # Filtrar código vacío
+            opciones_codigos_raw = [c for c in opciones_codigos_raw if c != ""]
+            
+            # ORDENAR CÓDIGOS: números primero, luego letras
+            codigos_numericos = sorted([c for c in opciones_codigos_raw if str(c).replace('-', '').isdigit()], 
+                                      key=lambda x: int(str(x).replace('-', '')) if str(x).replace('-', '').isdigit() else 0)
+            codigos_texto = sorted([c for c in opciones_codigos_raw if not str(c).replace('-', '').isdigit()])
+            
+            # Lista final de opciones: vacío + códigos ordenados
+            opciones_codigos = [""] + codigos_numericos + codigos_texto
+            
+            # DEBUG - Mostrar qué códigos se están cargando (solo para admin)
+            if rol == "admin":
+                with st.expander("🔧 Diagnóstico - Códigos cargados", expanded=False):
+                    st.write(f"**Total códigos:** {len(opciones_codigos)-1}")
+                    st.write(f"**Códigos:** {', '.join([str(c) for c in opciones_codigos if c != ''])}")
         else:
-            opciones_codigos = []
+            opciones_codigos = [""]
+            st.warning("⚠️ No hay códigos de turno configurados")
         
-        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE COMPLETA =====
+        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE =====
         if check_permission("write"):
-            st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', 
-                       unsafe_allow_html=True)
+            st.markdown("💡 **Los cambios se guardan automáticamente al salir de la celda**")
             
             # CONFIGURACIÓN DE COLUMNAS
             column_config = {}
             
             # Columnas fijas (solo lectura)
             for col in columnas_fijas:
-                # Ajustar ancho según la columna
                 width = "small"
                 if col in ["APELLIDOS Y NOMBRES"]:
                     width = "large"
                 elif col in ["CARGO"]:
                     width = "medium"
                 
-                column_config[col] = st.column_config.Column(
+                column_config[col] = st.column_config.TextColumn(
                     col,
                     disabled=True,
                     width=width
                 )
             
-            # Columnas de días (editables con selectbox)
+            # ===== CONFIGURACIÓN ESPECÍFICA PARA SELECTBOXES =====
             for col in columnas_dias:
+                # Convertir todos los valores a string y asegurar que sean válidos
+                df[col] = df[col].astype(str).replace('nan', '').replace('None', '')
+                
+                # Para cada celda, asegurar que el valor esté en las opciones
+                for idx, val in enumerate(df[col]):
+                    if val not in opciones_codigos:
+                        df.at[idx, col] = ""  # Resetear valores inválidos
+                
                 column_config[col] = st.column_config.SelectboxColumn(
                     col,
                     width="small",
-                    options=[""] + opciones_codigos,
-                    help="Selecciona el código del turno",
-                    required=False
+                    options=opciones_codigos,  # Lista completa de opciones
+                    required=False,
+                    default=""  # Valor por defecto vacío
                 )
             
-            # Asegurar valores válidos
-            for col in columnas_dias:
-                df[col] = df[col].fillna("").astype(str)
-                for idx, val in enumerate(df[col]):
-                    if val not in [""] + opciones_codigos:
-                        df.at[idx, col] = ""
-            
-            # MOSTRAR TABLA ÚNICA Y COMPLETA
+            # MOSTRAR TABLA
             edited_df = st.data_editor(
                 df,
                 column_config=column_config,
@@ -1827,14 +1850,15 @@ def pagina_malla():
                 use_container_width=True,
                 height=600,
                 num_rows="fixed",
-                key=f"malla_editor_{mes_numero}_{ano}"
+                key=f"malla_editor_{mes_numero}_{ano}_{len(opciones_codigos)}"  # Key única con contador
             )
             
-            st.info("""
-            **📋 VISTA COMPLETA:** 
-            - **Columnas de información** (N°, CARGO, NOMBRE, CC, DEPARTAMENTO, ESTADO) → Solo lectura
-            - **Columnas de días** → Seleccionables con códigos de turno
-            - **Desplázate horizontalmente** para ver todos los días del mes
+            # INSTRUCCIONES CLARAS
+            st.success("""
+            **✅ SELECTBOXES ACTIVADOS:** 
+            - Cada celda de día tiene un menú desplegable con todos los códigos
+            - Haz clic en cualquier celda de día para ver las opciones
+            - Selecciona el código de turno correspondiente
             """)
             
             st.markdown("---")
@@ -1843,7 +1867,7 @@ def pagina_malla():
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                if st.button("💾 Guardar Cambios Ahora", use_container_width=True, type="primary"):
+                if st.button("💾 Guardar Cambios", use_container_width=True, type="primary"):
                     with st.spinner("Guardando cambios..."):
                         try:
                             cambios = guardar_malla_turnos_con_backup(edited_df, mes_numero, ano)
@@ -1851,64 +1875,58 @@ def pagina_malla():
                             if cambios > 0:
                                 st.session_state.last_save = obtener_hora_colombia()
                                 st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
-                                st.success(f"✅ {cambios} cambios guardados exitosamente!")
+                                st.success(f"✅ {cambios} cambios guardados")
                                 registrar_log("guardar_malla", f"{mes_seleccionado} {ano} - {cambios} cambios")
                                 st.rerun()
                             else:
-                                st.warning("⚠️ No se detectaron cambios para guardar")
+                                st.warning("⚠️ No se detectaron cambios")
                                 
                         except Exception as e:
                             st.error(f"❌ Error al guardar: {str(e)}")
             
             with col2:
-                if st.button("🔄 Recargar desde BD", use_container_width=True):
+                if st.button("🔄 Recargar", use_container_width=True):
                     st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
-                    st.success("✅ Malla recargada desde base de datos")
+                    st.success("✅ Malla recargada")
                     st.rerun()
             
             with col3:
-                if st.button("🗑️ Limpiar Todos", use_container_width=True, type="secondary"):
-                    if st.checkbox("¿Confirmar que quieres limpiar TODOS los turnos de este mes?"):
+                if st.button("🗑️ Limpiar Todo", use_container_width=True, type="secondary"):
+                    if st.checkbox("¿Confirmar limpieza total?"):
                         malla_vacia = edited_df.copy()
                         for col in columnas_dias:
                             malla_vacia[col] = ""
                         
                         cambios = guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
                         st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
-                        st.success(f"✅ {cambios} turnos limpiados")
+                        st.success(f"✅ Turnos limpiados")
                         st.rerun()
             
-            # Mostrar estadísticas avanzadas
+            # Estadísticas
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
         
         # ===== EMPLEADOS: SOLO LECTURA =====
         else:
-            st.info("👁️ Vista de solo lectura - No puedes editar")
+            st.info("👁️ Vista de solo lectura")
             
-            # Función para colorear celdas
+            # Colorear celdas
             def color_cell(val):
-                if pd.isna(val) or val == '':
+                if pd.isna(val) or val == '' or val == 'nan':
                     return 'background-color: #FFFFFF;'
                 color = st.session_state.codigos_turno.get(str(val), {}).get("color", "#FFFFFF")
                 return f'background-color: {color}; color: black; font-weight: bold; text-align: center;'
             
-            # Aplicar estilo solo a columnas de días
             styled_df = df.style.applymap(color_cell, subset=columnas_dias)
+            st.dataframe(styled_df, height=600, use_container_width=True)
             
-            st.dataframe(
-                styled_df,
-                height=600,
-                use_container_width=True
-            )
-            
-            # Botón para descargar
+            # Botón descargar
             st.markdown("---")
             csv = df.to_csv(index=False, encoding='utf-8-sig')
             st.download_button(
-                label="📥 Descargar tabla completa (CSV)",
+                label="📥 Descargar CSV",
                 data=csv,
-                file_name=f"malla_{mes_seleccionado}_{ano}_completa.csv",
+                file_name=f"malla_{mes_seleccionado}_{ano}.csv",
                 mime="text/csv",
                 use_container_width=True
             )
