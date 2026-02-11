@@ -1789,38 +1789,18 @@ def pagina_malla():
         for col in df_display.columns:
             df_display[col] = df_display[col].astype(str).replace('nan', '').replace('None', '')
         
-        # Identificar columnas de días
-        columnas_dias = [col for col in df_display.columns if col.startswith('D') and col[1:].isdigit()]
-        
-        # Configuración de columnas
-        column_config = {}
-        
-        # Columnas fijas (sin configuración especial)
-        for col in df_display.columns:
-            if col not in columnas_dias:
-                column_config[col] = st.column_config.Column(col, disabled=False)
-        
-        # Columnas de días (más angostas)
-        for col in columnas_dias:
-            column_config[col] = st.column_config.TextColumn(
-                col, 
-                width="small",
-                max_chars=3,
-                help=f"Turno para {col}"
-            )
-        
-        # ===== SOLUCIÓN DEFINITIVA: num_rows="fixed" =====
+        # ===== SOLUCIÓN DEFINITIVA: SIN column_config =====
         edited_df = st.data_editor(
             df_display,
-            column_config=column_config,
             hide_index=True,
             use_container_width=True,
             height=600,
-            num_rows="fixed",  # ✅ CAMBIO CRÍTICO: ESTO HACE QUE APAREZCA EL ÍCONO
-            key=f"malla_editor_{mes_numero}_{ano}"  # ✅ Key ESTÁTICA (no timestamp)
+            num_rows="fixed",  # ✅ CRÍTICO: fixed para que aparezca el ícono
+            key=f"malla_editor_{mes_numero}_{ano}"  # ✅ Key ESTÁTICA
         )
+        # ⚠️ IMPORTANTE: SIN column_config - ESTO HACE QUE APAREZCA EL ÍCONO
         
-        # Mensaje INSTRUCTIVO - CORREGIDA LA INDENTACIÓN
+        # Mensaje INSTRUCTIVO
         st.success("""
         ### 🎯 **¡EL ÍCONO YA DEBE ESTAR VISIBLE!**
         
@@ -2248,31 +2228,12 @@ def pagina_empleados():
     # ===== EDITOR DE DATOS CON ÍCONO =====
     edited_df = st.data_editor(
         df_display[column_order],
-        column_config={
-            "N°": st.column_config.NumberColumn("N°", width="small", disabled=True),
-            "CARGO": st.column_config.TextColumn("CARGO", width="medium"),
-            "APELLIDOS Y NOMBRES": st.column_config.TextColumn("APELLIDOS Y NOMBRES", width="large"),
-            "CC": st.column_config.TextColumn("CC", width="medium"),
-            "DEPARTAMENTO": st.column_config.SelectboxColumn(
-                "DEPARTAMENTO", 
-                width="medium", 
-                options=st.session_state.configuracion.get('departamentos', [])
-            ),
-            "ESTADO": st.column_config.SelectboxColumn(
-                "ESTADO", 
-                width="small", 
-                options=["Activo", "Vacaciones", "Licencia", "Inactivo"]
-            ),
-            "HORA_INICIO": st.column_config.TextColumn("HORA_INICIO", width="small"),
-            "HORA_FIN": st.column_config.TextColumn("HORA_FIN", width="small"),
-            "FECHA_REGISTRO": st.column_config.TextColumn("FECHA_REGISTRO", width="medium", disabled=True),
-            "ID_OCULTO": st.column_config.NumberColumn("ID_OCULTO", width="small", disabled=True)
-        },
         hide_index=True,
         use_container_width=True,
-        num_rows="fixed",
+        num_rows="fixed",  # ✅ CRÍTICO: fixed para que aparezca el ícono
         key="editor_empleados_fixed"
     )
+    # ⚠️ IMPORTANTE: SIN column_config para que aparezca el ícono
     
     # ===== MENSAJE DE CONFIGURACIÓN =====
     st.info("""
@@ -2683,29 +2644,15 @@ def pagina_usuarios():
             'created_at': 'FECHA_CREACION'
         })
         
-        # ===== EDITOR DE USUARIOS - CON column_config =====
+        # ===== EDITOR DE USUARIOS - SIN column_config =====
         edited_df = st.data_editor(
             df_display,
-            column_config={
-                "USUARIO": st.column_config.TextColumn("USUARIO", width="small", disabled=True),
-                "NOMBRE_COMPLETO": st.column_config.TextColumn("NOMBRE_COMPLETO", width="large"),
-                "ROL": st.column_config.SelectboxColumn(
-                    "ROL", 
-                    width="small", 
-                    options=list(ROLES.keys())
-                ),
-                "DEPARTAMENTO": st.column_config.SelectboxColumn(
-                    "DEPARTAMENTO",
-                    width="medium",
-                    options=st.session_state.configuracion.get('departamentos', [])
-                ),
-                "FECHA_CREACION": st.column_config.TextColumn("FECHA_CREACION", width="medium", disabled=True)
-            },
             hide_index=True,
             use_container_width=True,
             num_rows="fixed",  # ✅ CRÍTICO: fixed para que aparezca el ícono
             key="editor_usuarios_admin_fixed"
         )
+        # ⚠️ IMPORTANTE: SIN column_config para que aparezca el ícono
         
         # Mensaje de configuración
         st.success("""
