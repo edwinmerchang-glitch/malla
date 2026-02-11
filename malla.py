@@ -1,5 +1,5 @@
 # app.py - Sistema Completo de Gestión de Turnos con Autenticación y SQLite
-# VERSIÓN OPTIMIZADA PARA STREAMLIT CLOUD
+# VERSIÓN OPTIMIZADA PARA STREAMLIT CLOUD - TABLA UNIFICADA
 
 # ============================================================================
 # IMPORTACIONES
@@ -19,7 +19,6 @@ import calendar
 import sqlite3
 import os
 import streamlit.components.v1 as components
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
 import shutil
 import time
 import pytz
@@ -1081,7 +1080,8 @@ def inicializar_session_state():
         'calendario_mes': hora_colombia.month,
         'calendario_ano': hora_colombia.year,
         'empleado_actual': None,
-        'app_initialized': True
+        'app_initialized': True,
+        'is_mobile': False
     }
     
     for key, value in defaults.items():
@@ -1100,15 +1100,6 @@ def inicializar_session_state():
 def pagina_login():
     """Página de inicio de sesión"""
     st.markdown("<h1 class='main-header'>Malla de Turnos Locatel Restrepo</h1>", unsafe_allow_html=True)
-    
-    # Mostrar advertencia de Streamlit Cloud
-    #if IS_STREAMLIT_CLOUD:
-    #   st.markdown("""
-    #    <div class="streamlit-cloud-warning">
-    #    ⚠️ MODO STREAMLIT CLOUD ACTIVADO<br>
-    #    <small>Los datos se guardan en almacenamiento temporal. Exporta tus datos regularmente.</small>
-    #    </div>
-    #    """, unsafe_allow_html=True)
     
     with st.container():
         col1, col2, col3 = st.columns([1, 2, 1])
@@ -1134,22 +1125,6 @@ def pagina_login():
                         st.rerun()
                     else:
                         st.error("❌ Usuario o contraseña incorrectos")
-            
-            # Credenciales de prueba
-            #with st.expander("🔑 Credenciales de prueba"):
-            #    st.markdown("""
-            #    **Administrador:**
-            #    - Usuario: `admin`
-            #    - Contraseña: `admin123`
-            #    
-            #    **Supervisor:**
-            #    - Usuario: `supervisor`
-            #    - Contraseña: `super123`
-            #    
-            #    **Empleado:**
-            #    - Usuario: `empleado`
-            #    - Contraseña: `empleado123`
-            #    """)
 
 # ============================================================================
 # COMPONENTES DE INTERFAZ
@@ -1159,8 +1134,8 @@ def mostrar_barra_usuario():
     if st.session_state.auth['is_authenticated']:
         user_info = st.session_state.auth['user_data']
         
-        # Layout responsivo - CORREGIDO: Definir todas las columnas necesarias
-        col1, col2, col3, col4 = st.columns([3, 1, 1, 1])  # Añadidas col3 y col4
+        # Layout responsivo
+        col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
         
         with col1:
             st.markdown(f"""
@@ -1177,7 +1152,7 @@ def mostrar_barra_usuario():
                 st.rerun()
         
         with col3:
-            # Mostrar info de último guardado (solo en desktop)
+            # Mostrar info de último guardado
             if not st.session_state.get('is_mobile', False):
                 if st.session_state.last_save:
                     tiempo_transcurrido = obtener_hora_colombia() - st.session_state.last_save
@@ -1204,7 +1179,7 @@ def mostrar_sidebar():
         st.markdown(f"<h3 style='text-align: center; font-size: 1.2em;'>📊 {rol.title()}</h3>", unsafe_allow_html=True)
         st.markdown("---")
         
-        # Mostrar hora Colombia (más compacta en móvil)
+        # Mostrar hora Colombia
         hora_colombia = obtener_hora_colombia()
         st.markdown(f"""
         <div style="text-align: center; padding: 8px; background-color: #1E3A8A; 
@@ -1240,7 +1215,7 @@ def mostrar_sidebar():
                 ("👤 Mi Info", "mi_info")
             ]
         
-        # Botones de navegación más compactos para móvil
+        # Botones de navegación
         for icon_text, key in opciones:
             if st.button(icon_text, key=f"nav_{key}", use_container_width=True, 
                         help=f"Ir a {icon_text.split(' ')[1]}",
@@ -1250,7 +1225,7 @@ def mostrar_sidebar():
         
         st.markdown("---")
         
-        # Información del sistema más compacta
+        # Información del sistema
         if rol == "admin":
             total_empleados = len(st.session_state.empleados_df)
             activos = st.session_state.empleados_df[st.session_state.empleados_df['estado'] == 'Activo'].shape[0]
@@ -1311,45 +1286,8 @@ def aplicar_estilo_dataframe(df):
         return styled_df
     return df.style
 
-def mostrar_malla_congelada(df):
-    gb = GridOptionsBuilder.from_dataframe(df)
-
-    gb.configure_default_column(
-        resizable=True,
-        sortable=True,
-        filter=True,
-        minWidth=80
-    )
-
-    # 🔒 Congelar la columna 3
-    col_fija = df.columns[2]
-    gb.configure_column(col_fija, pinned="left")
-
-    # 🔒 Congelar la fila 1
-    gb.configure_grid_options(
-        pinnedTopRowData=[df.iloc[0].to_dict()]
-    )
-
-    gridOptions = gb.build()
-
-    AgGrid(
-        df,
-        gridOptions=gridOptions,
-        height=600,
-        fit_columns_on_grid_load=False,
-        data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
-        update_mode=GridUpdateMode.NO_UPDATE,
-        enable_enterprise_modules=True,
-        theme="balham"
-    )
-
-
 def mostrar_leyenda(inside_expander=False):
-    """Mostrar leyenda de colores - VERSIÓN SIMPLIFICADA
-    
-    Args:
-        inside_expander (bool): Indica si ya estamos dentro de un expander
-    """
+    """Mostrar leyenda de colores - VERSIÓN SIMPLIFICADA"""
     if 'codigos_turno' not in st.session_state or not st.session_state.codigos_turno:
         st.info("No hay códigos de turno configurados.")
         return
@@ -1363,9 +1301,9 @@ def mostrar_leyenda(inside_expander=False):
         st.info("No hay códigos de turno configurados.")
         return
     
-    # CORRECCIÓN: Siempre mostrar en un expander, no usar inside_expander
+    # Siempre mostrar en un expander
     with st.expander("🎨 Leyenda de códigos de turno", expanded=False):
-        st.markdown("**Códigos disponibles (haz clic en una celda para seleccionar):**")
+        st.markdown("**Códigos disponibles:**")
         
         # Organizar en columnas responsivas
         cols_per_row = 4
@@ -1396,14 +1334,7 @@ def mostrar_leyenda(inside_expander=False):
                     """, unsafe_allow_html=True)
 
 def extraer_horas_desde_codigo(codigo):
-    """
-    Extraer información de horas desde el código del turno.
-    
-    Intenta extraer horas de diferentes maneras:
-    1. De la descripción del código (si contiene horas)
-    2. De las horas configuradas
-    3. Retorna el código si no se puede extraer hora
-    """
+    """Extraer información de horas desde el código del turno."""
     if not codigo or str(codigo).strip() == "" or str(codigo).strip() == "0":
         return ""
     
@@ -1418,17 +1349,16 @@ def extraer_horas_desde_codigo(codigo):
         
         # Buscar patrones de hora en la descripción
         patrones_hora = [
-            r'(\d{1,2}[:.]\d{2}\s*[AP]?M?\s*[-–—]\s*\d{1,2}[:.]\d{2}\s*[AP]?M?)',  # 8:00-17:00
-            r'(\d{1,2}\s*[AP]?M?\s*[-–—]\s*\d{1,2}\s*[AP]?M?)',  # 8 AM - 5 PM
-            r'(\d{1,2}[:.]\d{2}\s*[-–—]\s*\d{1,2}[:.]\d{2})',  # 8.00-17.00
-            r'(\d{1,2}\s*h\s*[-–—]\s*\d{1,2}\s*h)',  # 8h - 17h
+            r'(\d{1,2}[:.]\d{2}\s*[AP]?M?\s*[-–—]\s*\d{1,2}[:.]\d{2}\s*[AP]?M?)',
+            r'(\d{1,2}\s*[AP]?M?\s*[-–—]\s*\d{1,2}\s*[AP]?M?)',
+            r'(\d{1,2}[:.]\d{2}\s*[-–—]\s*\d{1,2}[:.]\d{2})',
+            r'(\d{1,2}\s*h\s*[-–—]\s*\d{1,2}\s*h)',
         ]
         
         for patron in patrones_hora:
             match = re.search(patron, nombre, re.IGNORECASE)
             if match:
                 hora_encontrada = match.group(1)
-                # Limpiar y formatear
                 hora_limpia = re.sub(r'\s+', ' ', hora_encontrada.strip())
                 return hora_limpia
         
@@ -1467,7 +1397,7 @@ def generar_calendario_simple(mes, ano, turnos_dict):
     dia_semana = primer_dia.weekday()
     espacios_vacios = (dia_semana + 1) % 7
     
-    # Crear calendario con HTML básico pero correcto
+    # Crear calendario con HTML básico
     html = '<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 15px;">'
     
     # Días de semana
@@ -1508,6 +1438,7 @@ def generar_calendario_simple(mes, ano, turnos_dict):
     html += '</div>'
     
     st.markdown(html, unsafe_allow_html=True)
+
 # ============================================================================
 # FUNCIONES DE ESTADÍSTICAS PARA ADMIN Y SUPERVISOR
 # ============================================================================
@@ -1516,7 +1447,7 @@ def generar_estadisticas_turnos(mes, ano):
     try:
         conn = get_connection()
         
-        # 1. Estadísticas por día - SIN códigos usados
+        # 1. Estadísticas por día
         query_dias = '''
             SELECT mt.dia, 
                    COUNT(mt.id) as total_turnos,
@@ -1579,70 +1510,6 @@ def generar_estadisticas_turnos(mes, ano):
         print(f"❌ Error al generar estadísticas: {str(e)}")
         return None
 
-def mostrar_estadisticas_rapidas(mes, ano):
-    """Mostrar un resumen rápido de estadísticas"""
-    try:
-        estadisticas = generar_estadisticas_turnos(mes, ano)
-        
-        if estadisticas is None:
-            return
-        
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            # Total de turnos asignados
-            if not estadisticas['por_dia'].empty:
-                total_asignados = estadisticas['por_dia']['turnos_asignados'].sum()
-                st.metric("Turnos Asignados", f"{total_asignados:,}")
-        
-        with col2:
-            # Porcentaje de asignación
-            total_empleados = len(get_empleados())
-            num_dias = calendar.monthrange(ano, mes)[1]
-            total_posibles = total_empleados * num_dias
-            
-            if total_posibles > 0 and not estadisticas['por_dia'].empty:
-                total_asignados = estadisticas['por_dia']['turnos_asignados'].sum()
-                porcentaje = (total_asignados / total_posibles) * 100
-                st.metric("Asignación", f"{porcentaje:.1f}%")
-        
-        with col3:
-            # Departamento con más turnos
-            if not estadisticas['por_departamento'].empty:
-                depto_top = estadisticas['por_departamento'].nlargest(1, 'turnos_asignados')
-                if not depto_top.empty:
-                    st.metric("Depto. Más Ocupado", 
-                            f"{depto_top.iloc[0]['departamento'][:10]}...")
-        
-        with col4:
-            # Día más ocupado
-            if not estadisticas['por_dia'].empty:
-                dia_top = estadisticas['por_dia'].nlargest(1, 'turnos_asignados')
-                if not dia_top.empty:
-                    st.metric("Día Más Ocupado", f"Día {dia_top.iloc[0]['dia']}")
-        
-        # Gráfico mini de tendencia
-        if not estadisticas['por_dia'].empty and len(estadisticas['por_dia']) > 1:
-            fig = px.line(
-                estadisticas['por_dia'],
-                x='dia',
-                y='turnos_asignados',
-                title='Tendencia Diaria',
-                height=150
-            )
-            
-            fig.update_layout(
-                margin=dict(l=0, r=0, t=30, b=0),
-                xaxis_title=None,
-                yaxis_title=None,
-                showlegend=False
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-            
-    except Exception as e:
-        st.error(f"Error al cargar estadísticas: {str(e)}")
-
 def mostrar_estadisticas_avanzadas(mes, ano):
     """Mostrar panel de estadísticas avanzadas"""
     st.markdown("---")
@@ -1658,23 +1525,16 @@ def mostrar_estadisticas_avanzadas(mes, ano):
     # Crear pestañas para diferentes vistas
     tab1, tab2, tab3, tab4 = st.tabs(["📅 Por Día", "🏢 Por Departamento", "🔢 Por Código", "📈 Gráficas"])
     
-    # ==============================
-    # PESTAÑA 1: Por Día
-    # ==============================
     with tab1:
-        # Estadísticas por día
         if not estadisticas['por_dia'].empty:
             st.markdown("#### 📅 Distribución de Turnos por Día")
-            
             df_dias = estadisticas['por_dia']
             num_dias = calendar.monthrange(ano, mes)[1]
             
-            # Calcular métricas generales
             total_turnos_posibles = len(get_empleados()) * num_dias
             total_turnos_asignados = df_dias['turnos_asignados'].sum()
             porcentaje_asignacion = (total_turnos_asignados / total_turnos_posibles * 100) if total_turnos_posibles > 0 else 0
             
-            # Mostrar métricas generales
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("Días del mes", num_dias)
@@ -1685,7 +1545,6 @@ def mostrar_estadisticas_avanzadas(mes, ano):
             with col4:
                 st.metric("Asignación", f"{porcentaje_asignacion:.1f}%")
             
-            # Mostrar tabla detallada (SIN columna de códigos usados)
             st.dataframe(
                 df_dias.rename(columns={
                     'dia': 'Día',
@@ -1697,7 +1556,6 @@ def mostrar_estadisticas_avanzadas(mes, ano):
                 hide_index=True
             )
             
-            # Gráfico de turnos por día
             fig = px.bar(
                 df_dias,
                 x='dia',
@@ -1707,28 +1565,15 @@ def mostrar_estadisticas_avanzadas(mes, ano):
                 barmode='stack',
                 color_discrete_map={'turnos_asignados': '#4CAF50', 'turnos_vacios': '#FF9800'}
             )
-            
-            fig.update_layout(
-                xaxis=dict(tickmode='linear', dtick=1),
-                yaxis_title="Cantidad de Turnos",
-                legend_title="Estado"
-            )
-            
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No hay datos de turnos para mostrar por día.")
     
-    # ==============================
-    # PESTAÑA 2: Por Departamento
-    # ==============================
     with tab2:
-        # Estadísticas por departamento
         if not estadisticas['por_departamento'].empty:
             st.markdown("#### 🏢 Estadísticas por Departamento")
-            
             df_deptos = estadisticas['por_departamento']
             
-            # Mostrar tabla
             st.dataframe(
                 df_deptos.rename(columns={
                     'departamento': 'Departamento',
@@ -1742,7 +1587,6 @@ def mostrar_estadisticas_avanzadas(mes, ano):
                 hide_index=True
             )
             
-            # Gráfico de torta por departamento
             fig = px.pie(
                 df_deptos,
                 values='turnos_asignados',
@@ -1751,44 +1595,20 @@ def mostrar_estadisticas_avanzadas(mes, ano):
                 hole=0.4,
                 color_discrete_sequence=px.colors.qualitative.Set3
             )
-            
-            fig.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig, use_container_width=True)
-            
-            # Gráfico de barras horizontales
-            fig2 = px.bar(
-                df_deptos,
-                y='departamento',
-                x='turnos_asignados',
-                title='Turnos Asignados por Departamento',
-                orientation='h',
-                color='promedio_horas',
-                color_continuous_scale='Blues',
-                labels={'turnos_asignados': 'Turnos Asignados', 'promedio_horas': 'Promedio Horas'}
-            )
-            
-            fig2.update_layout(yaxis={'categoryorder': 'total ascending'})
-            st.plotly_chart(fig2, use_container_width=True)
         else:
             st.info("No hay datos de turnos por departamento.")
     
-    # ==============================
-    # PESTAÑA 3: Por Código
-    # ==============================
     with tab3:
-        # Estadísticas por código de turno
         if not estadisticas['por_codigo'].empty:
             st.markdown("#### 🔢 Uso de Códigos de Turno")
-            
             df_codigos = estadisticas['por_codigo']
             
-            # Mostrar tabla con colores
             def color_row(val):
                 if isinstance(val, str) and val.startswith('#'):
                     return f'background-color: {val}; color: white;'
                 return ''
             
-            # Primero renombrar las columnas
             df_codigos_renombrado = df_codigos.rename(columns={
                 'codigo': 'Código',
                 'nombre': 'Descripción',
@@ -1799,16 +1619,9 @@ def mostrar_estadisticas_avanzadas(mes, ano):
                 'departamentos_distintos': 'Departamentos'
             })
             
-            # Luego aplicar estilos
             styled_df = df_codigos_renombrado.style.applymap(color_row, subset=['Color'])
+            st.dataframe(styled_df, use_container_width=True, hide_index=True)
             
-            st.dataframe(
-                styled_df,
-                use_container_width=True,
-                hide_index=True
-            )
-            
-            # Gráfico de códigos más usados
             fig = px.bar(
                 df_codigos.head(10),
                 x='codigo',
@@ -1818,28 +1631,17 @@ def mostrar_estadisticas_avanzadas(mes, ano):
                 color_continuous_scale='Viridis',
                 labels={'codigo': 'Código', 'veces_asignado': 'Veces Asignado'}
             )
-            
-            fig.update_layout(xaxis={'categoryorder': 'total descending'})
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No hay códigos de turno asignados en este período.")
     
-    # ==============================
-    # PESTAÑA 4: Gráficas
-    # ==============================
     with tab4:
-        # Gráficas avanzadas
         st.markdown("#### 📈 Análisis Avanzado")
-        
         if not estadisticas['por_dia'].empty and not estadisticas['por_departamento'].empty:
             col1, col2 = st.columns(2)
-            
             with col1:
-                # Heatmap de asignación por día y departamento (simplificado)
                 st.markdown("##### Calor de Asignación por Día")
-                
                 df_dias = estadisticas['por_dia']
-                
                 fig = go.Figure(data=go.Heatmap(
                     z=[df_dias['turnos_asignados']],
                     x=df_dias['dia'],
@@ -1848,25 +1650,14 @@ def mostrar_estadisticas_avanzadas(mes, ano):
                     showscale=True,
                     hovertemplate='Día: %{x}<br>Turnos: %{z}<extra></extra>'
                 ))
-                
-                fig.update_layout(
-                    title='Intensidad de Asignación por Día',
-                    xaxis_title='Día del Mes',
-                    height=200
-                )
-                
+                fig.update_layout(title='Intensidad de Asignación por Día', xaxis_title='Día del Mes', height=200)
                 st.plotly_chart(fig, use_container_width=True)
             
             with col2:
-                # Comparativa de asignación
                 st.markdown("##### Eficiencia de Asignación")
-                
                 df_deptos = estadisticas['por_departamento']
-                
-                # Calcular porcentaje de asignación por departamento
                 if 'total_turnos' in df_deptos.columns and 'turnos_asignados' in df_deptos.columns:
                     df_deptos['porcentaje_asignacion'] = (df_deptos['turnos_asignados'] / df_deptos['total_turnos'] * 100).round(1)
-                    
                     fig = px.bar(
                         df_deptos,
                         y='departamento',
@@ -1877,90 +1668,17 @@ def mostrar_estadisticas_avanzadas(mes, ano):
                         color_continuous_scale='RdYlGn',
                         range_color=[0, 100]
                     )
-                    
-                    fig.update_layout(
-                        xaxis_title='Porcentaje de Asignación (%)',
-                        xaxis_range=[0, 100]
-                    )
-                    
+                    fig.update_layout(xaxis_title='Porcentaje de Asignación (%)', xaxis_range=[0, 100])
                     st.plotly_chart(fig, use_container_width=True)
-        
-        # Resumen ejecutivo
-        st.markdown("##### 📋 Resumen Ejecutivo")
-        
-        if not estadisticas['por_dia'].empty:
-            df_dias = estadisticas['por_dia']
-            df_deptos = estadisticas['por_departamento']
-            
-            # Calcular métricas clave
-            total_empleados = len(get_empleados())
-            dias_con_mas_turnos = df_dias.nlargest(3, 'turnos_asignados')[['dia', 'turnos_asignados']]
-            depto_mas_ocupado = df_deptos.nlargest(1, 'turnos_asignados')[['departamento', 'turnos_asignados']]
-            
-            col_sum1, col_sum2, col_sum3 = st.columns(3)
-            
-            with col_sum1:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h4>👥 Empleados</h4>
-                    <p><strong>Total:</strong> {total_empleados}</p>
-                    <p><strong>Activos:</strong> {get_empleados()[get_empleados()['estado'] == 'Activo'].shape[0]}</p>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col_sum2:
-                dias_text = ""
-                for _, row in dias_con_mas_turnos.iterrows():
-                    dias_text += f"Día {row['dia']}: {row['turnos_asignados']} turnos<br>"
-                
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h4>📅 Días más ocupados</h4>
-                    {dias_text}
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col_sum3:
-                if not depto_mas_ocupado.empty:
-                    depto_info = depto_mas_ocupado.iloc[0]
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <h4>🏢 Depto. más ocupado</h4>
-                        <p><strong>{depto_info['departamento']}</strong></p>
-                        <p>{depto_info['turnos_asignados']} turnos asignados</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            with col_sum2:
-                dias_text = ""
-                for _, row in dias_con_mas_turnos.iterrows():
-                    dias_text += f"Día {row['dia']}: {row['turnos_asignados']} turnos<br>"
-                
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h4>📅 Días más ocupados</h4>
-                    {dias_text}
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col_sum3:
-                if not depto_mas_ocupado.empty:
-                    depto_info = depto_mas_ocupado.iloc[0]
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <h4>🏢 Depto. más ocupado</h4>
-                        <p><strong>{depto_info['departamento']}</strong></p>
-                        <p>{depto_info['turnos_asignados']} turnos asignados</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+
 # ============================================================================
-# PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
+# PÁGINA PRINCIPAL - MALLA DE TURNOS (TABLA UNIFICADA)
 # ============================================================================
 def pagina_malla():
-    """Página principal - Malla de turnos CON ESTADÍSTICAS - Optimizada para móvil"""
+    """Página principal - Malla de turnos CON TABLA UNIFICADA (SIN DIVISIÓN)"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
     
-    # En móvil, usar columnas apiladas
+    # Selectores de mes y año
     if st.session_state.is_mobile:
         col1, col2 = st.columns(2)
         col3, col4 = st.columns(2)
@@ -1998,7 +1716,7 @@ def pagina_malla():
                 help="Descargar como archivo CSV"
             )
     
-    # En móvil, mostrar leyenda como expander por defecto
+    # Leyenda de códigos
     if st.session_state.is_mobile:
         with st.expander("📋 Códigos de Turno", expanded=False):
             mostrar_leyenda(inside_expander=True)
@@ -2011,99 +1729,80 @@ def pagina_malla():
         st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
         
         rol = st.session_state.auth['role']
+        df = st.session_state.malla_actual.copy()
         
-        # AQUÍ ESTÁ EL CAMBIO: Solo mostrar tabla dividida para quienes pueden editar
-        if check_permission("write"):  # Admin y supervisor - TABLA DIVIDIDA
-            st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', unsafe_allow_html=True)
+        # IDENTIFICAR COLUMNAS
+        columnas_fijas = []
+        columnas_dias = []
+        
+        for col in df.columns:
+            if '/' in str(col):  # Es una columna de día
+                columnas_dias.append(col)
+            else:
+                columnas_fijas.append(col)
+        
+        # Obtener opciones de códigos
+        if 'codigos_turno' in st.session_state:
+            opciones_codigos = list(st.session_state.codigos_turno.keys())
+            if "" in opciones_codigos:
+                opciones_codigos.remove("")
+        else:
+            opciones_codigos = []
+        
+        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE COMPLETA (UNIFICADA) =====
+        if check_permission("write"):
+            st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', 
+                       unsafe_allow_html=True)
             
-            df = st.session_state.malla_actual.copy()
+            # CONFIGURACIÓN DE COLUMNAS
+            column_config = {}
             
-            # Separar columnas fijas y de días
-            columnas_fijas = []
-            columnas_dias = []
-            
-            # Identificar columnas (las primeras son fijas, las de fecha son días)
-            for col in df.columns:
-                if '/' in str(col):  # Es una columna de día
-                    columnas_dias.append(col)
-                else:
-                    columnas_fijas.append(col)
-            
-            # Crear dos dataframes separados
-            df_fijo = df[columnas_fijas].copy()
-            df_dias = df[columnas_dias].copy()
-            
-            # Mostrar en dos columnas
-            col_fijas, col_desplazables = st.columns([3, 7])
-            
-            with col_fijas:
-                #st.markdown("#### 🏷️ Información del Empleado")
-                # Mostrar información fija (solo lectura)
-                column_config_fijo = {}
-                for col in df_fijo.columns:
-                    column_config_fijo[col] = st.column_config.Column(col, disabled=True)
-                
-                st.dataframe(
-                    df_fijo,
-                    column_config=column_config_fijo,
-                    hide_index=True,
-                    use_container_width=True,
-                    height=600
+            # Columnas fijas (solo lectura)
+            for col in columnas_fijas:
+                column_config[col] = st.column_config.Column(
+                    col,
+                    disabled=True,
+                    width="medium" if col in ["APELLIDOS Y NOMBRES", "CARGO"] else "small"
                 )
             
-            with col_desplazables:
-                #st.markdown("#### 📅 Turnos por Día (Editable)")
-                
-                # Obtener opciones de códigos para los selectboxes
-                if 'codigos_turno' in st.session_state:
-                    opciones_codigos = list(st.session_state.codigos_turno.keys())
-                    # Filtrar código vacío si existe
-                    if "" in opciones_codigos:
-                        opciones_codigos.remove("")
-                else:
-                    opciones_codigos = []
-                
-                # Configurar columnas editables para los días
-                column_config_dias = {}
-                for col in df_dias.columns:
-                    column_config_dias[col] = st.column_config.SelectboxColumn(
-                        col,
-                        width="small",
-                        options=[""] + opciones_codigos,
-                        help="Selecciona el código del turno"
-                    )
-                
-                # Asegurarse de que todas las celdas tengan valores válidos
-                df_dias_edit = df_dias.copy()
-                for col in df_dias_edit.columns:
-                    df_dias_edit[col] = df_dias_edit[col].fillna("").astype(str)
-                    for idx, val in enumerate(df_dias_edit[col]):
-                        if val not in [""] + opciones_codigos:
-                            df_dias_edit.at[idx, col] = ""
-                
-                # Mostrar editor solo para las columnas de días
-                edited_dias_df = st.data_editor(
-                    df_dias_edit,
-                    column_config=column_config_dias,
-                    hide_index=True,
-                    use_container_width=True,
-                    height=600,
-                    num_rows="fixed",
-                    key=f"editor_dias_{mes_numero}_{ano}"
+            # Columnas de días (editables con selectbox)
+            for col in columnas_dias:
+                column_config[col] = st.column_config.SelectboxColumn(
+                    col,
+                    width="small",
+                    options=[""] + opciones_codigos,
+                    help="Selecciona el código del turno",
+                    required=False
                 )
             
-            # Información para el usuario
+            # Asegurar valores válidos
+            for col in columnas_dias:
+                df[col] = df[col].fillna("").astype(str)
+                for idx, val in enumerate(df[col]):
+                    if val not in [""] + opciones_codigos:
+                        df.at[idx, col] = ""
+            
+            # MOSTRAR TABLA ÚNICA Y COMPLETA - SIN DIVISIÓN DE COLUMNAS
+            edited_df = st.data_editor(
+                df,
+                column_config=column_config,
+                hide_index=True,
+                use_container_width=True,
+                height=600,
+                num_rows="fixed",
+                key=f"malla_editor_unificado_{mes_numero}_{ano}"
+            )
+            
             st.info("""
-            **📋 Vista dividida para edición:**
-            - **← Izquierda:** Información del empleado (fija, solo lectura)
-            - **→ Derecha:** Turnos por día (editable, desplazable horizontalmente)
+            **📋 VISTA UNIFICADA:** 
+            - **Columnas fijas** (N°, CARGO, NOMBRE, CC, DEPARTAMENTO, etc.) → Solo lectura
+            - **Columnas de días** → Seleccionables con códigos de turno
+            - **Desplázate horizontalmente** para ver todos los días del mes
+            - **NO hay división de columnas** - Todo está en UNA SOLA TABLA
             """)
             
             st.markdown("---")
             st.markdown("### 💾 Acciones de Guardado")
-            
-            # Reconstruir el dataframe completo con los cambios
-            edited_df = pd.concat([df_fijo, edited_dias_df], axis=1)
             
             col1, col2, col3 = st.columns(3)
             
@@ -2116,7 +1815,6 @@ def pagina_malla():
                             if cambios > 0:
                                 st.session_state.last_save = obtener_hora_colombia()
                                 st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
-                                
                                 st.success(f"✅ {cambios} cambios guardados exitosamente!")
                                 registrar_log("guardar_malla", f"{mes_seleccionado} {ano} - {cambios} cambios")
                                 st.rerun()
@@ -2148,20 +1846,27 @@ def pagina_malla():
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
         
-        # PARA EMPLEADOS (SOLO LECTURA): Mostrar tabla completa normal
-        else:  # Empleados con solo lectura
+        # ===== EMPLEADOS: SOLO LECTURA =====
+        else:
             st.info("👁️ Vista de solo lectura - No puedes editar")
             
-            df = st.session_state.malla_actual.copy()
+            # Mostrar tabla completa con estilo de colores
+            def color_cell(val):
+                if pd.isna(val) or val == '':
+                    return 'background-color: #FFFFFF;'
+                color = st.session_state.codigos_turno.get(str(val), {}).get("color", "#FFFFFF")
+                return f'background-color: {color}; color: black; font-weight: bold; text-align: center;'
             
-            # Mostrar tabla completa normal
+            # Aplicar estilo solo a columnas de días
+            styled_df = df.style.applymap(color_cell, subset=columnas_dias)
+            
             st.dataframe(
-                df,
+                styled_df,
                 height=600,
                 use_container_width=True
             )
             
-            # Botón para descargar la tabla completa
+            # Botón para descargar
             st.markdown("---")
             csv = df.to_csv(index=False, encoding='utf-8-sig')
             st.download_button(
@@ -2171,30 +1876,13 @@ def pagina_malla():
                 mime="text/csv",
                 use_container_width=True
             )
-# Continúa con las demás funciones...
 
+# ============================================================================
+# PÁGINAS SECUNDARIAS
+# ============================================================================
 def pagina_backup():
     """Página completa de backup y restauración"""
     st.markdown("<h1 class='main-header'>📦 Sistema de Backup y Restauración</h1>", unsafe_allow_html=True)
-    
-    # Información importante para Streamlit Cloud
-    #if IS_STREAMLIT_CLOUD:
-    #    st.markdown("""
-    #    <div class="streamlit-cloud-warning">
-    #    ⚠️ **INFORMACIÓN IMPORTANTE - STREAMLIT CLOUD**
-    #    
-    #    **Cómo funciona el almacenamiento:**
-    #    1. Los datos se guardan en almacenamiento temporal del servidor
-    #    2. Se mantienen mientras la app esté activa
-    #    3. Pueden borrarse después de ~24h de inactividad
-    #    
-    #    **Recomendaciones:**
-    #    - ✅ Exporta tus datos regularmente (JSON o CSV)
-    #    - ✅ Descarga backups frecuentemente
-    #    - ✅ Mantén la app activa usándola diariamente
-    #    - ❌ No confíes solo en el almacenamiento temporal
-    #    </div>
-    #   """, unsafe_allow_html=True)
     
     tab1, tab2 = st.tabs(["🗄️ Backups DB", "📄 Exportar/Importar JSON"])
     
@@ -2251,7 +1939,6 @@ def pagina_backup():
                         st.rerun()
                     else:
                         st.info(f"✅ Ya solo hay {len(backups)} backups (máximo: {max_backups})")
-        
         else:
             st.warning("No hay backups disponibles.")
         
@@ -2292,7 +1979,6 @@ def pagina_backup():
                 json_data = exportar_backup_json()
                 
                 if json_data:
-                    # Mostrar información del backup
                     datos = json.loads(json_data)
                     
                     col_info1, col_info2 = st.columns(2)
@@ -2413,7 +2099,6 @@ def importar_backup_json(json_str):
             for user in datos['usuarios']:
                 password_hash = user.get('password_hash')
                 if not password_hash:
-                    # Si no hay hash, crear uno temporal
                     password_hash = hashlib.sha256("temp123".encode()).hexdigest()
                 
                 cursor.execute('''
@@ -2455,9 +2140,6 @@ def importar_backup_json(json_str):
         print(f"❌ Error al importar JSON: {str(e)}")
         return False
 
-# ============================================================================
-# FUNCIÓN PRINCIPAL
-# ============================================================================
 def pagina_empleados():
     """Página de gestión de empleados"""
     if not check_permission("write"):
@@ -2465,14 +2147,6 @@ def pagina_empleados():
         return
     
     st.markdown("<h1 class='main-header'>👥 Gestión de Empleados</h1>", unsafe_allow_html=True)
-    
-    # Advertencia de Streamlit Cloud
-    #if IS_STREAMLIT_CLOUD:
-    #    st.warning("""
-    #    ⚠️ **STREAMLIT CLOUD**
-    #    - Exporta la lista de empleados regularmente
-    #    - Los datos se guardan automáticamente en backups
-    #    """)
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -2501,7 +2175,6 @@ def pagina_empleados():
     else:
         df_editable = st.session_state.empleados_df.copy()
         
-        # Asegurar que tenemos las columnas necesarias
         df_display = df_editable.rename(columns={
             'id': 'ID_OCULTO',
             'numero': 'N°',
@@ -2515,7 +2188,6 @@ def pagina_empleados():
             'created_at': 'FECHA_REGISTRO'
         })
         
-        # Asegurar que todas las columnas tengan valores no nulos
         df_display = df_display.fillna({
             'CARGO': '',
             'APELLIDOS Y NOMBRES': '',
@@ -2565,7 +2237,6 @@ def pagina_empleados():
                     cambios, errores = guardar_empleados(edited_df)
                     if cambios > 0:
                         st.success(f"✅ {cambios} cambios guardados correctamente")
-                        # Crear backup automático
                         crear_backup_automatico()
                         st.info("📦 Backup automático creado")
                         st.rerun()
@@ -2699,10 +2370,8 @@ def pagina_configuracion():
         codigos_df = pd.read_sql("SELECT * FROM codigos_turno ORDER BY codigo", conn)
         conn.close()
         
-        # Mostrar información sobre los códigos actuales
         st.markdown(f"**📊 Total de códigos:** {len(codigos_df)}")
         
-        # Mostrar vista previa de colores
         st.markdown("#### 🎨 Códigos Actuales")
         if not codigos_df.empty:
             cols = st.columns(4)
@@ -2722,7 +2391,6 @@ def pagina_configuracion():
         
         st.markdown("---")
         
-        # AGREGAR NUEVO CÓDIGO - VERSIÓN CORREGIDA
         st.markdown("#### ➕ Agregar Nuevo Código")
         with st.form("form_nuevo_codigo", clear_on_submit=True):
             col1, col2 = st.columns(2)
@@ -2732,11 +2400,9 @@ def pagina_configuracion():
                 nuevo_nombre = st.text_input("Descripción*", placeholder="Ej: Turno Noche 10PM-6AM")
             
             with col2:
-                # Usar color picker en lugar de text input
                 nuevo_color = st.color_picker("Seleccionar Color*", value="#FF6B6B")
                 nuevo_horas = st.number_input("Horas*", min_value=0, max_value=24, value=8)
             
-            # Mostrar vista previa
             if nuevo_color:
                 st.markdown(f"""
                 <div style="display: flex; align-items: center; margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
@@ -2757,17 +2423,14 @@ def pagina_configuracion():
                 if not all([nuevo_codigo.strip(), nuevo_nombre.strip()]):
                     st.error("❌ Los campos con * son obligatorios")
                 else:
-                    # Validar formato de color
                     if not nuevo_color.startswith('#'):
                         nuevo_color = '#' + nuevo_color
                     
-                    # Validar que sea un color HEX válido
                     import re
                     hex_pattern = re.compile(r'^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$')
                     if not hex_pattern.match(nuevo_color):
                         st.error("❌ Formato de color inválido. Usa formato HEX (#RRGGBB o #RGB)")
                     else:
-                        # Verificar si el código ya existe
                         if nuevo_codigo.upper() in codigos_df['codigo'].str.upper().values:
                             st.error(f"❌ El código '{nuevo_codigo}' ya existe")
                         else:
@@ -2796,7 +2459,6 @@ def pagina_configuracion():
         
         st.markdown("---")
         
-        # Editar códigos existentes
         if not codigos_df.empty:
             st.markdown("#### ✏️ Editar Códigos Existentes")
             
@@ -2859,10 +2521,7 @@ def pagina_configuracion():
                                     conn = get_connection()
                                     cursor = conn.cursor()
                                     
-                                    # Eliminar el código
                                     cursor.execute("DELETE FROM codigos_turno WHERE codigo = ?", (row['codigo'],))
-                                    
-                                    # También eliminar turnos asociados
                                     cursor.execute("UPDATE malla_turnos SET codigo_turno = NULL WHERE codigo_turno = ?", 
                                                  (row['codigo'],))
                                     
@@ -2898,7 +2557,6 @@ def pagina_configuracion():
                 value=",".join(config.get('departamentos', []))
             )
         
-        # Configuración específica para Streamlit Cloud
         if IS_STREAMLIT_CLOUD:
             st.markdown("### ☁️ Configuración Streamlit Cloud")
             
@@ -2916,7 +2574,6 @@ def pagina_configuracion():
                 conn = get_connection()
                 cursor = conn.cursor()
                 
-                # Actualizar configuración básica
                 updates = [
                     ("formato_hora", formato_hora, "text"),
                     ("dias_vacaciones", str(dias_vacaciones), "number"),
@@ -2924,7 +2581,6 @@ def pagina_configuracion():
                     ("departamentos", departamentos_text, "list")
                 ]
                 
-                # Agregar configuración de Streamlit Cloud si aplica
                 if IS_STREAMLIT_CLOUD:
                     updates.append(("auto_backup", "1" if auto_backup else "0", "boolean"))
                     updates.append(("max_backups", str(max_backups), "number"))
@@ -3087,7 +2743,7 @@ def crear_nuevo_usuario(username, password, confirm_password, nombre, rol, depar
     return True
 
 def pagina_mis_turnos():
-    """Página para que los empleados vean SUS turnos - VERSIÓN FINAL"""
+    """Página para que los empleados vean SUS turnos"""
     st.markdown("<h1 class='main-header'>📅 Mis Turnos</h1>", unsafe_allow_html=True)
     
     if not st.session_state.empleado_actual:
@@ -3100,7 +2756,6 @@ def pagina_mis_turnos():
             if nombre_buscar:
                 empleados_df = get_empleados()
                 
-                # Búsqueda flexible
                 mask = (
                     empleados_df['nombre_completo'].str.contains(nombre_buscar.upper(), case=False, na=False) |
                     empleados_df['cedula'].astype(str).str.contains(nombre_buscar, na=False)
@@ -3133,7 +2788,6 @@ def pagina_mis_turnos():
     
     empleado_info = st.session_state.empleado_actual
     
-    # Mostrar información del empleado
     st.markdown("### 👤 Mi Información")
     
     col_info1, col_info2 = st.columns(2)
@@ -3163,7 +2817,7 @@ def pagina_mis_turnos():
     with col1:
         meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
                 "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-        mes_seleccionado = st.selectbox("Mes:", meses, index=1)  # Febrero por defecto
+        mes_seleccionado = st.selectbox("Mes:", meses, index=1)
         mes_numero = meses.index(mes_seleccionado) + 1
     
     with col2:
@@ -3174,7 +2828,6 @@ def pagina_mis_turnos():
         if st.button("🔍 Buscar Mis Turnos", use_container_width=True, type="primary"):
             st.rerun()
     
-    # Cargar turnos automáticamente
     empleado_id = empleado_info.get('id')
     
     if not empleado_id:
@@ -3182,17 +2835,14 @@ def pagina_mis_turnos():
         return
     
     try:
-        # Obtener turnos
         turnos_dict = get_turnos_empleado_mes(empleado_id, mes_numero, ano)
         
-        # Filtrar solo días con códigos válidos (no None ni vacíos)
         turnos_con_codigo = {dia: codigo for dia, codigo in turnos_dict.items() 
                             if codigo and str(codigo).strip() != '' and str(codigo).strip().lower() != 'none'}
         
         if not turnos_con_codigo:
             st.info(f"ℹ️ No tienes turnos asignados para {mes_seleccionado} {ano}.")
             
-            # Mostrar todos los días aunque estén vacíos
             st.markdown(f"### 📋 Días del mes (todos)")
             datos_todos = []
             for dia, codigo in sorted(turnos_dict.items()):
@@ -3208,7 +2858,6 @@ def pagina_mis_turnos():
         else:
             st.success(f"✅ Tienes {len(turnos_con_codigo)} días con turnos asignados en {mes_seleccionado} {ano}")
             
-            # Mostrar tabla detallada PRIMERO
             st.markdown("#### 📋 Lista de Turnos")
             
             total_horas = 0
@@ -3229,25 +2878,15 @@ def pagina_mis_turnos():
             
             df_turnos = pd.DataFrame(turnos_detallados)
             
-            # Crear tabla con colores
             def aplicar_color_fila(row):
                 color = df_turnos.loc[row.name, 'Color'] if row.name in df_turnos.index else '#FFFFFF'
                 return [f'background-color: {color}' for _ in row]
             
-            # Seleccionar columnas para mostrar
             df_display = df_turnos[['Día', 'Código', 'Turno', 'Horas']].copy()
-            
-            # Aplicar el estilo al DataFrame de visualización
             styled_df = df_display.style.apply(aplicar_color_fila, axis=1)
             
-            # Mostrar el DataFrame
-            st.dataframe(
-                styled_df,
-                use_container_width=True,
-                hide_index=True
-            )
+            st.dataframe(styled_df, use_container_width=True, hide_index=True)
             
-            # MOSTRAR ESTADÍSTICAS AL FINAL
             st.markdown("---")
             st.markdown("#### 📊 Estadísticas del Mes")
             
@@ -3255,25 +2894,20 @@ def pagina_mis_turnos():
             
             with col_stats1:
                 st.metric("Días con turno", len(turnos_con_codigo))
-            
             with col_stats2:
                 st.metric("Horas totales", total_horas)
-            
             with col_stats3:
                 promedio = total_horas / len(turnos_con_codigo) if turnos_con_codigo else 0
                 st.metric("Promedio/día", f"{promedio:.1f}h")
-            
             with col_stats4:
                 num_dias = calendar.monthrange(ano, mes_numero)[1]
                 porcentaje = (len(turnos_con_codigo) / num_dias) * 100
                 st.metric("Cobertura", f"{porcentaje:.1f}%")
             
-            # Mostrar leyenda después de las estadísticas
             st.markdown("---")
             with st.expander("🎨 Leyenda de códigos", expanded=False):
                 mostrar_leyenda(inside_expander=True)
             
-            # Opción para exportar al final
             st.markdown("---")
             csv = df_turnos[['Día', 'Código', 'Turno', 'Horas']].to_csv(index=False)
             st.download_button(
@@ -3301,7 +2935,6 @@ def pagina_calendario():
     
     empleado = st.session_state.empleado_actual
     
-    # Mostrar información básica
     col_info1, col_info2 = st.columns(2)
     
     with col_info1:
@@ -3324,7 +2957,6 @@ def pagina_calendario():
     
     st.markdown("---")
     
-    # Selector de fecha
     nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
                     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     
@@ -3344,17 +2976,14 @@ def pagina_calendario():
         if st.button("📅 Ver Calendario", use_container_width=True, type="primary"):
             st.rerun()
     
-    # Obtener ID del empleado
     empleado_id = empleado.get('id')
     if not empleado_id:
         st.error("❌ No se pudo obtener el ID del empleado.")
         return
     
-    # Obtener y mostrar turnos
     try:
         turnos = get_turnos_empleado_mes(empleado_id, mes_numero, ano)
         
-        # Contar días con turnos
         dias_con_turno = sum(1 for codigo in turnos.values() 
                            if codigo and str(codigo).strip() != "")
         
@@ -3362,12 +2991,8 @@ def pagina_calendario():
             st.info(f"📭 No tienes turnos asignados para {mes} {ano}.")
         else:
             st.success(f"✅ Tienes {dias_con_turno} días con turnos asignados en {mes} {ano}")
-            
-            # Mostrar leyenda de colores si hay turnos - CORRECCIÓN APLICADA
-            # NO usar inside_expander=True aquí ya que no estamos dentro de un expander
             mostrar_leyenda()
         
-        # Generar calendario
         generar_calendario_simple(mes_numero, ano, turnos)
         
     except Exception as e:
@@ -3556,7 +3181,6 @@ def pagina_info_sistema():
         </div>
         """, unsafe_allow_html=True)
     
-    # Información de backups
     if IS_STREAMLIT_CLOUD:
         st.markdown("---")
         st.markdown("### ☁️ Información de Streamlit Cloud")
@@ -3590,7 +3214,7 @@ def pagina_info_sistema():
                 """, unsafe_allow_html=True)
 
 # ============================================================================
-# FUNCIÓN PRINCIPAL - VERSIÓN CORREGIDA
+# FUNCIÓN PRINCIPAL
 # ============================================================================
 def main():
     """Función principal que gestiona toda la aplicación"""
@@ -3598,10 +3222,9 @@ def main():
     if 'app_initialized' not in st.session_state:
         inicializar_session_state()
     
-    # NO usar detección de dispositivo móvil - usar CSS responsivo en su lugar
-    # Solo inicializar la variable si no existe
+    # Inicializar is_mobile si no existe
     if 'is_mobile' not in st.session_state:
-        st.session_state.is_mobile = False  # Por defecto, asumir desktop
+        st.session_state.is_mobile = False
     
     # Asegurar que codigos_turno esté inicializado
     if 'codigos_turno' not in st.session_state:
@@ -3650,14 +3273,12 @@ def main():
     if pagina_actual in paginas:
         paginas[pagina_actual]()
     else:
-        # Página por defecto
         pagina_malla()
     
     # Footer
     st.markdown("---")
     hora_colombia = obtener_hora_colombia()
     
-    # Footer responsivo
     footer_text = f"""
     <div style='text-align: center; color: #6c757d; padding: 10px; font-size: 0.9em;'>
     📊 Malla de Turnos Locatel | {hora_colombia.strftime('%H:%M')} 🇨🇴
@@ -3676,7 +3297,6 @@ def main():
     
     # Auto-backup periódico (solo para admin en Streamlit Cloud)
     if IS_STREAMLIT_CLOUD and rol == "admin":
-        # Crear backup automático cada 30 minutos
         if 'last_auto_backup' not in st.session_state:
             st.session_state.last_auto_backup = hora_colombia
         
