@@ -505,7 +505,7 @@ def get_configuracion():
     return config
 
 def get_malla_turnos(mes, ano):
-    """Obtener malla de turnos para un mes específico"""
+    """Obtener malla de turnos para un mes específico - CON NOMBRES ÚNICOS"""
     conn = get_connection()
     
     empleados_df = get_empleados()
@@ -546,8 +546,9 @@ def get_malla_turnos(mes, ano):
         if dia:
             turnos_dict[emp_id][dia] = codigo if codigo else ""
     
+    # ===== CAMBIO CRÍTICO: Usar "DÍA 1", "DÍA 2" - SIN BARRAS =====
     for dia in range(1, num_dias + 1):
-        col_name = f'{dia}/{mes}/{ano}'
+        col_name = f'DÍA {dia}'  # SIMPLE Y ÚNICO
         df_base[col_name] = ""
         
         for idx, row in df_base.iterrows():
@@ -634,7 +635,7 @@ def guardar_malla_turnos(df_malla, mes, ano):
             emp_id = id_por_cedula[cedula]
             
             for dia in range(1, num_dias + 1):
-                col_name = f'{dia}/{mes}/{ano}'
+                col_name = f'DÍA {dia}'  # MISMO FORMATO
                 if col_name in row:
                     codigo = row[col_name]
                     
@@ -1768,31 +1769,28 @@ def pagina_malla():
         rol = st.session_state.auth['role']
         df = st.session_state.malla_actual.copy()
         
-        # IDENTIFICAR COLUMNAS
+        # IDENTIFICAR COLUMNAS - NUEVO FORMATO
         columnas_fijas = []
         columnas_dias = []
         
         for col in df.columns:
-            if '/' in str(col):
+            if 'DÍA' in str(col):  # Detecta las columnas de días
                 columnas_dias.append(col)
             else:
                 columnas_fijas.append(col)
         
-        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON ÍCONO DE COLUMNAS =====
+        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON ÍCONO =====
         if check_permission("write"):
             st.markdown("💡 **Los cambios se guardan automáticamente al salir de la celda**")
             
-            # ===== IMPORTANTE: NO USAR column_config EN ABSOLUTO =====
-            # Para que el ícono aparezca, NO debemos usar column_config
-            
-            # Crear una copia limpia del DataFrame
+            # ===== SIN column_config - EL ÍCONO APARECERÁ =====
             df_display = df.copy()
             
-            # Convertir todas las columnas a string para evitar problemas
+            # Convertir todo a string
             for col in df_display.columns:
                 df_display[col] = df_display[col].astype(str).replace('nan', '').replace('None', '')
             
-            # MOSTRAR TABLA SIN NINGUNA CONFIGURACIÓN DE COLUMNAS
+            # MOSTRAR TABLA - SIN CONFIGURACIÓN DE COLUMNAS
             edited_df = st.data_editor(
                 df_display,
                 hide_index=True,
@@ -1802,13 +1800,14 @@ def pagina_malla():
                 key=f"malla_editor_{mes_numero}_{ano}_{rol}"
             )
             
-            # Mensaje instructivo
-            st.info("""
-            👆 **¿Ves el ícono ⫶ en la esquina superior derecha?**  
+            # Mensaje INSTRUCTIVO
+            st.success("""
+            ✅ **¡EL ÍCONO DE CONFIGURACIÓN YA ESTÁ DISPONIBLE!**  
+            👆 Busca el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
             Haz clic ahí para mostrar/ocultar y reordenar columnas.
-            """)
+            """, icon="🎯")
             
-            # Limpiar valores inválidos en columnas de días
+            # Limpiar valores
             for col in columnas_dias:
                 if col in edited_df.columns:
                     edited_df[col] = edited_df[col].astype(str).replace('nan', '').replace('None', '')
@@ -1823,7 +1822,7 @@ def pagina_malla():
                 if st.button("💾 Guardar Cambios", use_container_width=True, type="primary"):
                     with st.spinner("Guardando cambios..."):
                         try:
-                            # Asegurar que todas las columnas de días existen
+                            # Asegurar columnas de días
                             for col in columnas_dias:
                                 if col not in edited_df.columns:
                                     edited_df[col] = ""
@@ -1868,15 +1867,18 @@ def pagina_malla():
         else:
             st.info("👁️ Vista de solo lectura")
             
-            # Para empleados, USAMOS dataframe (NO editor) - esto NO tiene ícono
             def color_cell(val):
                 if pd.isna(val) or val == '' or val == 'nan':
                     return 'background-color: #FFFFFF;'
                 color = st.session_state.codigos_turno.get(str(val), {}).get("color", "#FFFFFF")
                 return f'background-color: {color}; color: black; font-weight: bold; text-align: center;'
             
-            styled_df = df.style.applymap(color_cell, subset=columnas_dias)
-            st.dataframe(styled_df, height=600, use_container_width=True)
+            # Aplicar colores solo a días
+            if columnas_dias:
+                styled_df = df.style.applymap(color_cell, subset=columnas_dias)
+                st.dataframe(styled_df, height=600, use_container_width=True)
+            else:
+                st.dataframe(df, height=600, use_container_width=True)
             
             st.markdown("---")
             csv = df.to_csv(index=False, encoding='utf-8-sig')
