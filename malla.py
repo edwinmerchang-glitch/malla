@@ -1793,13 +1793,13 @@ def pagina_malla():
                 key=f"malla_editor_unificado_{mes_numero}_{ano}"
             )
             
-            st.info("""
-            **📋 VISTA UNIFICADA:** 
-            - **Columnas fijas** (N°, CARGO, NOMBRE, CC, DEPARTAMENTO, etc.) → Solo lectura
-            - **Columnas de días** → Seleccionables con códigos de turno
-            - **Desplázate horizontalmente** para ver todos los días del mes
-            - **NO hay división de columnas** - Todo está en UNA SOLA TABLA
-            """)
+            #st.info("""
+            #**📋 VISTA UNIFICADA:** 
+            #- **Columnas fijas** (N°, CARGO, NOMBRE, CC, DEPARTAMENTO, etc.) → Solo lectura
+            #- **Columnas de días** → Seleccionables con códigos de turno
+            #- **Desplázate horizontalmente** para ver todos los días del mes
+            #- **NO hay división de columnas** - Todo está en UNA SOLA TABLA
+            #""")
             
             st.markdown("---")
             st.markdown("### 💾 Acciones de Guardado")
