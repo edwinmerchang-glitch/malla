@@ -1789,30 +1789,35 @@ def pagina_malla():
         for col in df_display.columns:
             df_display[col] = df_display[col].astype(str).replace('nan', '').replace('None', '')
         
-        # ===== SOLUCIÓN DEFINITIVA: SIN column_config =====
+        # Identificar columnas de días
+        columnas_dias = [col for col in df_display.columns if col.startswith('D') and col[1:].isdigit()]
+        
+        # ===== TRUCO: Configurar SOLO las columnas de días =====
+        column_config = {}
+        for col in columnas_dias:
+            column_config[col] = st.column_config.TextColumn(
+                col, 
+                width="small",
+                max_chars=3
+            )
+        
+        # ===== SOLUCIÓN DEFINITIVA =====
         edited_df = st.data_editor(
             df_display,
+            column_config=column_config,
             hide_index=True,
             use_container_width=True,
             height=600,
-            num_rows="fixed",  # ✅ CRÍTICO: fixed para que aparezca el ícono
-            key=f"malla_editor_{mes_numero}_{ano}"  # ✅ Key ESTÁTICA
+            num_rows="fixed",
+            key="malla_editor_fixed"
         )
-        # ⚠️ IMPORTANTE: SIN column_config - ESTO HACE QUE APAREZCA EL ÍCONO
         
         # Mensaje INSTRUCTIVO
-        st.success("""
-        ### 🎯 **¡EL ÍCONO YA DEBE ESTAR VISIBLE!**
-        
-        **👆 Busca en la ESQUINA SUPERIOR DERECHA de la tabla:**
-        
-        | Ícono | Función |
-        |-------|---------|
-        | **⫶ (tres puntos)** | Menú principal |
-        | **👁️ (ojo)** | **MOSTRAR/OCULTAR COLUMNAS** |
-        | **↕️ (flechas)** | Reordenar columnas |
-        | **📌 (chinche)** | Congelar columnas |
-        """, icon="✨")
+        st.info("""
+        **👆 CONFIGURACIÓN DE COLUMNAS**  
+        Busca el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
+        Allí encontrarás las opciones para **mostrar/ocultar**, **reordenar** y **congelar** columnas
+        """, icon="🔧")
         
         # Limpiar valores
         for col in columnas_dias:
@@ -2225,15 +2230,30 @@ def pagina_empleados():
     column_order = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 
                    'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO', 'ID_OCULTO']
     
-    # ===== EDITOR DE DATOS CON ÍCONO =====
+    # ===== EDITOR DE DATOS CON ÍCONO - TRUCO ESPECIAL =====
+    # Configurar SOLO las columnas que NO son de identificación
+    column_config = {
+        "DEPARTAMENTO": st.column_config.SelectboxColumn(
+            "DEPARTAMENTO", 
+            width="medium", 
+            options=st.session_state.configuracion.get('departamentos', [])
+        ),
+        "ESTADO": st.column_config.SelectboxColumn(
+            "ESTADO", 
+            width="small", 
+            options=["Activo", "Vacaciones", "Licencia", "Inactivo"]
+        )
+    }
+    # NO configurar N°, CARGO, APELLIDOS, CC, etc. para que aparezca el ícono
+    
     edited_df = st.data_editor(
         df_display[column_order],
+        column_config=column_config,  # ✅ SOLO columnas específicas
         hide_index=True,
         use_container_width=True,
-        num_rows="fixed",  # ✅ CRÍTICO: fixed para que aparezca el ícono
+        num_rows="fixed",
         key="editor_empleados_fixed"
     )
-    # ⚠️ IMPORTANTE: SIN column_config para que aparezca el ícono
     
     # ===== MENSAJE DE CONFIGURACIÓN =====
     st.info("""
@@ -2644,12 +2664,27 @@ def pagina_usuarios():
             'created_at': 'FECHA_CREACION'
         })
         
-        # ===== EDITOR DE USUARIOS - SIN column_config =====
+        # ===== EDITOR DE USUARIOS - CONFIGURACIÓN MÍNIMA =====
+        column_config = {
+            "ROL": st.column_config.SelectboxColumn(
+                "ROL", 
+                width="small", 
+                options=list(ROLES.keys())
+            ),
+            "DEPARTAMENTO": st.column_config.SelectboxColumn(
+                "DEPARTAMENTO",
+                width="medium",
+                options=st.session_state.configuracion.get('departamentos', [])
+            )
+        }
+        # NO configurar USUARIO, NOMBRE_COMPLETO, FECHA_CREACION
+        
         edited_df = st.data_editor(
             df_display,
+            column_config=column_config,  # ✅ SOLO columnas específicas
             hide_index=True,
             use_container_width=True,
-            num_rows="fixed",  # ✅ CRÍTICO: fixed para que aparezca el ícono
+            num_rows="fixed",
             key="editor_usuarios_admin_fixed"
         )
         # ⚠️ IMPORTANTE: SIN column_config para que aparezca el ícono
