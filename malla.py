@@ -2001,112 +2001,6 @@ def pagina_malla():
                 help="Descargar como archivo CSV"
             )
     
-    # ====================================================================
-    # NUEVO: SELECTOR DE COLUMNAS CON st.column_config
-    # ====================================================================
-    if not st.session_state.malla_actual.empty:
-        # Añadir un expander para el selector de columnas
-        with st.expander("🔧 Configurar columnas visibles", expanded=False):
-            st.markdown("**Selecciona qué días del mes mostrar:**")
-            
-            # Obtener días del mes actual
-            num_dias = calendar.monthrange(ano, mes_numero)[1]
-            
-            # Crear dos columnas para los checkboxes
-            cols_checkboxes = st.columns(4)
-            
-            # Crear lista para trackear selección
-            if 'dias_seleccionados' not in st.session_state:
-                # Por defecto, seleccionar todos los días
-                st.session_state.dias_seleccionados = list(range(1, num_dias + 1))
-            
-            # Mostrar checkboxes para cada día
-            dias_seleccionados_actual = []
-            
-            for dia in range(1, num_dias + 1):
-                col_idx = (dia - 1) % 4
-                with cols_checkboxes[col_idx]:
-                    # Nombre de columna esperado en el DataFrame
-                    nombre_columna = f'{dia}/{mes_numero}/{ano}'
-                    
-                    # Verificar si la columna existe en el DataFrame
-                    columna_existe = nombre_columna in st.session_state.malla_actual.columns
-                    
-                    if columna_existe:
-                        # Crear checkbox
-                        seleccionado = st.checkbox(
-                            f"Día {dia}",
-                            value=dia in st.session_state.dias_seleccionados,
-                            key=f"dia_checkbox_{dia}"
-                        )
-                        
-                        if seleccionado:
-                            dias_seleccionados_actual.append(dia)
-            
-            # Botones de acción
-            col_btn1, col_btn2, col_btn3 = st.columns(3)
-            with col_btn1:
-                if st.button("✅ Seleccionar todos", use_container_width=True):
-                    st.session_state.dias_seleccionados = list(range(1, num_dias + 1))
-                    st.rerun()
-            
-            with col_btn2:
-                if st.button("❌ Deseleccionar todos", use_container_width=True):
-                    st.session_state.dias_seleccionados = []
-                    st.rerun()
-            
-            with col_btn3:
-                if st.button("📅 Primera quincena", use_container_width=True):
-                    st.session_state.dias_seleccionados = list(range(1, 16))
-                    st.rerun()
-            
-            # Actualizar la selección
-            st.session_state.dias_seleccionados = dias_seleccionados_actual
-            
-            # Mostrar estadísticas
-            st.caption(f"📊 Mostrando {len(dias_seleccionados_actual)} de {num_dias} días")
-        
-        # ====================================================================
-        # CREAR column_config BASADO EN LA SELECCIÓN
-        # ====================================================================
-        column_config = {}
-        
-        # Configurar columnas fijas (siempre visibles)
-        columnas_fijas = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 'ESTADO']
-        
-        for col in columnas_fijas:
-            if col in st.session_state.malla_actual.columns:
-                if col == 'N°':
-                    column_config[col] = st.column_config.NumberColumn(width="small")
-                elif col in ['CARGO', 'APELLIDOS Y NOMBRES', 'DEPARTAMENTO']:
-                    column_config[col] = st.column_config.TextColumn(width="medium")
-                elif col == 'CC':
-                    column_config[col] = st.column_config.TextColumn(width="small")
-                elif col == 'ESTADO':
-                    column_config[col] = st.column_config.TextColumn(width="small")
-        
-        # Configurar columnas de días (según selección)
-        for col in st.session_state.malla_actual.columns:
-            if '/' in str(col):  # Es una columna de día
-                try:
-                    # Extraer el día del nombre de columna
-                    dia = int(str(col).split('/')[0])
-                    
-                    # Verificar si este día está seleccionado
-                    mostrar = dia in st.session_state.dias_seleccionados
-                    
-                    if mostrar:
-                        column_config[col] = st.column_config.TextColumn(
-                            col,
-                            width="small",
-                            help=f"Turno día {dia}"
-                        )
-                    # Nota: Las columnas no configuradas en column_config 
-                    # se ocultan automáticamente por Streamlit
-                    
-                except:
-                    pass
-    
     # En móvil, mostrar leyenda como expander por defecto
     if st.session_state.is_mobile:
         with st.expander("📋 Códigos de Turno", expanded=False):
@@ -2119,53 +2013,54 @@ def pagina_malla():
     else:
         st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
         
+        # OPCIONAL: Si quieres mantener el rol para otra cosa
         rol = st.session_state.auth['role']
         
         if check_permission("write"):
             st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', unsafe_allow_html=True)
             
-            # ====================================================================
-            # MODO EDICIÓN CON COLUMNAS CONFIGURADAS
-            # ====================================================================
             malla_editable = st.session_state.malla_actual.copy()
+            column_config = {}
+            day_columns = [col for col in malla_editable.columns if '/' in str(col)]
             
             # Obtener opciones de códigos para los selectboxes
             if 'codigos_turno' in st.session_state:
                 opciones_codigos = list(st.session_state.codigos_turno.keys())
+                # Filtrar código vacío si existe
                 if "" in opciones_codigos:
                     opciones_codigos.remove("")
             else:
                 opciones_codigos = []
             
-            # Añadir configuración para columnas de días en modo edición
+            # Configurar columnas - CORRECCIÓN AQUÍ
             for col in malla_editable.columns:
-                if '/' in str(col):
-                    try:
-                        dia = int(str(col).split('/')[0])
-                        if dia in st.session_state.dias_seleccionados:
-                            column_config[col] = st.column_config.SelectboxColumn(
-                                col,
-                                width="small",
-                                options=[""] + opciones_codigos,
-                                help="Selecciona el código del turno"
-                            )
-                    except:
-                        pass
+                if col in day_columns:
+                    # Esta es la parte importante: SelectboxColumn debe tener opciones válidas
+                    column_config[col] = st.column_config.SelectboxColumn(
+                        col,
+                        width="small",
+                        options=[""] + opciones_codigos,  # Incluye opción vacía
+                        help="Selecciona el código del turno"
+                    )
+                elif col in ['N°', 'CC']:
+                    column_config[col] = st.column_config.Column(width="small", disabled=True)
+                elif col == 'APELLIDOS Y NOMBRES':
+                    column_config[col] = st.column_config.Column(width="medium", disabled=True)
+                elif col in ['CARGO', 'DEPARTAMENTO', 'ESTADO']:
+                    column_config[col] = st.column_config.Column(disabled=True)
             
             # Asegurarse de que todas las celdas de días tengan valores válidos
-            for col in malla_editable.columns:
-                if '/' in str(col):
-                    malla_editable[col] = malla_editable[col].fillna("").astype(str)
-                    for idx, val in enumerate(malla_editable[col]):
-                        if val not in [""] + opciones_codigos:
-                            malla_editable.at[idx, col] = ""
+            for col in day_columns:
+                # Reemplazar valores NaN o inválidos con cadena vacía
+                malla_editable[col] = malla_editable[col].fillna("").astype(str)
+                # Filtrar valores que no estén en las opciones
+                for idx, val in enumerate(malla_editable[col]):
+                    if val not in [""] + opciones_codigos:
+                        malla_editable.at[idx, col] = ""
             
-            # ====================================================================
-            # MOSTRAR DATA_EDITOR CON CONFIGURACIÓN DE COLUMNAS
-            # ====================================================================
             edited_df = st.data_editor(
                 malla_editable,
-                column_config=column_config,  # ⬅️ ESTO FILTRA LAS COLUMNAS VISIBLES
+                column_config=column_config,
                 hide_index=True,
                 use_container_width=True,
                 height=600,
@@ -2173,14 +2068,54 @@ def pagina_malla():
                 key=f"editor_malla_{mes_numero}_{ano}"
             )
             
-            # ... (resto de tu código de guardado permanece igual) ...
+            st.markdown("---")
+            st.markdown("### 💾 Acciones de Guardado")
             
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.button("💾 Guardar Cambios Ahora", use_container_width=True, type="primary"):
+                    with st.spinner("Guardando cambios..."):
+                        try:
+                            cambios = guardar_malla_turnos_con_backup(edited_df, mes_numero, ano)
+                            
+                            if cambios > 0:
+                                st.session_state.last_save = obtener_hora_colombia()
+                                st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+                                
+                                st.success(f"✅ {cambios} cambios guardados exitosamente!")
+                                registrar_log("guardar_malla", f"{mes_seleccionado} {ano} - {cambios} cambios")
+                                st.rerun()
+                            else:
+                                st.warning("⚠️ No se detectaron cambios para guardar")
+                                
+                        except Exception as e:
+                            st.error(f"❌ Error al guardar: {str(e)}")
+            
+            with col2:
+                if st.button("🔄 Recargar desde BD", use_container_width=True):
+                    st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+                    st.success("✅ Malla recargada desde base de datos")
+                    st.rerun()
+            
+            with col3:
+                if st.button("🗑️ Limpiar Todos", use_container_width=True, type="secondary"):
+                    if st.checkbox("¿Confirmar que quieres limpiar TODOS los turnos de este mes?"):
+                        malla_vacia = edited_df.copy()
+                        for col in day_columns:
+                            malla_vacia[col] = ""
+                        
+                        cambios = guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
+                        st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+                        st.success(f"✅ {cambios} turnos limpiados")
+                        st.rerun()
+            
+            # Mostrar estadísticas avanzadas después de guardar cambios
+            if rol in ['admin', 'supervisor']:
+                mostrar_estadisticas_avanzadas(mes_numero, ano)
         else:
             st.info("👁️ Vista de solo lectura - No puedes editar")
             
-            # ====================================================================
-            # MODO SOLO LECTURA CON COLUMNAS CONFIGURADAS
-            # ====================================================================
             df = st.session_state.malla_actual.copy()
             
             # CSS para fijar la primera fila (encabezado)
@@ -2258,12 +2193,9 @@ def pagina_malla():
             </style>
             """, unsafe_allow_html=True)
             
-            # ====================================================================
-            # MOSTRAR DATAFRAME CON CONFIGURACIÓN DE COLUMNAS
-            # ====================================================================
+            # Mostrar tabla normal
             st.dataframe(
                 df,
-                column_config=column_config,  # ⬅️ ESTO FILTRA LAS COLUMNAS VISIBLES
                 use_container_width=True,
                 height=600
             )
