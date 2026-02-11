@@ -1675,7 +1675,7 @@ def mostrar_estadisticas_avanzadas(mes, ano):
 # PÁGINA PRINCIPAL - MALLA DE TURNOS (TABLA UNIFICADA)
 # ============================================================================
 def pagina_malla():
-    """Página principal - Malla de turnos CON TABLA UNIFICADA Y COLUMNAS FIJAS"""
+    """Página principal - Malla de turnos SIN COLUMNAS FIJAS (versión estable)"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
     
     # Selectores de mes y año
@@ -1717,10 +1717,7 @@ def pagina_malla():
             )
     
     # Leyenda de códigos
-    if st.session_state.is_mobile:
-        with st.expander("📋 Códigos de Turno", expanded=False):
-            mostrar_leyenda(inside_expander=True)
-    else:
+    with st.expander("🎨 Leyenda de códigos de turno", expanded=False):
         mostrar_leyenda(inside_expander=True)
     
     if st.session_state.malla_actual.empty:
@@ -1749,183 +1746,7 @@ def pagina_malla():
         else:
             opciones_codigos = []
         
-        # ===== CSS CORREGIDO PARA COLUMNAS FIJAS =====
-        st.markdown("""
-        <style>
-            /* ESTE CSS FUNCIONA CON LA VERSIÓN ACTUAL DE STREAMLIT */
-            
-            /* Contenedor principal de la tabla - asegurar scroll horizontal */
-            div[data-testid="stDataFrame"] {
-                overflow-x: auto !important;
-                overflow-y: visible !important;
-                width: 100% !important;
-                position: relative !important;
-            }
-            
-            /* La tabla debe tener ancho completo */
-            div[data-testid="stDataFrame"] table {
-                width: max-content !important;
-                min-width: 100% !important;
-                border-collapse: collapse !important;
-            }
-            
-            /* FIJAR COLUMNAS DE INFORMACIÓN DEL EMPLEADO */
-            
-            /* PRIMERA COLUMNA (N°) - Fija */
-            div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(1),
-            div[data-testid="stDataFrame"] td:nth-child(1) {
-                position: sticky !important;
-                left: 0 !important;
-                z-index: 100 !important;
-                background-color: white !important;
-                border-right: 2px solid #1E3A8A !important;
-                box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1) !important;
-            }
-            
-            /* SEGUNDA COLUMNA (CARGO) - Fija */
-            div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(2),
-            div[data-testid="stDataFrame"] td:nth-child(2) {
-                position: sticky !important;
-                left: 60px !important;
-                z-index: 99 !important;
-                background-color: white !important;
-                border-right: 1px solid #e0e0e0 !important;
-            }
-            
-            /* TERCERA COLUMNA (APELLIDOS Y NOMBRES) - Fija */
-            div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(3),
-            div[data-testid="stDataFrame"] td:nth-child(3) {
-                position: sticky !important;
-                left: 200px !important;
-                z-index: 98 !important;
-                background-color: white !important;
-                border-right: 1px solid #e0e0e0 !important;
-            }
-            
-            /* CUARTA COLUMNA (CC) - Fija */
-            div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(4),
-            div[data-testid="stDataFrame"] td:nth-child(4) {
-                position: sticky !important;
-                left: 400px !important;
-                z-index: 97 !important;
-                background-color: white !important;
-                border-right: 1px solid #e0e0e0 !important;
-            }
-            
-            /* QUINTA COLUMNA (DEPARTAMENTO) - Fija */
-            div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(5),
-            div[data-testid="stDataFrame"] td:nth-child(5) {
-                position: sticky !important;
-                left: 500px !important;
-                z-index: 96 !important;
-                background-color: white !important;
-                border-right: 1px solid #e0e0e0 !important;
-            }
-            
-            /* SEXTA COLUMNA (ESTADO) - Fija */
-            div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(6),
-            div[data-testid="stDataFrame"] td:nth-child(6) {
-                position: sticky !important;
-                left: 620px !important;
-                z-index: 95 !important;
-                background-color: white !important;
-                border-right: 2px solid #1E3A8A !important;
-            }
-            
-            /* Asegurar que las celdas fijas mantengan su fondo */
-            div[data-testid="stDataFrame"] td:nth-child(1),
-            div[data-testid="stDataFrame"] td:nth-child(2),
-            div[data-testid="stDataFrame"] td:nth-child(3),
-            div[data-testid="stDataFrame"] td:nth-child(4),
-            div[data-testid="stDataFrame"] td:nth-child(5),
-            div[data-testid="stDataFrame"] td:nth-child(6) {
-                background-color: white !important;
-            }
-            
-            /* Efecto hover en celdas fijas */
-            div[data-testid="stDataFrame"] tr:hover td:nth-child(1),
-            div[data-testid="stDataFrame"] tr:hover td:nth-child(2),
-            div[data-testid="stDataFrame"] tr:hover td:nth-child(3),
-            div[data-testid="stDataFrame"] tr:hover td:nth-child(4),
-            div[data-testid="stDataFrame"] tr:hover td:nth-child(5),
-            div[data-testid="stDataFrame"] tr:hover td:nth-child(6) {
-                background-color: #f5f5f5 !important;
-            }
-            
-            /* Ajuste para modo oscuro */
-            @media (prefers-color-scheme: dark) {
-                div[data-testid="stDataFrame"] td:nth-child(1),
-                div[data-testid="stDataFrame"] td:nth-child(2),
-                div[data-testid="stDataFrame"] td:nth-child(3),
-                div[data-testid="stDataFrame"] td:nth-child(4),
-                div[data-testid="stDataFrame"] td:nth-child(5),
-                div[data-testid="stDataFrame"] td:nth-child(6),
-                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(1),
-                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(2),
-                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(3),
-                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(4),
-                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(5),
-                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(6) {
-                    background-color: #0E1117 !important;
-                    color: #FAFAFA !important;
-                }
-                
-                div[data-testid="stDataFrame"] tr:hover td:nth-child(1),
-                div[data-testid="stDataFrame"] tr:hover td:nth-child(2),
-                div[data-testid="stDataFrame"] tr:hover td:nth-child(3),
-                div[data-testid="stDataFrame"] tr:hover td:nth-child(4),
-                div[data-testid="stDataFrame"] tr:hover td:nth-child(5),
-                div[data-testid="stDataFrame"] tr:hover td:nth-child(6) {
-                    background-color: #1E1E1E !important;
-                }
-            }
-            
-            /* Ajustes responsive para móvil */
-            @media (max-width: 768px) {
-                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(2),
-                div[data-testid="stDataFrame"] td:nth-child(2) {
-                    left: 50px !important;
-                }
-                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(3),
-                div[data-testid="stDataFrame"] td:nth-child(3) {
-                    left: 150px !important;
-                }
-                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(4),
-                div[data-testid="stDataFrame"] td:nth-child(4) {
-                    left: 280px !important;
-                }
-                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(5),
-                div[data-testid="stDataFrame"] td:nth-child(5) {
-                    left: 360px !important;
-                }
-                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(6),
-                div[data-testid="stDataFrame"] td:nth-child(6) {
-                    left: 460px !important;
-                }
-            }
-            
-            /* Mejorar la barra de scroll */
-            div[data-testid="stDataFrame"]::-webkit-scrollbar {
-                height: 10px !important;
-            }
-            
-            div[data-testid="stDataFrame"]::-webkit-scrollbar-track {
-                background: #f1f1f1 !important;
-                border-radius: 5px !important;
-            }
-            
-            div[data-testid="stDataFrame"]::-webkit-scrollbar-thumb {
-                background: #888 !important;
-                border-radius: 5px !important;
-            }
-            
-            div[data-testid="stDataFrame"]::-webkit-scrollbar-thumb:hover {
-                background: #555 !important;
-            }
-        </style>
-        """, unsafe_allow_html=True)
-        
-        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON COLUMNAS FIJAS =====
+        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE COMPLETA =====
         if check_permission("write"):
             st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', 
                        unsafe_allow_html=True)
@@ -1965,7 +1786,7 @@ def pagina_malla():
                     if val not in [""] + opciones_codigos:
                         df.at[idx, col] = ""
             
-            # MOSTRAR TABLA ÚNICA CON COLUMNAS FIJAS
+            # MOSTRAR TABLA ÚNICA Y COMPLETA
             edited_df = st.data_editor(
                 df,
                 column_config=column_config,
@@ -1973,15 +1794,14 @@ def pagina_malla():
                 use_container_width=True,
                 height=600,
                 num_rows="fixed",
-                key=f"malla_editor_unificado_{mes_numero}_{ano}"
+                key=f"malla_editor_{mes_numero}_{ano}"
             )
             
-            # Instrucciones para el usuario
-            st.success("""
-            **📌 COLUMNAS FIJAS ACTIVADAS:** 
-            - Las columnas de información del empleado (N°, CARGO, NOMBRE, CC, DEPARTAMENTO, ESTADO) están **fijas** ✅
-            - **Desplázate horizontalmente** → para ver los días del mes
-            - Las columnas fijas permanecerán visibles siempre
+            st.info("""
+            **📋 VISTA COMPLETA:** 
+            - **Columnas de información** (N°, CARGO, NOMBRE, CC, DEPARTAMENTO, ESTADO) → Solo lectura
+            - **Columnas de días** → Seleccionables con códigos de turno
+            - **Desplázate horizontalmente** para ver todos los días del mes
             """)
             
             st.markdown("---")
