@@ -1293,49 +1293,6 @@ def monitoreo_sistema():
                     st.success(f"✅ Backup creado: {backup.name}")
                     st.rerun()
 
-# ==========================================
-# INSERTAR AQUÍ: TOOLBAR DE VISIBILIDAD (RECUADRO ROJO)
-# ==========================================
-with st.expander("👁️ Configurar Columnas (Mostrar/Ocultar)", expanded=False):
-    st.info("Seleccione las columnas que desea visualizar en la malla.")
-    
-    # Obtenemos todas las columnas actuales del DataFrame de la malla
-    todas_las_cols = df_base.columns.tolist()
-    
-    # Definimos columnas que suelen ser obligatorias o fijas
-    cols_fijas = ["N°", "CARGO", "APELLIDOS Y NOMBRES"]
-    
-    # Filtramos los días (columnas que tienen formato de fecha como '1/10/2024')
-    cols_dias = [c for c in todas_las_cols if "/" in str(c)]
-    
-    # Creamos el selector multiselect
-    columnas_seleccionadas = st.multiselect(
-        "Columnas visibles:",
-        options=todas_las_cols,
-        default=cols_fijas + cols_dias, # Por defecto muestra info básica y días
-        help="Las columnas desmarcadas se ocultarán en la tabla de abajo."
-    )
-
-# ==========================================
-# MODIFICAR LA CONFIGURACIÓN DE AGGRID
-# ==========================================
-gb = GridOptionsBuilder.from_dataframe(df_base)
-
-# Aplicamos la visibilidad dinámica a TODAS las columnas
-for col in todas_las_cols:
-    # Si la columna no está en la selección del toolbar, la ocultamos
-    ocultar = col not in columnas_seleccionadas
-    
-    if col == "APELLIDOS Y NOMBRES":
-        gb.configure_column(col, pinned='left', width=220, hide=ocultar)
-    elif col == "N°":
-        gb.configure_column(col, pinned='left', width=60, hide=ocultar)
-    else:
-        # Esto ocultará dinámicamente CC, Departamento, Estado o días específicos
-        gb.configure_column(col, hide=ocultar)
-
-# Continuar con el resto de tu configuración gb.configure_default_column...
-
 # ============================================================================
 # FUNCIONES DE VISUALIZACIÓN
 # ============================================================================
@@ -2055,6 +2012,59 @@ def pagina_malla():
         st.warning("⚠️ No hay malla de turnos cargada. Presiona 'Cargar Malla' para ver los datos.")
     else:
         st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
+    
+# ==========================================
+# TOOLBAR DE VISIBILIDAD (MOSTRAR/OCULTAR COLUMNAS)
+# ==========================================
+with st.expander("👁️ Configurar Columnas (Mostrar/Ocultar)", expanded=False):
+    st.info("Seleccione las columnas que desea visualizar en la malla.")
+    
+    # Obtenemos todas las columnas actuales del DataFrame de la malla
+    todas_las_cols = st.session_state.malla_actual.columns.tolist()  # CAMBIO IMPORTANTE: usar malla_actual
+    
+    # Definimos columnas que suelen ser obligatorias o fijas
+    cols_fijas = ["N°", "CARGO", "APELLIDOS Y NOMBRES"]
+    
+    # Filtramos los días (columnas que tienen formato de fecha como '1/10/2024')
+    cols_dias = [c for c in todas_las_cols if "/" in str(c)]
+    
+    # Creamos el selector multiselect
+    columnas_seleccionadas = st.multiselect(
+        "Columnas visibles:",
+        options=todas_las_cols,
+        default=cols_fijas + cols_dias, # Por defecto muestra info básica y días
+        help="Las columnas desmarcadas se ocultarán en la tabla de abajo."
+    )
+
+# ==========================================
+# MODIFICAR LA CONFIGURACIÓN DE AGGRID
+# ==========================================
+df_display = st.session_state.malla_actual.copy()
+gb = GridOptionsBuilder.from_dataframe(df_display)
+
+# Aplicamos la visibilidad dinámica a TODAS las columnas
+for col in todas_las_cols:
+    # Si la columna no está en la selección del toolbar, la ocultamos
+    ocultar = col not in columnas_seleccionadas
+    
+    if col == "APELLIDOS Y NOMBRES":
+        gb.configure_column(col, pinned='left', width=220, hide=ocultar)
+    elif col == "N°":
+        gb.configure_column(col, pinned='left', width=60, hide=ocultar)
+    else:
+        # Esto ocultará dinámicamente CC, Departamento, Estado o días específicos
+        gb.configure_column(col, hide=ocultar)
+
+# Continuar con el resto de tu configuración...
+gb.configure_default_column(
+    resizable=True,
+    sortable=True,
+    filter=True,
+    minWidth=80
+)
+
+# OPCIONAL: Si quieres mantener el rol para otra cosa
+rol = st.session_state.auth['role']
         
         # OPCIONAL: Si quieres mantener el rol para otra cosa
         rol = st.session_state.auth['role']
