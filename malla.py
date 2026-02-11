@@ -1675,7 +1675,7 @@ def mostrar_estadisticas_avanzadas(mes, ano):
 # PÁGINA PRINCIPAL - MALLA DE TURNOS (TABLA UNIFICADA)
 # ============================================================================
 def pagina_malla():
-    """Página principal - Malla de turnos SIN COLUMNAS FIJAS (versión estable)"""
+    """Página principal - Malla de turnos CON TABLA UNIFICADA Y COLUMNAS FIJAS"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
     
     # Selectores de mes y año
@@ -1717,7 +1717,10 @@ def pagina_malla():
             )
     
     # Leyenda de códigos
-    with st.expander("🎨 Leyenda de códigos de turno", expanded=False):
+    if st.session_state.is_mobile:
+        with st.expander("📋 Códigos de Turno", expanded=False):
+            mostrar_leyenda(inside_expander=True)
+    else:
         mostrar_leyenda(inside_expander=True)
     
     if st.session_state.malla_actual.empty:
@@ -1738,6 +1741,15 @@ def pagina_malla():
             else:
                 columnas_fijas.append(col)
         
+        # Ordenar columnas de días por número de día
+        def extraer_numero_dia(col_name):
+            try:
+                return int(str(col_name).split('/')[0])
+            except:
+                return 0
+        
+        columnas_dias.sort(key=extraer_numero_dia)
+        
         # Obtener opciones de códigos
         if 'codigos_turno' in st.session_state:
             opciones_codigos = list(st.session_state.codigos_turno.keys())
@@ -1746,27 +1758,29 @@ def pagina_malla():
         else:
             opciones_codigos = []
         
-        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE COMPLETA =====
+        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON COLUMNAS FIJAS =====
         if check_permission("write"):
             st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', 
                        unsafe_allow_html=True)
             
-            # CONFIGURACIÓN DE COLUMNAS
+            # CONFIGURACIÓN DE COLUMNAS - MEJORADA
             column_config = {}
             
             # Columnas fijas (solo lectura)
             for col in columnas_fijas:
-                # Ajustar ancho según la columna
                 width = "small"
                 if col in ["APELLIDOS Y NOMBRES"]:
                     width = "large"
                 elif col in ["CARGO"]:
                     width = "medium"
+                elif col in ["CC"]:
+                    width = "medium"
                 
                 column_config[col] = st.column_config.Column(
                     col,
                     disabled=True,
-                    width=width
+                    width=width,
+                    pinned=True  # ¡IMPORTANTE! Esto fija la columna
                 )
             
             # Columnas de días (editables con selectbox)
@@ -1776,7 +1790,8 @@ def pagina_malla():
                     width="small",
                     options=[""] + opciones_codigos,
                     help="Selecciona el código del turno",
-                    required=False
+                    required=False,
+                    pinned=False  # No fijar columnas de días
                 )
             
             # Asegurar valores válidos
@@ -1786,22 +1801,79 @@ def pagina_malla():
                     if val not in [""] + opciones_codigos:
                         df.at[idx, col] = ""
             
-            # MOSTRAR TABLA ÚNICA Y COMPLETA
+            # ORDEN DE COLUMNAS - IMPORTANTE para la barra de herramientas
+            column_order = columnas_fijas + columnas_dias
+            
+            # MOSTRAR TABLA ÚNICA CON BARRA DE HERRAMIENTAS AUTOMÁTICA
             edited_df = st.data_editor(
                 df,
                 column_config=column_config,
+                column_order=column_order,  # Especificar orden explícitamente
                 hide_index=True,
                 use_container_width=True,
                 height=600,
                 num_rows="fixed",
-                key=f"malla_editor_{mes_numero}_{ano}"
+                key=f"malla_editor_unificado_{mes_numero}_{ano}",
+                
+                # ¡ESTAS OPCIONES ACTIVAN LA BARRA DE HERRAMIENTAS!
+                use_container_width=True,
+                
+                # Configuración para mejor rendimiento con muchas columnas
+                column_order=column_order,
+                disabled=False,  # Habilitar edición
+                
+                # Metadata adicional para mejorar la experiencia
+                kwargs={
+                    "column_visibility": "auto",  # Permite ocultar/mostrar columnas
+                    "filters": True,  # Habilitar filtros
+                    "sorting": True,  # Habilitar ordenamiento
+                    "text_wrapping": "wrap",  # Envolver texto
+                }
             )
             
-            st.info("""
-            **📋 VISTA COMPLETA:** 
-            - **Columnas de información** (N°, CARGO, NOMBRE, CC, DEPARTAMENTO, ESTADO) → Solo lectura
-            - **Columnas de días** → Seleccionables con códigos de turno
-            - **Desplázate horizontalmente** para ver todos los días del mes
+            # Agregar control manual de columnas visibles (opcional)
+            with st.expander("⚙️ Configurar columnas visibles", expanded=False):
+                st.markdown("**Selecciona las columnas de días a mostrar:**")
+                
+                # Dividir en grupos para mejor visualización
+                dias_por_grupo = 15
+                grupos_dias = [columnas_dias[i:i + dias_por_grupo] for i in range(0, len(columnas_dias), dias_por_grupo)]
+                
+                columnas_seleccionadas = []
+                
+                for i, grupo in enumerate(grupos_dias):
+                    cols = st.columns(len(grupo) if len(grupo) <= 7 else 7)
+                    for j, dia_col in enumerate(grupo):
+                        col_idx = j % 7
+                        with cols[col_idx]:
+                            if st.checkbox(dia_col, value=True, key=f"check_{dia_col}"):
+                                columnas_seleccionadas.append(dia_col)
+                
+                if columnas_seleccionadas:
+                    st.info(f"📊 Mostrando {len(columnas_seleccionadas)} de {len(columnas_dias)} días")
+                    
+                    # Crear DataFrame filtrado
+                    df_filtrado = df[columnas_fijas + columnas_seleccionadas].copy()
+                    
+                    st.data_editor(
+                        df_filtrado,
+                        column_config={col: column_config[col] for col in columnas_fijas + columnas_seleccionadas},
+                        column_order=columnas_fijas + columnas_seleccionadas,
+                        hide_index=True,
+                        use_container_width=True,
+                        height=400,
+                        num_rows="fixed",
+                        key=f"malla_filtrada_{mes_numero}_{ano}"
+                    )
+            
+            # Instrucciones para el usuario
+            st.success("""
+            **📌 CARACTERÍSTICAS ACTIVADAS:** 
+            - ✅ Columnas fijas de empleados (usando `pinned=True`)
+            - ✅ Barra de herramientas automática para seleccionar columnas
+            - ✅ Scroll horizontal y vertical
+            - ✅ Puedes ocultar/mostrar columnas desde los controles
+            - ✅ Filtros y ordenamiento disponibles
             """)
             
             st.markdown("---")
