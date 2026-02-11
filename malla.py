@@ -2113,92 +2113,52 @@ def pagina_malla():
             # Mostrar estadísticas avanzadas después de guardar cambios
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
-        else:
-            st.info("👁️ Vista de solo lectura - No puedes editar")
-            
-            df = st.session_state.malla_actual.copy()
-            
-            # CSS para fijar la primera fila (encabezado)
-            st.markdown("""
-            <style>
-            /* Contenedor de la tabla */
-            div[data-testid="stDataFrame"] > div:first-child {
-                overflow-x: auto !important;
-                overflow-y: auto !important;
-                max-height: 600px !important;
-                position: relative;
-            }
-            
-            /* Fijar el encabezado (primera fila) */
-            div[data-testid="stDataFrame"] table thead {
-                position: sticky !important;
-                top: 0 !important;
-                background-color: white !important;
-                z-index: 100 !important;
-            }
-            
-            /* Sombra para el encabezado fijo */
-            div[data-testid="stDataFrame"] table thead th {
-                position: sticky !important;
-                top: 0 !important;
-                background-color: white !important;
-                z-index: 101 !important;
-                border-bottom: 2px solid #ddd !important;
-                box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1);
-            }
-            
-            /* Fijar primera columna */
-            div[data-testid="stDataFrame"] table thead th:first-child,
-            div[data-testid="stDataFrame"] table tbody td:first-child {
-                position: sticky !important;
-                left: 0 !important;
-                background-color: white !important;
-                z-index: 99 !important;
-                border-right: 2px solid #ddd !important;
-            }
-            
-            /* Fijar segunda columna */
-            div[data-testid="stDataFrame"] table thead th:nth-child(2),
-            div[data-testid="stDataFrame"] table tbody td:nth-child(2) {
-                position: sticky !important;
-                left: 80px !important;
-                background-color: white !important;
-                z-index: 99 !important;
-                border-right: 2px solid #ddd !important;
-            }
-            
-            /* Fijar tercera columna */
-            div[data-testid="stDataFrame"] table thead th:nth-child(3),
-            div[data-testid="stDataFrame"] table tbody td:nth-child(3) {
-                position: sticky !important;
-                left: 200px !important;
-                background-color: white !important;
-                z-index: 99 !important;
-                border-right: 2px solid #ddd !important;
-            }
-            
-            /* Asegurar que la primera celda del encabezado tenga z-index más alto */
-            div[data-testid="stDataFrame"] table thead th:first-child {
-                z-index: 102 !important;
-                left: 0 !important;
-            }
-            
-            /* Para móviles */
-            @media (max-width: 768px) {
-                div[data-testid="stDataFrame"] table thead th {
-                    font-size: 0.8em !important;
-                    padding: 4px 2px !important;
-                }
-            }
-            </style>
-            """, unsafe_allow_html=True)
-            
-            # Mostrar tabla normal
-            st.dataframe(
-                df,
-                use_container_width=True,
-                height=600
-            )
+# En la sección donde muestras la tabla de solo lectura:
+else:
+    st.info("👁️ Vista de solo lectura - No puedes editar")
+    
+    df = st.session_state.malla_actual.copy()
+    
+    # CSS para fijar la tercera columna
+    st.markdown("""
+    <style>
+    /* Fijar la tercera columna */
+    div[data-testid="stDataFrame"] table thead th:nth-child(3),
+    div[data-testid="stDataFrame"] table tbody td:nth-child(3) {
+        position: sticky !important;
+        left: 200px !important; /* Ajusta según el ancho de las primeras columnas */
+        background-color: white !important;
+        z-index: 99 !important;
+        border-right: 2px solid #ddd !important;
+    }
+    
+    /* Asegurar que las columnas 1 y 2 también estén fijas */
+    div[data-testid="stDataFrame"] table thead th:nth-child(1),
+    div[data-testid="stDataFrame"] table tbody td:nth-child(1) {
+        position: sticky !important;
+        left: 0 !important;
+        background-color: white !important;
+        z-index: 100 !important;
+        border-right: 2px solid #ddd !important;
+    }
+    
+    div[data-testid="stDataFrame"] table thead th:nth-child(2),
+    div[data-testid="stDataFrame"] table tbody td:nth-child(2) {
+        position: sticky !important;
+        left: 80px !important; /* Ancho aproximado de la columna 1 */
+        background-color: white !important;
+        z-index: 99 !important;
+        border-right: 2px solid #ddd !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Mostrar tabla
+    st.dataframe(
+        df,
+        use_container_width=True,
+        height=600
+    )
             
             # Mostrar estadísticas para vista de solo lectura también
             if rol in ['admin', 'supervisor']:
