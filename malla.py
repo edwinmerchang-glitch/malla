@@ -2691,28 +2691,36 @@ def pagina_usuarios():
             'created_at': 'FECHA_CREACION'
         })
         
-        # === MENSAJE CLARO PARA EL ÍCONO DE COLUMNAS ===
+        # ===== EDITOR DE USUARIOS - CON column_config =====
+        edited_df = st.data_editor(
+            df_display,
+            column_config={
+                "USUARIO": st.column_config.TextColumn("USUARIO", width="small", disabled=True),
+                "NOMBRE_COMPLETO": st.column_config.TextColumn("NOMBRE_COMPLETO", width="large"),
+                "ROL": st.column_config.SelectboxColumn(
+                    "ROL", 
+                    width="small", 
+                    options=list(ROLES.keys())
+                ),
+                "DEPARTAMENTO": st.column_config.SelectboxColumn(
+                    "DEPARTAMENTO",
+                    width="medium",
+                    options=st.session_state.configuracion.get('departamentos', [])
+                ),
+                "FECHA_CREACION": st.column_config.TextColumn("FECHA_CREACION", width="medium", disabled=True)
+            },
+            hide_index=True,
+            use_container_width=True,
+            num_rows="fixed",  # ✅ CRÍTICO: fixed para que aparezca el ícono
+            key="editor_usuarios_admin_fixed"
+        )
+        
+        # Mensaje de configuración
         st.success("""
         🔧 **CONFIGURACIÓN DE COLUMNAS DISPONIBLE**  
         ✅ Haz clic en el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
         ✅ Puedes **mostrar/ocultar**, **reordenar** y **congelar** columnas
         """, icon="👆")
-        
-# ===== EDITOR DE USUARIOS - CON column_config =====
-edited_df = st.data_editor(
-    df_display,
-    hide_index=True,
-    use_container_width=True,
-    num_rows="fixed",  # ✅ CORRECTO: fixed permite el ícono
-    key="editor_usuarios_admin_fixed",
-    column_config={   # ✅ Añadir configuración explícita
-        "USUARIO": st.column_config.TextColumn("USUARIO", width="small", disabled=True),
-        "NOMBRE_COMPLETO": st.column_config.TextColumn("NOMBRE_COMPLETO", width="large"),
-        "ROL": st.column_config.SelectboxColumn("ROL", width="small", options=list(ROLES.keys())),
-        "DEPARTAMENTO": st.column_config.TextColumn("DEPARTAMENTO", width="medium"),
-        "FECHA_CREACION": st.column_config.TextColumn("FECHA_CREACION", width="medium", disabled=True)
-    }
-)
         
         if st.button("💾 Guardar Cambios de Usuarios", use_container_width=True):
             try:
@@ -2726,10 +2734,12 @@ edited_df = st.data_editor(
             except Exception as e:
                 st.error(f"❌ Error al guardar usuarios: {str(e)}")
     
+    # El resto del código de crear usuario está FUERA del else
     st.markdown("---")
     st.markdown("### ➕ Crear Nuevo Usuario")
     
     with st.form("form_nuevo_usuario", clear_on_submit=True):
+        # ... resto del código del formulario ...
         col1, col2 = st.columns(2)
         
         with col1:
