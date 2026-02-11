@@ -2115,38 +2115,120 @@ def pagina_malla():
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
             else:
                 st.info("👁️ Vista de solo lectura - No puedes editar")
-
-                df = st.session_state.malla_actual.copy()
                 
-                # VERSIÓN SIMPLIFICADA - CONGELAR PRIMERAS 3 COLUMNAS
-                gb = GridOptionsBuilder.from_dataframe(df)
+                # Crear una copia para no modificar el original
+                df_display = st.session_state.malla_actual.copy()
                 
-                # 1. Fijar las primeras 3 columnas
-                for i in range(min(3, len(df.columns))):
-                    gb.configure_column(
-                        df.columns[i],
-                        pinned="left",
-                        width=120 if i == 0 else 180 if i == 1 else 250,
-                        lockPinned=True
-                    )
+                # Verificar las columnas disponibles (para debug)
+                st.write("🔍 **DEBUG - Columnas disponibles:**")
+                st.write(f"Total: {len(df_display.columns)} columnas")
+                st.write(f"Primeras 5: {df_display.columns[:5].tolist()}")
                 
-                # 2. Configurar el resto de columnas
-                for i in range(3, len(df.columns)):
-                    gb.configure_column(df.columns[i], width=80)
+                # Configurar AgGrid para congelar columnas
+                gb = GridOptionsBuilder.from_dataframe(df_display)
                 
-                # 3. Opciones básicas
+                # Configuración por defecto para todas las columnas
+                gb.configure_default_column(
+                    resizable=True,
+                    sortable=False,
+                    filter=False,
+                    editable=False,
+                    minWidth=80
+                )
+                
+                # 🔒 CONGELAR COLUMNAS 0, 1 y 2 (LAS PRIMERAS 3)
+                # Verificar que tenemos al menos 3 columnas
+                if len(df_display.columns) >= 3:
+                    try:
+                        # Columna 0 - primera
+                        gb.configure_column(
+                            df_display.columns[0],  # "N°"
+                            pinned="left",
+                            lockPinned=True,
+                            lockPosition="left",
+                            width=70,
+                            suppressMovable=True
+                        )
+                        
+                        # Columna 1 - segunda
+                        gb.configure_column(
+                            df_display.columns[1],  # "CARGO"
+                            pinned="left", 
+                            lockPinned=True,
+                            lockPosition="left",
+                            width=140,
+                            suppressMovable=True
+                        )
+                        
+                        # Columna 2 - tercera
+                        gb.configure_column(
+                            df_display.columns[2],  # "APELLIDOS Y NOMBRES"
+                            pinned="left",
+                            lockPinned=True, 
+                            lockPosition="left",
+                            width=200,
+                            suppressMovable=True
+                        )
+                        
+                        st.success("✅ Columnas 0-2 configuradas para estar fijas")
+                        
+                    except Exception as e:
+                        st.error(f"❌ Error configurando columnas fijas: {e}")
+                
+                # Configurar el resto de columnas (desde la 4ta en adelante)
+                for idx, col in enumerate(df_display.columns):
+                    if idx >= 3:  # Empezar desde la columna 4 (índice 3)
+                        # Si es una columna de fecha (contiene "/")
+                        if '/' in str(col):
+                            gb.configure_column(
+                                col,
+                                width=75,
+                                cellStyle={'textAlign': 'center'}
+                            )
+                
+                # Configuración general del grid
                 gb.configure_grid_options(
                     suppressRowClickSelection=True,
+                    suppressHorizontalScroll=False,
+                    alwaysShowHorizontalScroll=True,
+                    enableRangeSelection=False,
                     domLayout='normal'
                 )
                 
-                # 4. Mostrar tabla
+                # Obtener las opciones configuradas
+                grid_options = gb.build()
+                
+                # Agregar color a las celdas según código de turno
+                def aplicar_color(params):
+                    if params.value and str(params.value).strip() != '':
+                        codigo = str(params.value).strip()
+                        if 'codigos_turno' in st.session_state:
+                            if codigo in st.session_state.codigos_turno:
+                                info = st.session_state.codigos_turno[codigo]
+                                color = info.get("color", "#FFFFFF")
+                                return {
+                                    'backgroundColor': color,
+                                    'color': '#000000',
+                                    'fontWeight': 'bold',
+                                    'textAlign': 'center'
+                                }
+                    return None
+                
+                # Aplicar color solo a columnas de días
+                for i, col in enumerate(df_display.columns):
+                    if '/' in str(col):
+                        grid_options['columnDefs'][i]['cellStyle'] = aplicar_color
+                
+                # Mostrar la tabla con AgGrid
                 AgGrid(
-                    df,
-                    gridOptions=gb.build(),
+                    df_display,
+                    gridOptions=grid_options,
                     height=600,
+                    width='100%',
                     theme="streamlit",
-                    update_mode=GridUpdateMode.NO_UPDATE
+                    update_mode=GridUpdateMode.NO_UPDATE,
+                    enable_enterprise_modules=False,
+                    fit_columns_on_grid_load=False
                 )
             
             # Mostrar estadísticas para vista de solo lectura también
