@@ -66,115 +66,62 @@ BACKUP_DIR.mkdir(exist_ok=True, parents=True)
 # ============================================================================
 # CSS PERSONALIZADO (MOBILE-FIRST RESPONSIVE)
 # ============================================================================
+# En la sección de CSS personalizado, agrega esto:
 st.markdown("""
 <style>
-    /* Configuración base para móviles */
+    /* Estilos para la tabla dividida */
+    .tabla-dividida-info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        margin: 15px 0;
+        border-left: 5px solid #4CAF50;
+    }
+    
+    .tabla-dividida-info h4 {
+        color: white;
+        margin-top: 0;
+    }
+    
+    .columna-fija {
+        background-color: #f8f9fa;
+        border-right: 2px solid #dee2e6;
+        padding-right: 10px;
+    }
+    
+    .columna-editable {
+        background-color: #fff;
+        padding-left: 10px;
+    }
+    
+    .auto-save-notice {
+        background-color: #e3f2fd;
+        border-left: 4px solid #2196F3;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+        font-size: 0.9em;
+    }
+    
+    /* Mejorar scroll horizontal */
+    .stDataFrame > div {
+        overflow-x: auto !important;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+    }
+    
+    /* Resaltar celdas editables */
+    .stDataEditor > div {
+        background-color: #fafafa;
+    }
+    
+    /* Estilos responsivos para móvil */
     @media (max-width: 768px) {
-        /* Reducir tamaño de fuente */
-        .main-header {
-            font-size: 1.8rem !important;
-            padding: 10px !important;
-        }
-        
-        /* Ajustar columnas */
-        .stColumn {
+        .columna-fija, .columna-editable {
             width: 100% !important;
-            margin-bottom: 10px !important;
+            margin-bottom: 20px;
         }
-        
-        /* Botones más grandes */
-        .stButton > button {
-            min-height: 48px !important;
-            font-size: 16px !important;
-            padding: 12px !important;
-        }
-        
-        /* Inputs más grandes */
-        .stTextInput > div > div > input,
-        .stSelectbox > div > div > select,
-        .stNumberInput > div > div > input {
-            font-size: 16px !important;
-            padding: 12px !important;
-            min-height: 48px !important;
-        }
-        
-        /* Tablas responsivas */
-        .dataframe {
-            font-size: 12px !important;
-        }
-        
-        /* Ajustar dataframes */
-        div[data-testid="stDataFrame"] {
-            max-width: 100% !important;
-            overflow-x: auto !important;
-        }
-        
-        /* Sidebar más compacta */
-        section[data-testid="stSidebar"] {
-            min-width: 200px !important;
-            max-width: 100% !important;
-        }
-        
-        /* Ajustar métricas */
-        div[data-testid="stMetricValue"] {
-            font-size: 1.4rem !important;
-        }
-        
-        div[data-testid="stMetricLabel"] {
-            font-size: 0.8rem !important;
-        }
-    }
-    
-    /* Estilos generales que mejoran la experiencia móvil */
-    
-    /* Mejorar botones para toque */
-    .stButton > button {
-        border-radius: 8px !important;
-        border-width: 2px !important;
-    }
-    
-    /* Mejorar inputs para toque */
-    .stTextInput > div > div > input {
-        border-radius: 8px !important;
-    }
-    
-    /* Asegurar que los selects sean fáciles de tocar */
-    .stSelectbox > div > div {
-        border-radius: 8px !important;
-    }
-    
-    /* Mejorar experiencia de tablas */
-    .dataframe th, .dataframe td {
-        padding: 8px 4px !important;
-        min-width: 50px !important;
-    }
-    
-    /* Ajustar expansores */
-    .streamlit-expanderHeader {
-        font-size: 1rem !important;
-        padding: 12px !important;
-    }
-    
-    /* Scroll suave en iOS */
-    .element-container {
-        -webkit-overflow-scrolling: touch !important;
-    }
-    
-    /* Ajustar spacing general */
-    .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
-    }
-    
-    /* Clases personalizadas para mejor responsividad */
-    .mobile-optimized {
-        width: 100% !important;
-        max-width: 100% !important;
-    }
-    
-    .touch-friendly {
-        min-height: 44px !important;
-        min-width: 44px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1509,6 +1456,76 @@ def generar_calendario_simple(mes, ano, turnos_dict):
     
     st.markdown(html, unsafe_allow_html=True)
 # ============================================================================
+# FUNCIONES AUXILIARES PARA TABLA DIVIDIDA
+# ============================================================================
+def identificar_columnas(df):
+    """Identifica automáticamente las columnas fijas y de días"""
+    columnas_fijas = []
+    columnas_dias = []
+    
+    for col in df.columns:
+        # Si la columna tiene formato de fecha (ej: "1/2/2024")
+        if '/' in str(col) and any(c.isdigit() for c in str(col)):
+            columnas_dias.append(col)
+        # Si no es una columna de fecha, es fija
+        elif col not in ['', None]:
+            columnas_fijas.append(col)
+    
+    # Asegurar que tenemos columnas básicas
+    columnas_basicas = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 'ESTADO']
+    for col_basica in columnas_basicas:
+        if col_basica in df.columns and col_basica not in columnas_fijas:
+            columnas_fijas.append(col_basica)
+    
+    return columnas_fijas, columnas_dias
+
+def crear_dataframes_divididos(df):
+    """Crea dataframes separados para la vista dividida"""
+    columnas_fijas, columnas_dias = identificar_columnas(df)
+    
+    # Filtrar solo las columnas que existen en el dataframe
+    columnas_fijas_existentes = [col for col in columnas_fijas if col in df.columns]
+    columnas_dias_existentes = [col for col in columnas_dias if col in df.columns]
+    
+    df_fijo = df[columnas_fijas_existentes].copy()
+    df_dias = df[columnas_dias_existentes].copy()
+    
+    return df_fijo, df_dias, columnas_fijas_existentes, columnas_dias_existentes
+
+def obtener_opciones_codigos():
+    """Obtiene las opciones de códigos de turno para los selectboxes"""
+    if 'codigos_turno' in st.session_state:
+        opciones_codigos = list(st.session_state.codigos_turno.keys())
+        # Filtrar código vacío si existe
+        if "" in opciones_codigos:
+            opciones_codigos.remove("")
+        return opciones_codigos
+    return []
+
+def preparar_dataframe_para_edicion(df_dias):
+    """Prepara el dataframe de días para edición"""
+    df_dias_edit = df_dias.copy()
+    opciones_codigos = obtener_opciones_codigos()
+    
+    for col in df_dias_edit.columns:
+        # Rellenar valores nulos y convertir a string
+        df_dias_edit[col] = df_dias_edit[col].fillna("").astype(str)
+        
+        # Limpiar valores no válidos
+        for idx, val in enumerate(df_dias_edit[col]):
+            valor_limpio = str(val).strip()
+            if valor_limpio not in [""] + opciones_codigos:
+                df_dias_edit.at[idx, col] = ""
+    
+    return df_dias_edit
+
+def crear_column_config_dias():
+    """Crea la configuración de columnas para los selectboxes de días"""
+    opciones_codigos = obtener_opciones_codigos()
+    column_config_dias = {}
+    
+    return column_config_dias
+# ============================================================================
 # FUNCIONES DE ESTADÍSTICAS PARA ADMIN Y SUPERVISOR
 # ============================================================================
 def generar_estadisticas_turnos(mes, ano):
@@ -1957,15 +1974,11 @@ def mostrar_estadisticas_avanzadas(mes, ano):
 # PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
 # ============================================================================
 def pagina_malla():
-    """Página principal - Malla de turnos CON ESTADÍSTICAS - Optimizada para móvil"""
+    """Página principal - Malla de turnos con tabla dividida para edición"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
     
-    # En móvil, usar columnas apiladas
-    if st.session_state.is_mobile:
-        col1, col2 = st.columns(2)
-        col3, col4 = st.columns(2)
-    else:
-        col1, col2, col3, col4 = st.columns(4)
+    # Selectores de mes y año
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
@@ -1998,51 +2011,45 @@ def pagina_malla():
                 help="Descargar como archivo CSV"
             )
     
-    # En móvil, mostrar leyenda como expander por defecto
-    if st.session_state.is_mobile:
-        with st.expander("📋 Códigos de Turno", expanded=False):
-            mostrar_leyenda(inside_expander=True)
-    else:
-        mostrar_leyenda(inside_expander=True)
+    # Mostrar leyenda de códigos
+    mostrar_leyenda()
     
     if st.session_state.malla_actual.empty:
         st.warning("⚠️ No hay malla de turnos cargada. Presiona 'Cargar Malla' para ver los datos.")
     else:
         st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
         
-        rol = st.session_state.auth['role']
-        
-        # AQUÍ ESTÁ EL CAMBIO: Solo mostrar tabla dividida para quienes pueden editar
-        if check_permission("write"):  # Admin y supervisor - TABLA DIVIDIDA
-            st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', unsafe_allow_html=True)
+        # TABLA DIVIDIDA SOLO PARA USUARIOS CON PERMISO DE ESCRITURA
+        if check_permission("write"):  # Admin y supervisor
+            st.markdown('<div class="auto-save-notice">💡 <strong>MODO EDICIÓN</strong> - Los cambios se guardan automáticamente al salir de la celda</div>', unsafe_allow_html=True)
             
             df = st.session_state.malla_actual.copy()
             
-            # Separar columnas fijas y de días
-            columnas_fijas = []
-            columnas_dias = []
+            # USAR FUNCIONES AUXILIARES
+            df_fijo, df_dias, columnas_fijas, columnas_dias = crear_dataframes_divididos(df)
             
-            # Identificar columnas (las primeras son fijas, las de fecha son días)
-            for col in df.columns:
-                if '/' in str(col):  # Es una columna de día
-                    columnas_dias.append(col)
-                else:
-                    columnas_fijas.append(col)
-            
-            # Crear dos dataframes separados
-            df_fijo = df[columnas_fijas].copy()
-            df_dias = df[columnas_dias].copy()
+            if not columnas_dias:
+                st.error("No se encontraron columnas de días para editar.")
+                st.dataframe(df, height=600, use_container_width=True)
+                return
             
             # Mostrar en dos columnas
             col_fijas, col_desplazables = st.columns([3, 7])
             
             with col_fijas:
                 st.markdown("#### 🏷️ Información del Empleado")
-                # Mostrar información fija (solo lectura)
+                st.markdown("*(solo lectura)*")
+                
+                # Configurar columnas fijas como solo lectura
                 column_config_fijo = {}
                 for col in df_fijo.columns:
-                    column_config_fijo[col] = st.column_config.Column(col, disabled=True)
+                    column_config_fijo[col] = st.column_config.Column(
+                        col, 
+                        disabled=True,
+                        help="Información básica del empleado"
+                    )
                 
+                # Mostrar información fija
                 st.dataframe(
                     df_fijo,
                     column_config=column_config_fijo,
@@ -2052,36 +2059,25 @@ def pagina_malla():
                 )
             
             with col_desplazables:
-                st.markdown("#### 📅 Turnos por Día (Editable)")
+                st.markdown(f"#### 📅 Turnos por Día - {mes_seleccionado}")
+                st.markdown("*(editable)*")
                 
-                # Obtener opciones de códigos para los selectboxes
-                if 'codigos_turno' in st.session_state:
-                    opciones_codigos = list(st.session_state.codigos_turno.keys())
-                    # Filtrar código vacío si existe
-                    if "" in opciones_codigos:
-                        opciones_codigos.remove("")
-                else:
-                    opciones_codigos = []
+                # Preparar dataframe para edición
+                df_dias_edit = preparar_dataframe_para_edicion(df_dias)
+                opciones_codigos = obtener_opciones_codigos()
                 
-                # Configurar columnas editables para los días
+                # Configurar columnas editables
                 column_config_dias = {}
-                for col in df_dias.columns:
+                for col in df_dias_edit.columns:
                     column_config_dias[col] = st.column_config.SelectboxColumn(
                         col,
                         width="small",
                         options=[""] + opciones_codigos,
-                        help="Selecciona el código del turno"
+                        help="Selecciona código de turno",
+                        required=False
                     )
                 
-                # Asegurarse de que todas las celdas tengan valores válidos
-                df_dias_edit = df_dias.copy()
-                for col in df_dias_edit.columns:
-                    df_dias_edit[col] = df_dias_edit[col].fillna("").astype(str)
-                    for idx, val in enumerate(df_dias_edit[col]):
-                        if val not in [""] + opciones_codigos:
-                            df_dias_edit.at[idx, col] = ""
-                
-                # Mostrar editor solo para las columnas de días
+                # Mostrar editor
                 edited_dias_df = st.data_editor(
                     df_dias_edit,
                     column_config=column_config_dias,
@@ -2089,26 +2085,47 @@ def pagina_malla():
                     use_container_width=True,
                     height=600,
                     num_rows="fixed",
-                    key=f"editor_dias_{mes_numero}_{ano}"
+                    key=f"editor_dias_{mes_numero}_{ano}",
+                    on_change=lambda: None  # Para futuras mejoras
                 )
             
-            # Información para el usuario
-            st.info("""
-            **📋 Vista dividida para edición:**
-            - **← Izquierda:** Información del empleado (fija, solo lectura)
-            - **→ Derecha:** Turnos por día (editable, desplazable horizontalmente)
-            """)
+            # Panel informativo
+            with st.expander("ℹ️ Información sobre la vista dividida", expanded=True):
+                st.markdown("""
+                ### 🎯 **Vista Optimizada para Edición**
+                
+                **⬅️ COLUMNA IZQUIERDA (Fija):**
+                - Información básica del empleado
+                - Siempre visible mientras editas
+                - Solo lectura
+                
+                **➡️ COLUMNA DERECHA (Desplazable):**
+                - Turnos por día del mes
+                - Totalmente editable
+                - Desplázate horizontalmente para ver todos los días
+                - Selecciona códigos de la leyenda
+                
+                **💡 Consejos:**
+                1. Usa la **leyenda de códigos** arriba para saber qué código asignar
+                2. **Desplázate horizontalmente** para ver todos los días
+                3. Los cambios se **guardan automáticamente** al hacer clic fuera de la celda
+                4. Usa el botón **"Guardar Cambios Ahora"** para forzar guardado
+                """)
             
+            # Acciones de guardado
             st.markdown("---")
             st.markdown("### 💾 Acciones de Guardado")
             
-            # Reconstruir el dataframe completo con los cambios
+            # Reconstruir dataframe completo
             edited_df = pd.concat([df_fijo, edited_dias_df], axis=1)
             
-            col1, col2, col3 = st.columns(3)
+            col_btn1, col_btn2, col_btn3 = st.columns(3)
             
-            with col1:
-                if st.button("💾 Guardar Cambios Ahora", use_container_width=True, type="primary"):
+            with col_btn1:
+                if st.button("💾 Guardar Cambios Ahora", 
+                           use_container_width=True, 
+                           type="primary",
+                           help="Guardar todos los cambios inmediatamente"):
                     with st.spinner("Guardando cambios..."):
                         try:
                             cambios = guardar_malla_turnos_con_backup(edited_df, mes_numero, ano)
@@ -2118,7 +2135,9 @@ def pagina_malla():
                                 st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
                                 
                                 st.success(f"✅ {cambios} cambios guardados exitosamente!")
+                                st.balloons()  # Efecto de celebración
                                 registrar_log("guardar_malla", f"{mes_seleccionado} {ano} - {cambios} cambios")
+                                time.sleep(1)
                                 st.rerun()
                             else:
                                 st.warning("⚠️ No se detectaron cambios para guardar")
@@ -2126,31 +2145,42 @@ def pagina_malla():
                         except Exception as e:
                             st.error(f"❌ Error al guardar: {str(e)}")
             
-            with col2:
-                if st.button("🔄 Recargar desde BD", use_container_width=True):
+            with col_btn2:
+                if st.button("🔄 Recargar desde BD", 
+                           use_container_width=True,
+                           help="Descartar cambios y recargar desde base de datos"):
                     st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
                     st.success("✅ Malla recargada desde base de datos")
                     st.rerun()
             
-            with col3:
-                if st.button("🗑️ Limpiar Todos", use_container_width=True, type="secondary"):
-                    if st.checkbox("¿Confirmar que quieres limpiar TODOS los turnos de este mes?"):
-                        malla_vacia = edited_df.copy()
-                        for col in columnas_dias:
-                            malla_vacia[col] = ""
+            with col_btn3:
+                if st.button("🗑️ Limpiar Todos", 
+                           use_container_width=True, 
+                           type="secondary",
+                           help="Borrar todos los turnos de este mes"):
+                    with st.expander("Confirmar limpieza", expanded=False):
+                        st.warning("⚠️ **ADVERTENCIA:** Esta acción borrará TODOS los turnos de este mes.")
+                        st.info(f"Mes: {mes_seleccionado} {ano}")
+                        st.info(f"Empleados afectados: {len(df)}")
                         
-                        cambios = guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
-                        st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
-                        st.success(f"✅ {cambios} turnos limpiados")
-                        st.rerun()
+                        if st.button(f"✅ Confirmar limpieza de {mes_seleccionado}", 
+                                   type="primary",
+                                   use_container_width=True):
+                            malla_vacia = edited_df.copy()
+                            for col in columnas_dias:
+                                malla_vacia[col] = ""
+                            
+                            cambios = guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
+                            st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+                            st.success(f"✅ {cambios} turnos limpiados")
+                            st.rerun()
             
-            # Mostrar estadísticas avanzadas
-            if rol in ['admin', 'supervisor']:
-                mostrar_estadisticas_avanzadas(mes_numero, ano)
+            # Mostrar estadísticas
+            mostrar_estadisticas_avanzadas(mes_numero, ano)
         
-        # PARA EMPLEADOS (SOLO LECTURA): Mostrar tabla completa normal
-        else:  # Empleados con solo lectura
-            st.info("👁️ Vista de solo lectura - No puedes editar")
+        # PARA USUARIOS SIN PERMISO DE ESCRITURA (SOLO LECTURA)
+        else:
+            st.info("👁️ **VISTA DE SOLO LECTURA** - No tienes permisos para editar")
             
             df = st.session_state.malla_actual.copy()
             
@@ -2158,10 +2188,11 @@ def pagina_malla():
             st.dataframe(
                 df,
                 height=600,
-                use_container_width=True
+                use_container_width=True,
+                hide_index=True
             )
             
-            # Botón para descargar la tabla completa
+            # Botón para descargar
             st.markdown("---")
             csv = df.to_csv(index=False, encoding='utf-8-sig')
             st.download_button(
@@ -2171,7 +2202,6 @@ def pagina_malla():
                 mime="text/csv",
                 use_container_width=True
             )
-# Continúa con las demás funciones...
 
 def pagina_backup():
     """Página completa de backup y restauración"""
