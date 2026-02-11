@@ -2222,14 +2222,6 @@ def pagina_empleados():
         ✅ Puedes **mostrar/ocultar**, **reordenar** y **congelar** columnas
         """, icon="👆")
         
-        # EDITOR DE EMPLEADOS - SIN column_config PARA QUE APAREZCA EL ÍCONO
-        edited_df = st.data_editor(
-            df_display[column_order],
-            hide_index=True,
-            use_container_width=True,
-            num_rows="fixed",
-            key="editor_empleados_admin"
-        )
         
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -2643,14 +2635,7 @@ def pagina_usuarios():
         ✅ Puedes **mostrar/ocultar**, **reordenar** y **congelar** columnas
         """, icon="👆")
         
-        # EDITOR DE USUARIOS - SIN column_config PARA QUE APAREZCA EL ÍCONO
-        edited_df = st.data_editor(
-            df_display,
-            hide_index=True,
-            use_container_width=True,
-            num_rows="fixed",
-            key="editor_usuarios_admin"
-        )
+
         
         if st.button("💾 Guardar Cambios de Usuarios", use_container_width=True):
             try:
