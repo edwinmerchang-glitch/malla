@@ -2113,108 +2113,50 @@ def pagina_malla():
             # Mostrar estadísticas avanzadas después de guardar cambios
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
-        else:
-            st.info("👁️ Vista de solo lectura - No puedes editar")
+else:
+    st.info("👁️ Vista de solo lectura - No puedes editar")
+    
+    df = st.session_state.malla_actual.copy()
+    
+    # NOTA IMPORTANTE: Verificar que hay más de 3 columnas
+    if len(df.columns) <= 3:
+        # Si solo hay 3 o menos columnas, mostrar todo normal
+        st.dataframe(df, height=600, use_container_width=True)
+    else:
+        # Crear un layout con dos columnas
+        col_fijas, col_desplazables = st.columns([3, 7])
+        
+        with col_fijas:
+            st.markdown("#### 🏷️ Información Fija")
+            # Asegurar que la tabla tenga colores según los códigos de turno
+            df_fijo = df.iloc[:, :3].copy()
             
-            df = st.session_state.malla_actual.copy()
-            
-            # CSS para fijar la tercera columna
-            st.markdown("""
-            <style>
-            /* Contenedor de la tabla */
-            div[data-testid="stDataFrame"] > div:first-child {
-                overflow-x: auto !important;
-                overflow-y: auto !important;
-                max-height: 600px !important;
-                position: relative;
-            }
-            
-            /* Fijar el encabezado (primera fila) */
-            div[data-testid="stDataFrame"] table thead {
-                position: sticky !important;
-                top: 0 !important;
-                background-color: white !important;
-                z-index: 100 !important;
-            }
-            
-            /* Sombra para el encabezado fijo */
-            div[data-testid="stDataFrame"] table thead th {
-                position: sticky !important;
-                top: 0 !important;
-                background-color: white !important;
-                z-index: 101 !important;
-                border-bottom: 2px solid #ddd !important;
-                box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1);
-            }
-            
-            /* Fijar primera columna */
-            div[data-testid="stDataFrame"] table thead th:first-child,
-            div[data-testid="stDataFrame"] table tbody td:first-child {
-                position: sticky !important;
-                left: 0 !important;
-                background-color: white !important;
-                z-index: 99 !important;
-                border-right: 2px solid #ddd !important;
-            }
-            
-            /* Fijar segunda columna */
-            div[data-testid="stDataFrame"] table thead th:nth-child(2),
-            div[data-testid="stDataFrame"] table tbody td:nth-child(2) {
-                position: sticky !important;
-                left: 80px !important;
-                background-color: white !important;
-                z-index: 99 !important;
-                border-right: 2px solid #ddd !important;
-            }
-            
-            /* Fijar tercera columna (lo que pides) */
-            div[data-testid="stDataFrame"] table thead th:nth-child(3),
-            div[data-testid="stDataFrame"] table tbody td:nth-child(3) {
-                position: sticky !important;
-                left: 200px !important;
-                background-color: white !important;
-                z-index: 99 !important;
-                border-right: 2px solid #ddd !important;
-            }
-            
-            /* Asegurar que la primera celda del encabezado tenga z-index más alto */
-            div[data-testid="stDataFrame"] table thead th:first-child {
-                z-index: 102 !important;
-                left: 0 !important;
-            }
-            
-            /* Para móviles */
-            @media (max-width: 768px) {
-                div[data-testid="stDataFrame"] table thead th {
-                    font-size: 0.8em !important;
-                    padding: 4px 2px !important;
-                }
-                
-                /* Ajustar posiciones fijas para móviles */
-                div[data-testid="stDataFrame"] table thead th:nth-child(2),
-                div[data-testid="stDataFrame"] table tbody td:nth-child(2) {
-                    left: 60px !important;
-                }
-                
-                div[data-testid="stDataFrame"] table thead th:nth-child(3),
-                div[data-testid="stDataFrame"] table tbody td:nth-child(3) {
-                    left: 140px !important;
-                }
-            }
-            </style>
-            """, unsafe_allow_html=True)
-            
-            # Mostrar tabla con columnas fijas
+            # Aplicar algún formato si es necesario
             st.dataframe(
-                df,
-                use_container_width=True,
-                height=600
+                df_fijo,
+                height=600,
+                use_container_width=True
             )
+        
+        with col_desplazables:
+            st.markdown("#### 📅 Turnos por Día")
+            # Para las columnas de días, podemos aplicar colores
+            df_dias = df.iloc[:, 3:].copy()
             
-            # Mostrar estadísticas para vista de solo lectura también
-            if rol in ['admin', 'supervisor']:
-                mostrar_estadisticas_avanzadas(mes_numero, ano)
-
+            # Crear una copia para aplicar estilos si es necesario
+            st.dataframe(
+                df_dias,
+                height=600,
+                use_container_width=True
+            )
+        
+        # Opcional: Mostrar leyenda de colores debajo
+        with st.expander("🎨 Leyenda de colores", expanded=False):
+            mostrar_leyenda(inside_expander=True)
+    
+    # Mostrar estadísticas para vista de solo lectura también
+    if rol in ['admin', 'supervisor']:
+        mostrar_estadisticas_avanzadas(mes_numero, ano)
 # Continúa con las demás funciones...
 
 def pagina_backup():
