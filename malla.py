@@ -1959,6 +1959,10 @@ def mostrar_estadisticas_avanzadas(mes, ano):
 # ============================================================================
 # PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
 # ============================================================================
+# ============================================================================
+# PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
+# ============================================================================
+
 def pagina_malla():
     """Página principal - Malla de turnos CON ESTADÍSTICAS - Optimizada para móvil"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
@@ -2013,7 +2017,6 @@ def pagina_malla():
     else:
         st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
         
-        # OPCIONAL: Si quieres mantener el rol para otra cosa
         rol = st.session_state.auth['role']
         
         if check_permission("write"):
@@ -2032,14 +2035,13 @@ def pagina_malla():
             else:
                 opciones_codigos = []
             
-            # Configurar columnas - CORRECCIÓN AQUÍ
+            # Configurar columnas
             for col in malla_editable.columns:
                 if col in day_columns:
-                    # Esta es la parte importante: SelectboxColumn debe tener opciones válidas
                     column_config[col] = st.column_config.SelectboxColumn(
                         col,
                         width="small",
-                        options=[""] + opciones_codigos,  # Incluye opción vacía
+                        options=[""] + opciones_codigos,
                         help="Selecciona el código del turno"
                     )
                 elif col in ['N°', 'CC']:
@@ -2051,9 +2053,7 @@ def pagina_malla():
             
             # Asegurarse de que todas las celdas de días tengan valores válidos
             for col in day_columns:
-                # Reemplazar valores NaN o inválidos con cadena vacía
                 malla_editable[col] = malla_editable[col].fillna("").astype(str)
-                # Filtrar valores que no estén en las opciones
                 for idx, val in enumerate(malla_editable[col]):
                     if val not in [""] + opciones_codigos:
                         malla_editable.at[idx, col] = ""
@@ -2113,56 +2113,109 @@ def pagina_malla():
             # Mostrar estadísticas avanzadas después de guardar cambios
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
-# En la sección donde muestras la tabla de solo lectura:
-else:
-    st.info("👁️ Vista de solo lectura - No puedes editar")
-    
-    df = st.session_state.malla_actual.copy()
-    
-    # CSS para fijar la tercera columna
-    st.markdown("""
-    <style>
-    /* Fijar la tercera columna */
-    div[data-testid="stDataFrame"] table thead th:nth-child(3),
-    div[data-testid="stDataFrame"] table tbody td:nth-child(3) {
-        position: sticky !important;
-        left: 200px !important; /* Ajusta según el ancho de las primeras columnas */
-        background-color: white !important;
-        z-index: 99 !important;
-        border-right: 2px solid #ddd !important;
-    }
-    
-    /* Asegurar que las columnas 1 y 2 también estén fijas */
-    div[data-testid="stDataFrame"] table thead th:nth-child(1),
-    div[data-testid="stDataFrame"] table tbody td:nth-child(1) {
-        position: sticky !important;
-        left: 0 !important;
-        background-color: white !important;
-        z-index: 100 !important;
-        border-right: 2px solid #ddd !important;
-    }
-    
-    div[data-testid="stDataFrame"] table thead th:nth-child(2),
-    div[data-testid="stDataFrame"] table tbody td:nth-child(2) {
-        position: sticky !important;
-        left: 80px !important; /* Ancho aproximado de la columna 1 */
-        background-color: white !important;
-        z-index: 99 !important;
-        border-right: 2px solid #ddd !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Mostrar tabla
-    st.dataframe(
-        df,
-        use_container_width=True,
-        height=600
-    )
+        else:
+            st.info("👁️ Vista de solo lectura - No puedes editar")
+            
+            df = st.session_state.malla_actual.copy()
+            
+            # CSS para fijar la tercera columna
+            st.markdown("""
+            <style>
+            /* Contenedor de la tabla */
+            div[data-testid="stDataFrame"] > div:first-child {
+                overflow-x: auto !important;
+                overflow-y: auto !important;
+                max-height: 600px !important;
+                position: relative;
+            }
+            
+            /* Fijar el encabezado (primera fila) */
+            div[data-testid="stDataFrame"] table thead {
+                position: sticky !important;
+                top: 0 !important;
+                background-color: white !important;
+                z-index: 100 !important;
+            }
+            
+            /* Sombra para el encabezado fijo */
+            div[data-testid="stDataFrame"] table thead th {
+                position: sticky !important;
+                top: 0 !important;
+                background-color: white !important;
+                z-index: 101 !important;
+                border-bottom: 2px solid #ddd !important;
+                box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1);
+            }
+            
+            /* Fijar primera columna */
+            div[data-testid="stDataFrame"] table thead th:first-child,
+            div[data-testid="stDataFrame"] table tbody td:first-child {
+                position: sticky !important;
+                left: 0 !important;
+                background-color: white !important;
+                z-index: 99 !important;
+                border-right: 2px solid #ddd !important;
+            }
+            
+            /* Fijar segunda columna */
+            div[data-testid="stDataFrame"] table thead th:nth-child(2),
+            div[data-testid="stDataFrame"] table tbody td:nth-child(2) {
+                position: sticky !important;
+                left: 80px !important;
+                background-color: white !important;
+                z-index: 99 !important;
+                border-right: 2px solid #ddd !important;
+            }
+            
+            /* Fijar tercera columna (lo que pides) */
+            div[data-testid="stDataFrame"] table thead th:nth-child(3),
+            div[data-testid="stDataFrame"] table tbody td:nth-child(3) {
+                position: sticky !important;
+                left: 200px !important;
+                background-color: white !important;
+                z-index: 99 !important;
+                border-right: 2px solid #ddd !important;
+            }
+            
+            /* Asegurar que la primera celda del encabezado tenga z-index más alto */
+            div[data-testid="stDataFrame"] table thead th:first-child {
+                z-index: 102 !important;
+                left: 0 !important;
+            }
+            
+            /* Para móviles */
+            @media (max-width: 768px) {
+                div[data-testid="stDataFrame"] table thead th {
+                    font-size: 0.8em !important;
+                    padding: 4px 2px !important;
+                }
+                
+                /* Ajustar posiciones fijas para móviles */
+                div[data-testid="stDataFrame"] table thead th:nth-child(2),
+                div[data-testid="stDataFrame"] table tbody td:nth-child(2) {
+                    left: 60px !important;
+                }
+                
+                div[data-testid="stDataFrame"] table thead th:nth-child(3),
+                div[data-testid="stDataFrame"] table tbody td:nth-child(3) {
+                    left: 140px !important;
+                }
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            # Mostrar tabla con columnas fijas
+            st.dataframe(
+                df,
+                use_container_width=True,
+                height=600
+            )
             
             # Mostrar estadísticas para vista de solo lectura también
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
+
+# Continúa con las demás funciones...
 
 def pagina_backup():
     """Página completa de backup y restauración"""
