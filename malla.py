@@ -1321,18 +1321,14 @@ def mostrar_malla_congelada(df):
         minWidth=80
     )
 
-    # 🔍 Barra lateral de filtros tipo Excel
-    gb.configure_side_bar()
+    # 🔒 Congelar la columna 3
+    col_fija = df.columns[2]
+    gb.configure_column(col_fija, pinned="left")
 
-    # 🔎 Filtros flotantes bajo encabezados
+    # 🔒 Congelar la fila 1
     gb.configure_grid_options(
-        floatingFilter=True,
-        enableRangeSelection=True
+        pinnedTopRowData=[df.iloc[0].to_dict()]
     )
-
-    # 🔒 Congelar columna N° y nombres
-    gb.configure_column("N°", pinned="left")
-    gb.configure_column("APELLIDOS Y NOMBRES", pinned="left")
 
     gridOptions = gb.build()
 
@@ -1346,7 +1342,6 @@ def mostrar_malla_congelada(df):
         enable_enterprise_modules=True,
         theme="balham"
     )
-
 
 
 def mostrar_leyenda(inside_expander=False):
@@ -2018,141 +2013,13 @@ def pagina_malla():
     else:
         st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
         
-        # ==============================================
-        # TOOLBAR PARA MOSTRAR/OCULTAR COLUMNAS
-        # ==============================================
-        st.markdown("---")
-        
-        # Inicializar estado para columnas visibles
-        if 'columnas_visibles' not in st.session_state:
-            # Por defecto, mostrar todas las columnas
-            st.session_state.columnas_visibles = {
-                'N°': True,
-                'CARGO': True,
-                'APELLIDOS Y NOMBRES': True,
-                'CC': True,
-                'DEPARTAMENTO': True,
-                'ESTADO': True,
-                'HORA_INICIO': True,
-                'HORA_FIN': True
-            }
-        
-        # Obtener todas las columnas de la malla
-        malla_df = st.session_state.malla_actual.copy()
-        todas_las_columnas = list(malla_df.columns)
-        
-        # Separar columnas de información (fijas) y columnas de días
-        columnas_info = []
-        columnas_dias = []
-        
-        for col in todas_las_columnas:
-            if '/' in str(col):
-                columnas_dias.append(col)
-            else:
-                columnas_info.append(col)
-        
-        # TOOLBAR: Mostrar controles para columnas de información
-        with st.expander("🔧 Configurar Columnas Visibles", expanded=False):
-            st.markdown("#### 📊 Columnas de Información")
-            
-            # Organizar en dos columnas
-            col_config1, col_config2 = st.columns(2)
-            
-            # Lista de columnas con descripciones
-            columnas_config = [
-                ('N°', 'Número de empleado'),
-                ('CARGO', 'Cargo del empleado'),
-                ('APELLIDOS Y NOMBRES', 'Nombre completo'),
-                ('CC', 'Cédula de ciudadanía'),
-                ('DEPARTAMENTO', 'Departamento asignado'),
-                ('ESTADO', 'Estado laboral'),
-                ('HORA_INICIO', 'Hora de inicio base'),
-                ('HORA_FIN', 'Hora de fin base')
-            ]
-            
-            # Primera columna
-            with col_config1:
-                for i in range(0, len(columnas_config), 2):
-                    if i < len(columnas_config):
-                        col_name, col_desc = columnas_config[i]
-                        if col_name in st.session_state.columnas_visibles:
-                            st.checkbox(
-                                f"**{col_name}**",
-                                value=st.session_state.columnas_visibles[col_name],
-                                key=f"show_{col_name}",
-                                help=col_desc,
-                                on_change=lambda c=col_name: actualizar_columna_visible(c, st.session_state[f"show_{c}"])
-                            )
-            
-            # Segunda columna
-            with col_config2:
-                for i in range(1, len(columnas_config), 2):
-                    if i < len(columnas_config):
-                        col_name, col_desc = columnas_config[i]
-                        if col_name in st.session_state.columnas_visibles:
-                            st.checkbox(
-                                f"**{col_name}**",
-                                value=st.session_state.columnas_visibles[col_name],
-                                key=f"show_{col_name}",
-                                help=col_desc,
-                                on_change=lambda c=col_name: actualizar_columna_visible(c, st.session_state[f"show_{c}"])
-                            )
-            
-            # Botones de acción rápida
-            st.markdown("#### ⚡ Acciones Rápidas")
-            col_quick1, col_quick2, col_quick3 = st.columns(3)
-            
-            with col_quick1:
-                if st.button("👁️ Mostrar Todas", use_container_width=True):
-                    for col in st.session_state.columnas_visibles:
-                        st.session_state.columnas_visibles[col] = True
-                    st.rerun()
-            
-            with col_quick2:
-                if st.button("👁️‍🗨️ Mostrar Básicas", use_container_width=True):
-                    # Solo columnas esenciales
-                    for col in st.session_state.columnas_visibles:
-                        if col in ['N°', 'APELLIDOS Y NOMBRES', 'DEPARTAMENTO']:
-                            st.session_state.columnas_visibles[col] = True
-                        else:
-                            st.session_state.columnas_visibles[col] = False
-                    st.rerun()
-            
-            with col_quick3:
-                if st.button("👁️‍🗨️ Mostrar Completas", use_container_width=True):
-                    # Todas excepto algunas
-                    for col in st.session_state.columnas_visibles:
-                        if col in ['HORA_INICIO', 'HORA_FIN']:
-                            st.session_state.columnas_visibles[col] = False
-                        else:
-                            st.session_state.columnas_visibles[col] = True
-                    st.rerun()
-        
-        # ==============================================
-        # FILTRAR COLUMNAS SEGÚN SELECCIÓN
-        # ==============================================
-        columnas_a_mostrar = []
-        
-        # Agregar columnas de información seleccionadas
-        for col in columnas_info:
-            if col in st.session_state.columnas_visibles and st.session_state.columnas_visibles[col]:
-                columnas_a_mostrar.append(col)
-        
-        # Agregar TODAS las columnas de días (siempre visibles)
-        columnas_a_mostrar.extend(columnas_dias)
-        
-        # Filtrar el DataFrame
-        malla_filtrada = malla_df[columnas_a_mostrar]
-        
-        # Mostrar resumen de columnas visibles
-        st.info(f"👁️ **Columnas visibles:** {len(columnas_a_mostrar) - len(columnas_dias)} de {len(columnas_info)} columnas de información | {len(columnas_dias)} días del mes")
-        
+        # OPCIONAL: Si quieres mantener el rol para otra cosa
         rol = st.session_state.auth['role']
         
         if check_permission("write"):
             st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', unsafe_allow_html=True)
             
-            malla_editable = malla_filtrada.copy()
+            malla_editable = st.session_state.malla_actual.copy()
             column_config = {}
             day_columns = [col for col in malla_editable.columns if '/' in str(col)]
             
@@ -2179,10 +2046,8 @@ def pagina_malla():
                     column_config[col] = st.column_config.Column(width="small", disabled=True)
                 elif col == 'APELLIDOS Y NOMBRES':
                     column_config[col] = st.column_config.Column(width="medium", disabled=True)
-                elif col in ['CARGO', 'DEPARTAMENTO', 'ESTADO', 'HORA_INICIO', 'HORA_FIN']:
-                    # Solo habilitar edición si está visible
-                    if col in st.session_state.columnas_visibles and st.session_state.columnas_visibles[col]:
-                        column_config[col] = st.column_config.Column(disabled=True)
+                elif col in ['CARGO', 'DEPARTAMENTO', 'ESTADO']:
+                    column_config[col] = st.column_config.Column(disabled=True)
             
             # Asegurarse de que todas las celdas de días tengan valores válidos
             for col in day_columns:
@@ -2206,21 +2071,13 @@ def pagina_malla():
             st.markdown("---")
             st.markdown("### 💾 Acciones de Guardado")
             
-            col_guardar1, col_guardar2, col_guardar3 = st.columns(3)
+            col1, col2, col3 = st.columns(3)
             
-            with col_guardar1:
+            with col1:
                 if st.button("💾 Guardar Cambios Ahora", use_container_width=True, type="primary"):
                     with st.spinner("Guardando cambios..."):
                         try:
-                            # Reconstruir DataFrame completo para guardar
-                            edited_completo = st.session_state.malla_actual.copy()
-                            
-                            # Actualizar solo las columnas editadas
-                            for col in edited_df.columns:
-                                if col in edited_completo.columns:
-                                    edited_completo[col] = edited_df[col]
-                            
-                            cambios = guardar_malla_turnos_con_backup(edited_completo, mes_numero, ano)
+                            cambios = guardar_malla_turnos_con_backup(edited_df, mes_numero, ano)
                             
                             if cambios > 0:
                                 st.session_state.last_save = obtener_hora_colombia()
@@ -2235,26 +2092,20 @@ def pagina_malla():
                         except Exception as e:
                             st.error(f"❌ Error al guardar: {str(e)}")
             
-            with col_guardar2:
+            with col2:
                 if st.button("🔄 Recargar desde BD", use_container_width=True):
                     st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
                     st.success("✅ Malla recargada desde base de datos")
                     st.rerun()
             
-            with col_guardar3:
+            with col3:
                 if st.button("🗑️ Limpiar Todos", use_container_width=True, type="secondary"):
                     if st.checkbox("¿Confirmar que quieres limpiar TODOS los turnos de este mes?"):
                         malla_vacia = edited_df.copy()
                         for col in day_columns:
                             malla_vacia[col] = ""
                         
-                        # Reconstruir DataFrame completo
-                        malla_vacia_completo = st.session_state.malla_actual.copy()
-                        for col in malla_vacia.columns:
-                            if col in malla_vacia_completo.columns:
-                                malla_vacia_completo[col] = malla_vacia[col]
-                        
-                        cambios = guardar_malla_turnos_con_backup(malla_vacia_completo, mes_numero, ano)
+                        cambios = guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
                         st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
                         st.success(f"✅ {cambios} turnos limpiados")
                         st.rerun()
@@ -2262,15 +2113,58 @@ def pagina_malla():
             # Mostrar estadísticas avanzadas después de guardar cambios
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
-        else:
-            st.info("👁️ Vista de solo lectura - No puedes editar")
-            
-            # Mostrar tabla con columnas filtradas
-            st.dataframe(
-                malla_filtrada,
-                use_container_width=True,
-                height=600
-            )
+            else:
+                st.info("👁️ Vista de solo lectura - No puedes editar")
+                
+                df = st.session_state.malla_actual.copy()
+                
+                # Solución CSS para fijar columnas con st.dataframe
+                st.markdown("""
+                <style>
+                /* Contenedor de la tabla */
+                div[data-testid="stDataFrame"] > div:first-child {
+                    overflow-x: auto !important;
+                    position: relative;
+                }
+                
+                /* Fijar primera columna */
+                div[data-testid="stDataFrame"] table thead th:first-child,
+                div[data-testid="stDataFrame"] table tbody td:first-child {
+                    position: sticky !important;
+                    left: 0 !important;
+                    background-color: white !important;
+                    z-index: 100 !important;
+                    border-right: 2px solid #ddd !important;
+                }
+                
+                /* Fijar segunda columna */
+                div[data-testid="stDataFrame"] table thead th:nth-child(2),
+                div[data-testid="stDataFrame"] table tbody td:nth-child(2) {
+                    position: sticky !important;
+                    left: 80px !important;  /* Ancho columna 1 */
+                    background-color: white !important;
+                    z-index: 100 !important;
+                    border-right: 2px solid #ddd !important;
+                }
+                
+                /* Fijar tercera columna */
+                div[data-testid="stDataFrame"] table thead th:nth-child(3),
+                div[data-testid="stDataFrame"] table tbody td:nth-child(3) {
+                    position: sticky !important;
+                    left: 200px !important;  /* Ancho columna 1 + 2 */
+                    background-color: white !important;
+                    z-index: 100 !important;
+                    border-right: 2px solid #ddd !important;
+                }
+                </style>
+                """, unsafe_allow_html=True)
+                
+                # Mostrar tabla normal
+                st.dataframe(
+                    df,
+                    use_container_width=True,
+                    height=600
+                )
             
             # Mostrar estadísticas para vista de solo lectura también
             if rol in ['admin', 'supervisor']:
