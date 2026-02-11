@@ -2113,32 +2113,32 @@ def pagina_malla():
             # Mostrar estadísticas avanzadas después de guardar cambios
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
-             else:
-                 st.info("👁️ Vista de solo lectura - No puedes editar")
+            else:
+                st.info("👁️ Vista de solo lectura - No puedes editar")
 
-                 df = st.session_state.malla_actual.copy()
+                df = st.session_state.malla_actual.copy()
 
-                 gb = GridOptionsBuilder.from_dataframe(df)
+                gb = GridOptionsBuilder.from_dataframe(df)
 
-                 # 🔒 Congelar columnas 0 → 3
-                 gb.configure_columns(df.columns[0:4], pinned="left")
+                # 🔒 Congelar columnas 0 → 3
+                gb.configure_columns(df.columns[0:4], pinned="left")
 
-                 # ⚙️ Opciones visuales tipo Excel
-                 gb.configure_grid_options(
-                     enableRangeSelection=True,
-                     rowSelection="single",
-                     suppressRowClickSelection=True
+                # ⚙️ Opciones visuales tipo Excel
+                gb.configure_grid_options(
+                    enableRangeSelection=True,
+                    rowSelection="single",
+                    suppressRowClickSelection=True
     )
 
-                 gridOptions = gb.build()
+                gridOptions = gb.build()
 
-                 AgGrid(
-                     df,
-                     gridOptions=gridOptions,
-                     height=600,
-                     fit_columns_on_grid_load=False,
-                     theme="streamlit",
-                     update_mode=GridUpdateMode.NO_UPDATE
+                AgGrid(
+                    df,
+                    gridOptions=gridOptions,
+                    height=600,
+                    fit_columns_on_grid_load=False,
+                    theme="streamlit",
+                    update_mode=GridUpdateMode.NO_UPDATE
     )
 
 
