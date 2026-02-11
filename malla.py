@@ -2116,119 +2116,54 @@ def pagina_malla():
             else:
                 st.info("👁️ Vista de solo lectura - No puedes editar")
                 
-                # Crear una copia para no modificar el original
-                df_display = st.session_state.malla_actual.copy()
+                df = st.session_state.malla_actual.copy()
                 
-                # Verificar las columnas disponibles (para debug)
-                st.write("🔍 **DEBUG - Columnas disponibles:**")
-                st.write(f"Total: {len(df_display.columns)} columnas")
-                st.write(f"Primeras 5: {df_display.columns[:5].tolist()}")
+                # Solución CSS para fijar columnas con st.dataframe
+                st.markdown("""
+                <style>
+                /* Contenedor de la tabla */
+                div[data-testid="stDataFrame"] > div:first-child {
+                    overflow-x: auto !important;
+                    position: relative;
+                }
                 
-                # Configurar AgGrid para congelar columnas
-                gb = GridOptionsBuilder.from_dataframe(df_display)
+                /* Fijar primera columna */
+                div[data-testid="stDataFrame"] table thead th:first-child,
+                div[data-testid="stDataFrame"] table tbody td:first-child {
+                    position: sticky !important;
+                    left: 0 !important;
+                    background-color: white !important;
+                    z-index: 100 !important;
+                    border-right: 2px solid #ddd !important;
+                }
                 
-                # Configuración por defecto para todas las columnas
-                gb.configure_default_column(
-                    resizable=True,
-                    sortable=False,
-                    filter=False,
-                    editable=False,
-                    minWidth=80
-                )
+                /* Fijar segunda columna */
+                div[data-testid="stDataFrame"] table thead th:nth-child(2),
+                div[data-testid="stDataFrame"] table tbody td:nth-child(2) {
+                    position: sticky !important;
+                    left: 80px !important;  /* Ancho columna 1 */
+                    background-color: white !important;
+                    z-index: 100 !important;
+                    border-right: 2px solid #ddd !important;
+                }
                 
-                # 🔒 CONGELAR COLUMNAS 0, 1 y 2 (LAS PRIMERAS 3)
-                # Verificar que tenemos al menos 3 columnas
-                if len(df_display.columns) >= 3:
-                    try:
-                        # Columna 0 - primera
-                        gb.configure_column(
-                            df_display.columns[0],  # "N°"
-                            pinned="left",
-                            lockPinned=True,
-                            lockPosition="left",
-                            width=70,
-                            suppressMovable=True
-                        )
-                        
-                        # Columna 1 - segunda
-                        gb.configure_column(
-                            df_display.columns[1],  # "CARGO"
-                            pinned="left", 
-                            lockPinned=True,
-                            lockPosition="left",
-                            width=140,
-                            suppressMovable=True
-                        )
-                        
-                        # Columna 2 - tercera
-                        gb.configure_column(
-                            df_display.columns[2],  # "APELLIDOS Y NOMBRES"
-                            pinned="left",
-                            lockPinned=True, 
-                            lockPosition="left",
-                            width=200,
-                            suppressMovable=True
-                        )
-                        
-                        st.success("✅ Columnas 0-2 configuradas para estar fijas")
-                        
-                    except Exception as e:
-                        st.error(f"❌ Error configurando columnas fijas: {e}")
+                /* Fijar tercera columna */
+                div[data-testid="stDataFrame"] table thead th:nth-child(3),
+                div[data-testid="stDataFrame"] table tbody td:nth-child(3) {
+                    position: sticky !important;
+                    left: 200px !important;  /* Ancho columna 1 + 2 */
+                    background-color: white !important;
+                    z-index: 100 !important;
+                    border-right: 2px solid #ddd !important;
+                }
+                </style>
+                """, unsafe_allow_html=True)
                 
-                # Configurar el resto de columnas (desde la 4ta en adelante)
-                for idx, col in enumerate(df_display.columns):
-                    if idx >= 3:  # Empezar desde la columna 4 (índice 3)
-                        # Si es una columna de fecha (contiene "/")
-                        if '/' in str(col):
-                            gb.configure_column(
-                                col,
-                                width=75,
-                                cellStyle={'textAlign': 'center'}
-                            )
-                
-                # Configuración general del grid
-                gb.configure_grid_options(
-                    suppressRowClickSelection=True,
-                    suppressHorizontalScroll=False,
-                    alwaysShowHorizontalScroll=True,
-                    enableRangeSelection=False,
-                    domLayout='normal'
-                )
-                
-                # Obtener las opciones configuradas
-                grid_options = gb.build()
-                
-                # Agregar color a las celdas según código de turno
-                def aplicar_color(params):
-                    if params.value and str(params.value).strip() != '':
-                        codigo = str(params.value).strip()
-                        if 'codigos_turno' in st.session_state:
-                            if codigo in st.session_state.codigos_turno:
-                                info = st.session_state.codigos_turno[codigo]
-                                color = info.get("color", "#FFFFFF")
-                                return {
-                                    'backgroundColor': color,
-                                    'color': '#000000',
-                                    'fontWeight': 'bold',
-                                    'textAlign': 'center'
-                                }
-                    return None
-                
-                # Aplicar color solo a columnas de días
-                for i, col in enumerate(df_display.columns):
-                    if '/' in str(col):
-                        grid_options['columnDefs'][i]['cellStyle'] = aplicar_color
-                
-                # Mostrar la tabla con AgGrid
-                AgGrid(
-                    df_display,
-                    gridOptions=grid_options,
-                    height=600,
-                    width='100%',
-                    theme="streamlit",
-                    update_mode=GridUpdateMode.NO_UPDATE,
-                    enable_enterprise_modules=False,
-                    fit_columns_on_grid_load=False
+                # Mostrar tabla normal
+                st.dataframe(
+                    df,
+                    use_container_width=True,
+                    height=600
                 )
             
             # Mostrar estadísticas para vista de solo lectura también
