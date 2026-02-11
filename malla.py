@@ -2033,31 +2033,26 @@ def pagina_malla():
             df_fijo = df[columnas_fijas].copy()
             df_dias = df[columnas_dias].copy()
             
-            # Guardar los dataframes en session state para sincronización
-            st.session_state.df_fijo_html = df_fijo.to_html(index=False, classes="scroll-sync-fixed")
-            st.session_state.df_dias_html = df_dias.to_html(index=False, classes="scroll-sync-scrollable")
-            
             # Mostrar en dos columnas
             col_fijas, col_desplazables = st.columns([3, 7])
             
             with col_fijas:
-                # Crear un div con ID específico para la tabla fija
-                st.markdown('<div id="tabla-fija-wrapper" class="table-wrapper">', unsafe_allow_html=True)
-                st.markdown('<div class="table-header">📋 Información del Empleado</div>', unsafe_allow_html=True)
+                st.markdown("#### 🏷️ Información del Empleado")
+                # Mostrar información fija (solo lectura)
+                column_config_fijo = {}
+                for col in df_fijo.columns:
+                    column_config_fijo[col] = st.column_config.Column(col, disabled=True)
                 
-                # Usar st.dataframe con el mismo alto que la tabla editable
                 st.dataframe(
                     df_fijo,
+                    column_config=column_config_fijo,
                     hide_index=True,
                     use_container_width=True,
                     height=600
                 )
-                st.markdown('</div>', unsafe_allow_html=True)
             
             with col_desplazables:
-                # Crear un div con ID específico para la tabla desplazable
-                st.markdown('<div id="tabla-desplazable-wrapper" class="table-wrapper">', unsafe_allow_html=True)
-                st.markdown('<div class="table-header">📅 Turnos por Día (Editable)</div>', unsafe_allow_html=True)
+                st.markdown("#### 📅 Turnos por Día (Editable)")
                 
                 # Obtener opciones de códigos para los selectboxes
                 if 'codigos_turno' in st.session_state:
@@ -2096,164 +2091,12 @@ def pagina_malla():
                     num_rows="fixed",
                     key=f"editor_dias_{mes_numero}_{ano}"
                 )
-                st.markdown('</div>', unsafe_allow_html=True)
-            
-            # Añadir CSS para estilizar las tablas
-            st.markdown("""
-            <style>
-            .table-wrapper {
-                position: relative;
-                border: 1px solid #e0e0e0;
-                border-radius: 5px;
-                overflow: hidden;
-                margin-bottom: 10px;
-            }
-            
-            .table-header {
-                background-color: #1E3A8A;
-                color: white;
-                padding: 10px;
-                font-weight: bold;
-                text-align: center;
-            }
-            
-            /* Asegurar que las tablas tengan overflow horizontal */
-            div[data-testid="stDataFrame"] > div:first-child {
-                overflow-x: auto !important;
-            }
-            
-            /* Asegurar que las tablas tengan el mismo ancho */
-            .table-wrapper div[data-testid="stDataFrame"] {
-                width: 100% !important;
-            }
-            </style>
-            """, unsafe_allow_html=True)
-            
-            # Añadir JavaScript para sincronizar el scroll horizontal - VERSIÓN MEJORADA
-            st.components.v1.html("""
-            <script>
-            // Función para encontrar los contenedores de scroll de las tablas
-            function encontrarContenedoresScroll() {
-                // Buscar todos los contenedores de tablas de Streamlit
-                const contenedores = document.querySelectorAll('[data-testid="stHorizontalBlock"]');
-                const contenedoresTablas = [];
-                
-                contenedores.forEach(contenedor => {
-                    // Verificar si contiene una tabla
-                    const tabla = contenedor.querySelector('[data-testid="stDataFrame"]');
-                    if (tabla) {
-                        contenedoresTablas.push(contenedor);
-                    }
-                });
-                
-                return contenedoresTablas;
-            }
-            
-            // Función para sincronizar el scroll entre dos elementos
-            function sincronizarScroll(elementoA, elementoB) {
-                // Prevenir eventos recursivos
-                let isSyncing = false;
-                
-                elementoA.addEventListener('scroll', function() {
-                    if (!isSyncing) {
-                        isSyncing = true;
-                        elementoB.scrollLeft = this.scrollLeft;
-                        setTimeout(() => { isSyncing = false; }, 10);
-                    }
-                });
-                
-                elementoB.addEventListener('scroll', function() {
-                    if (!isSyncing) {
-                        isSyncing = true;
-                        elementoA.scrollLeft = this.scrollLeft;
-                        setTimeout(() => { isSyncing = false; }, 10);
-                    }
-                });
-            }
-            
-            // Función principal de sincronización
-            function configurarSincronizacionScroll() {
-                console.log("Buscando tablas para sincronizar...");
-                
-                // Esperar a que las tablas estén completamente renderizadas
-                setTimeout(() => {
-                    const contenedores = encontrarContenedoresScroll();
-                    
-                    if (contenedores.length >= 2) {
-                        console.log(`Encontrados ${contenedores.length} contenedores de tablas`);
-                        
-                        // El primer contenedor es la tabla fija (información del empleado)
-                        // El segundo contenedor es la tabla desplazable (turnos por día)
-                        const tablaFija = contenedores[0];
-                        const tablaDesplazable = contenedores[1];
-                        
-                        // Encontrar los elementos con scroll horizontal
-                        const scrollFija = tablaFija.querySelector('div[style*="overflow-x"]') || tablaFija;
-                        const scrollDesplazable = tablaDesplazable.querySelector('div[style*="overflow-x"]') || tablaDesplazable;
-                        
-                        // Sincronizar el scroll
-                        sincronizarScroll(scrollFija, scrollDesplazable);
-                        
-                        console.log("✅ Scroll sincronizado entre las tablas");
-                        
-                        // También sincronizar cuando cambie el tamaño de la ventana
-                        window.addEventListener('resize', function() {
-                            // Forzar realineación después del resize
-                            scrollDesplazable.scrollLeft = scrollFija.scrollLeft;
-                        });
-                    } else {
-                        console.log("No se encontraron suficientes tablas para sincronizar");
-                    }
-                }, 1000); // Esperar 1 segundo para asegurar que las tablas estén renderizadas
-            }
-            
-            // Ejecutar cuando el DOM esté listo
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', configurarSincronizacionScroll);
-            } else {
-                configurarSincronizacionScroll();
-            }
-            
-            // Configurar observer para detectar cambios dinámicos en el DOM
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.addedNodes.length > 0) {
-                        // Verificar si se añadieron nuevas tablas
-                        mutation.addedNodes.forEach(function(node) {
-                            if (node.nodeType === 1) { // Nodo de elemento
-                                if (node.querySelector && node.querySelector('[data-testid="stDataFrame"]')) {
-                                    console.log("Nueva tabla detectada, reconfigurando sincronización...");
-                                    setTimeout(configurarSincronizacionScroll, 500);
-                                }
-                            }
-                        });
-                    }
-                });
-            });
-            
-            // Observar cambios en el body
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-            
-            // También ejecutar después de que Streamlit actualice el contenido
-            if (window.parent && window.parent.streamlitBridge) {
-                window.parent.streamlitBridge.addEventListener('message', function(event) {
-                    if (event.data.type === 'streamlit:render') {
-                        setTimeout(configurarSincronizacionScroll, 500);
-                    }
-                });
-            }
-            </script>
-            """, height=0)
             
             # Información para el usuario
             st.info("""
             **📋 Vista dividida para edición:**
             - **← Izquierda:** Información del empleado (fija, solo lectura)
             - **→ Derecha:** Turnos por día (editable, desplazable horizontalmente)
-            - **🔄 Scroll sincronizado:** Ambas tablas se desplazan juntas horizontalmente automáticamente
             """)
             
             st.markdown("---")
@@ -2328,6 +2171,7 @@ def pagina_malla():
                 mime="text/csv",
                 use_container_width=True
             )
+# Continúa con las demás funciones...
 
 def pagina_backup():
     """Página completa de backup y restauración"""
