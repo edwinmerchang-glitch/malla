@@ -1960,8 +1960,17 @@ def mostrar_estadisticas_avanzadas(mes, ano):
 # PÁGINAS PRINCIPALES (SOLO LAS MÁS IMPORTANTES)
 # ============================================================================
 def pagina_malla():
-    """Página principal - Malla de turnos CON ESTADÍSTICAS - Optimizada para móvil"""
+    """Página principal - Malla de turnos CON SELECCIÓN MÚLTIPLE - Optimizada para móvil"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
+    
+    # Inicializar variables de selección múltiple si no existen
+    if 'seleccion_multiple' not in st.session_state:
+        st.session_state.seleccion_multiple = {
+            'empleados_seleccionados': set(),
+            'dias_seleccionados': set(),
+            'accion_pendiente': None,
+            'codigo_a_aplicar': None
+        }
     
     # En móvil, usar columnas apiladas
     if st.session_state.is_mobile:
@@ -1985,6 +1994,13 @@ def pagina_malla():
             st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
             st.session_state.mes_actual = mes_numero
             st.session_state.ano_actual = ano
+            # Limpiar selección al cambiar mes/año
+            st.session_state.seleccion_multiple = {
+                'empleados_seleccionados': set(),
+                'dias_seleccionados': set(),
+                'accion_pendiente': None,
+                'codigo_a_aplicar': None
+            }
             st.success(f"Malla cargada para {mes_seleccionado} {ano}")
             registrar_log("cargar_malla", f"{mes_seleccionado} {ano}")
             st.rerun()
@@ -2010,110 +2026,376 @@ def pagina_malla():
     
     if st.session_state.malla_actual.empty:
         st.warning("⚠️ No hay malla de turnos cargada. Presiona 'Cargar Malla' para ver los datos.")
-    else:
-        st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
+        return
+    
+    st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
+    
+    # MOSTRAR PANEL DE SELECCIÓN MÚLTIPLE (solo para admin/supervisor con permisos write)
+    if check_permission("write"):
+        mostrar_panel_seleccion_multiple(mes_numero, ano)
+    
+    rol = st.session_state.auth['role']
+    
+    if check_permission("write"):
+        # CÓDIGO PARA ADMIN/SUPERVISOR (EDICIÓN CON SELECCIÓN MÚLTIPLE)
+        st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', unsafe_allow_html=True)
         
-        rol = st.session_state.auth['role']
+        malla_editable = st.session_state.malla_actual.copy()
+        column_config = {}
+        day_columns = [col for col in malla_editable.columns if '/' in str(col)]
         
-        if check_permission("write"):
-            # CÓDIGO PARA ADMIN/SUPERVISOR (EDICIÓN)
-            st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', unsafe_allow_html=True)
-            
-            malla_editable = st.session_state.malla_actual.copy()
-            column_config = {}
-            day_columns = [col for col in malla_editable.columns if '/' in str(col)]
-            
-            # Obtener opciones de códigos para los selectboxes
-            if 'codigos_turno' in st.session_state:
-                opciones_codigos = list(st.session_state.codigos_turno.keys())
-                if "" in opciones_codigos:
-                    opciones_codigos.remove("")
+        # Obtener opciones de códigos para los selectboxes
+        if 'codigos_turno' in st.session_state:
+            opciones_codigos = list(st.session_state.codigos_turno.keys())
+            if "" in opciones_codigos:
+                opciones_codigos.remove("")
+        else:
+            opciones_codigos = []
+        
+        # Configurar columnas - CON COLUMNAS FIJAS
+        for idx, col in enumerate(malla_editable.columns):
+            if col in day_columns:
+                column_config[col] = st.column_config.SelectboxColumn(
+                    col,
+                    width="small",
+                    options=[""] + opciones_codigos,
+                    help="Selecciona el código del turno"
+                )
             else:
-                opciones_codigos = []
-            
-            # Configurar columnas - CON COLUMNAS FIJAS
-            for idx, col in enumerate(malla_editable.columns):
-                if col in day_columns:
-                    column_config[col] = st.column_config.SelectboxColumn(
-                        col,
-                        width="small",
-                        options=[""] + opciones_codigos,
-                        help="Selecciona el código del turno"
+                # Fijar las primeras 4 columnas
+                if idx < 4:  # Columnas 0, 1, 2, 3
+                    column_config[col] = st.column_config.Column(
+                        width="small" if idx == 0 else "medium",
+                        disabled=True,
+                        help=f"Columna fija"
                     )
                 else:
-                    # Fijar las primeras 4 columnas
-                    if idx < 4:  # Columnas 0, 1, 2, 3
-                        column_config[col] = st.column_config.Column(
-                            width="small" if idx == 0 else "medium",
-                            disabled=True,
-                            help=f"Columna fija"
-                        )
-                    else:
-                        column_config[col] = st.column_config.Column(disabled=True)
-            
-            # Asegurar que todas las celdas de días tengan valores válidos
-            for col in day_columns:
-                malla_editable[col] = malla_editable[col].fillna("").astype(str)
-                for idx, val in enumerate(malla_editable[col]):
-                    if val not in [""] + opciones_codigos:
-                        malla_editable.at[idx, col] = ""
-            
-            edited_df = st.data_editor(
-                malla_editable,
-                column_config=column_config,
-                hide_index=True,
-                use_container_width=True,
-                height=600,
-                num_rows="fixed",
-                key=f"editor_malla_{mes_numero}_{ano}"
-            )
-            
-            # ... (resto del código de guardado para admin/supervisor) ...
-            
-        else:
-            # CÓDIGO PARA VISTA SOLO LECTURA (EMPLEADOS)
-            st.info("👁️ Vista de solo lectura - No puedes editar")
-            
-            df = st.session_state.malla_actual.copy()
-            
-            # USAR AgGrid PARA FIJAR COLUMNAS EN VISTA SOLO LECTURA
-            gb = GridOptionsBuilder.from_dataframe(df)
-            
-            # Configurar todas las columnas
-            for col in df.columns:
-                gb.configure_column(col, 
-                                   minWidth=100, 
-                                   maxWidth=200,
-                                   resizable=True,
-                                   sortable=True,
-                                   filter=False)  # Desactivar filtro para mejor rendimiento
-            
-            # FIJAR LAS PRIMERAS 4 COLUMNAS (índices 0, 1, 2, 3)
-            if len(df.columns) >= 4:
-                # Ajustar anchos según el contenido típico
-                gb.configure_column(df.columns[0], pinned="left", width=60)    # N°
-                gb.configure_column(df.columns[1], pinned="left", width=150)   # CARGO
-                gb.configure_column(df.columns[2], pinned="left", width=200)   # APELLIDOS Y NOMBRES
-                gb.configure_column(df.columns[3], pinned="left", width=120)   # CC
-            
-            # Configurar opciones de la grilla
-            gridOptions = gb.build()
-            
-            # Mostrar la tabla con AgGrid
-            AgGrid(
-                df,
-                gridOptions=gridOptions,
-                height=600,
-                fit_columns_on_grid_load=False,
-                data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
-                update_mode=GridUpdateMode.NO_UPDATE,
-                enable_enterprise_modules=True,
-                theme="balham"
-            )
+                    column_config[col] = st.column_config.Column(disabled=True)
         
-        # Mostrar estadísticas según el rol
+        # Asegurar que todas las celdas de días tengan valores válidos
+        for col in day_columns:
+            malla_editable[col] = malla_editable[col].fillna("").astype(str)
+            for idx, val in enumerate(malla_editable[col]):
+                if val not in [""] + opciones_codigos:
+                    malla_editable.at[idx, col] = ""
+        
+        # Agregar columna de selección
+        malla_con_seleccion = malla_editable.copy()
+        malla_con_seleccion.insert(0, "Seleccionar", False)
+        
+        # Configurar columna de selección
+        column_config_seleccion = {"Seleccionar": st.column_config.CheckboxColumn(
+            "Seleccionar",
+            default=False,
+            help="Seleccionar empleado"
+        )}
+        column_config_seleccion.update(column_config)
+        
+        # Mostrar el data editor con selección
+        edited_df = st.data_editor(
+            malla_con_seleccion,
+            column_config=column_config_seleccion,
+            hide_index=True,
+            use_container_width=True,
+            height=600,
+            num_rows="fixed",
+            key=f"editor_malla_{mes_numero}_{ano}"
+        )
+        
+        # Actualizar selección múltiple
+        empleados_seleccionados = []
+        for idx, selected in enumerate(edited_df["Seleccionar"]):
+            if selected:
+                # Obtener la cédula del empleado
+                if 'CC' in edited_df.columns:
+                    cedula = str(edited_df.iloc[idx]['CC'])
+                    empleados_seleccionados.append(cedula)
+        
+        st.session_state.seleccion_multiple['empleados_seleccionados'] = set(empleados_seleccionados)
+        
+        # Mostrar estadísticas de selección
+        if empleados_seleccionados:
+            st.success(f"✅ {len(empleados_seleccionados)} empleado(s) seleccionado(s)")
+        
+        st.markdown("---")
+        st.markdown("### 💾 Acciones de Guardado")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("💾 Guardar Cambios Ahora", use_container_width=True, type="primary"):
+                with st.spinner("Guardando cambios..."):
+                    try:
+                        # Remover columna de selección antes de guardar
+                        df_sin_seleccion = edited_df.drop(columns=["Seleccionar"])
+                        cambios = guardar_malla_turnos_con_backup(df_sin_seleccion, mes_numero, ano)
+                        
+                        if cambios > 0:
+                            st.session_state.last_save = obtener_hora_colombia()
+                            st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+                            
+                            st.success(f"✅ {cambios} cambios guardados exitosamente!")
+                            registrar_log("guardar_malla", f"{mes_seleccionado} {ano} - {cambios} cambios")
+                            st.rerun()
+                        else:
+                            st.warning("⚠️ No se detectaron cambios para guardar")
+                            
+                    except Exception as e:
+                        st.error(f"❌ Error al guardar: {str(e)}")
+        
+        with col2:
+            if st.button("🔄 Recargar desde BD", use_container_width=True):
+                st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+                st.success("✅ Malla recargada desde base de datos")
+                st.rerun()
+        
+        with col3:
+            if st.button("🗑️ Limpiar Todos", use_container_width=True, type="secondary"):
+                if st.checkbox("¿Confirmar que quieres limpiar TODOS los turnos de este mes?"):
+                    malla_vacia = edited_df.drop(columns=["Seleccionar"]).copy()
+                    for col in day_columns:
+                        malla_vacia[col] = ""
+                    
+                    cambios = guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
+                    st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+                    st.success(f"✅ {cambios} turnos limpiados")
+                    st.rerun()
+        
+        # Mostrar estadísticas avanzadas después de guardar cambios
         if rol in ['admin', 'supervisor']:
             mostrar_estadisticas_avanzadas(mes_numero, ano)
+    
+    else:
+        # CÓDIGO PARA VISTA SOLO LECTURA (EMPLEADOS)
+        st.info("👁️ Vista de solo lectura - No puedes editar")
+        
+        df = st.session_state.malla_actual.copy()
+        
+        # USAR AgGrid PARA FIJAR COLUMNAS EN VISTA SOLO LECTURA
+        gb = GridOptionsBuilder.from_dataframe(df)
+        
+        # Configurar todas las columnas
+        for col in df.columns:
+            gb.configure_column(col, 
+                               minWidth=100, 
+                               maxWidth=200,
+                               resizable=True,
+                               sortable=True,
+                               filter=False)
+        
+        # FIJAR LAS PRIMERAS 4 COLUMNAS (índices 0, 1, 2, 3)
+        if len(df.columns) >= 4:
+            gb.configure_column(df.columns[0], pinned="left", width=60)    # N°
+            gb.configure_column(df.columns[1], pinned="left", width=150)   # CARGO
+            gb.configure_column(df.columns[2], pinned="left", width=200)   # APELLIDOS Y NOMBRES
+            gb.configure_column(df.columns[3], pinned="left", width=120)   # CC
+        
+        # Configurar opciones de la grilla
+        gridOptions = gb.build()
+        
+        # Mostrar la tabla con AgGrid
+        AgGrid(
+            df,
+            gridOptions=gridOptions,
+            height=600,
+            fit_columns_on_grid_load=False,
+            data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+            update_mode=GridUpdateMode.NO_UPDATE,
+            enable_enterprise_modules=True,
+            theme="balham"
+        )
+
+
+def mostrar_panel_seleccion_multiple(mes, ano):
+    """Mostrar panel para acciones de selección múltiple"""
+    
+    with st.expander("🎯 Selección Múltiple - Acciones Rápidas", expanded=False):
+        st.markdown("### 🎯 Acciones Rápidas por Selección Múltiple")
+        
+        # Información de selección actual
+        seleccion = st.session_state.seleccion_multiple
+        num_seleccionados = len(seleccion['empleados_seleccionados'])
+        
+        if num_seleccionados > 0:
+            st.info(f"**Empleados seleccionados:** {num_seleccionados}")
+            
+            # Mostrar lista de empleados seleccionados (opcional, en expander)
+            with st.expander("📋 Ver empleados seleccionados", expanded=False):
+                empleados_df = get_empleados()
+                for cedula in seleccion['empleados_seleccionados']:
+                    empleado = empleados_df[empleados_df['cedula'] == cedula]
+                    if not empleado.empty:
+                        emp = empleado.iloc[0]
+                        st.write(f"• {emp['nombre_completo']} ({emp['cargo']})")
+        else:
+            st.warning("No hay empleados seleccionados. Usa las casillas de verificación en la tabla.")
+        
+        # Selección de días
+        st.markdown("### 📅 Seleccionar Días")
+        
+        num_dias = calendar.monthrange(ano, mes)[1]
+        
+        # Opción 1: Seleccionar rango de días
+        col_dia1, col_dia2 = st.columns(2)
+        with col_dia1:
+            dia_inicio = st.number_input("Día inicio", min_value=1, max_value=num_dias, value=1)
+        with col_dia2:
+            dia_fin = st.number_input("Día fin", min_value=1, max_value=num_dias, value=num_dias)
+        
+        if st.button("📅 Seleccionar Rango de Días", use_container_width=True):
+            dias = list(range(dia_inicio, dia_fin + 1))
+            seleccion['dias_seleccionados'] = set(dias)
+            st.success(f"✅ {len(dias)} días seleccionados ({dia_inicio} al {dia_fin})")
+        
+        # Opción 2: Seleccionar días específicos
+        dias_especificos = st.multiselect(
+            "O selecciona días específicos:",
+            options=list(range(1, num_dias + 1)),
+            format_func=lambda x: f"Día {x}"
+        )
+        
+        if dias_especificos:
+            seleccion['dias_seleccionados'] = set(dias_especificos)
+            st.success(f"✅ {len(dias_especificos)} día(s) específico(s) seleccionado(s)")
+        
+        # Mostrar días seleccionados
+        if seleccion['dias_seleccionados']:
+            dias_ordenados = sorted(seleccion['dias_seleccionados'])
+            st.write(f"**Días seleccionados:** {', '.join(map(str, dias_ordenados))}")
+        
+        # Separador
+        st.markdown("---")
+        
+        # ACCIONES MASIVAS
+        st.markdown("### ⚡ Acciones Masivas")
+        
+        if num_seleccionados > 0 and seleccion['dias_seleccionados']:
+            # Seleccionar código para aplicar
+            if 'codigos_turno' in st.session_state:
+                opciones_codigos = [("", "Sin asignar")] + [
+                    (codigo, f"{codigo} - {info.get('nombre', '')}")
+                    for codigo, info in st.session_state.codigos_turno.items()
+                    if codigo != ""
+                ]
+                
+                codigo_seleccionado = st.selectbox(
+                    "Seleccionar código a aplicar:",
+                    options=[op[0] for op in opciones_codigos],
+                    format_func=lambda x: next((op[1] for op in opciones_codigos if op[0] == x), x)
+                )
+                
+                col_acc1, col_acc2 = st.columns(2)
+                
+                with col_acc1:
+                    if st.button("✅ Aplicar a Seleccionados", use_container_width=True, type="primary"):
+                        if aplicar_codigo_masivo(codigo_seleccionado, mes, ano):
+                            st.success("✅ Código aplicado exitosamente")
+                            st.session_state.malla_actual = get_malla_turnos(mes, ano)
+                            st.rerun()
+                
+                with col_acc2:
+                    if st.button("🗑️ Limpiar Seleccionados", use_container_width=True, type="secondary"):
+                        if aplicar_codigo_masivo("", mes, ano):
+                            st.success("✅ Turnos limpiados exitosamente")
+                            st.session_state.malla_actual = get_malla_turnos(mes, ano)
+                            st.rerun()
+                
+                # Acciones especiales
+                st.markdown("#### 🔄 Acciones Especiales")
+                
+                col_esp1, col_esp2 = st.columns(2)
+                
+                with col_esp1:
+                    if st.button("🏖️ Aplicar Vacaciones", use_container_width=True):
+                        if aplicar_codigo_masivo("VC", mes, ano):
+                            st.success("✅ Vacaciones aplicadas exitosamente")
+                            st.session_state.malla_actual = get_malla_turnos(mes, ano)
+                            st.rerun()
+                
+                with col_esp2:
+                    if st.button("🎂 Aplicar Cumpleaños", use_container_width=True):
+                        if aplicar_codigo_masivo("CP", mes, ano):
+                            st.success("✅ Cumpleaños aplicados exitosamente")
+                            st.session_state.malla_actual = get_malla_turnos(mes, ano)
+                            st.rerun()
+            else:
+                st.warning("No hay códigos de turno configurados.")
+        else:
+            if num_seleccionados == 0:
+                st.warning("Selecciona al menos un empleado para realizar acciones masivas.")
+            if not seleccion['dias_seleccionados']:
+                st.warning("Selecciona al menos un día para realizar acciones masivas.")
+        
+        # Limpiar selección
+        st.markdown("---")
+        if st.button("🗑️ Limpiar Toda la Selección", use_container_width=True):
+            st.session_state.seleccion_multiple = {
+                'empleados_seleccionados': set(),
+                'dias_seleccionados': set(),
+                'accion_pendiente': None,
+                'codigo_a_aplicar': None
+            }
+            st.success("✅ Selección limpiada")
+            st.rerun()
+
+
+def aplicar_codigo_masivo(codigo, mes, ano):
+    """Aplicar un código a la selección múltiple actual"""
+    try:
+        seleccion = st.session_state.seleccion_multiple
+        empleados_seleccionados = seleccion['empleados_seleccionados']
+        dias_seleccionados = seleccion['dias_seleccionados']
+        
+        if not empleados_seleccionados or not dias_seleccionados:
+            st.error("❌ No hay empleados o días seleccionados")
+            return False
+        
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # Obtener IDs de empleados seleccionados
+        empleados_df = get_empleados()
+        cambios_realizados = 0
+        
+        for cedula in empleados_seleccionados:
+            empleado = empleados_df[empleados_df['cedula'] == cedula]
+            if not empleado.empty:
+                emp_id = empleado.iloc[0]['id']
+                
+                # Aplicar a cada día seleccionado
+                for dia in dias_seleccionados:
+                    # Usar None para código vacío
+                    codigo_valor = codigo if codigo and codigo.strip() != "" else None
+                    
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO malla_turnos 
+                        (empleado_id, mes, ano, dia, codigo_turno, updated_at)
+                        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ''', (emp_id, mes, ano, dia, codigo_valor))
+                    
+                    if cursor.rowcount > 0:
+                        cambios_realizados += 1
+        
+        conn.commit()
+        conn.close()
+        
+        # Crear backup automático
+        crear_backup_automatico()
+        
+        # Registrar log
+        registrar_log("aplicacion_masiva", 
+                     f"Código: {codigo if codigo else 'Vacío'}, "
+                     f"Empleados: {len(empleados_seleccionados)}, "
+                     f"Días: {len(dias_seleccionados)}, "
+                     f"Cambios: {cambios_realizados}")
+        
+        st.session_state.last_save = obtener_hora_colombia()
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"❌ Error al aplicar código masivo: {str(e)}")
+        return False
 
 def pagina_backup():
     """Página completa de backup y restauración"""
