@@ -66,115 +66,71 @@ BACKUP_DIR.mkdir(exist_ok=True, parents=True)
 # ============================================================================
 # CSS PERSONALIZADO (MOBILE-FIRST RESPONSIVE)
 # ============================================================================
+# ============================================================================
+# CSS PERSONALIZADO (MOBILE-FIRST RESPONSIVE)
+# ============================================================================
 st.markdown("""
 <style>
-    /* Configuración base para móviles */
-    @media (max-width: 768px) {
-        /* Reducir tamaño de fuente */
-        .main-header {
-            font-size: 1.8rem !important;
-            padding: 10px !important;
-        }
-        
-        /* Ajustar columnas */
-        .stColumn {
-            width: 100% !important;
-            margin-bottom: 10px !important;
-        }
-        
-        /* Botones más grandes */
-        .stButton > button {
-            min-height: 48px !important;
-            font-size: 16px !important;
-            padding: 12px !important;
-        }
-        
-        /* Inputs más grandes */
-        .stTextInput > div > div > input,
-        .stSelectbox > div > div > select,
-        .stNumberInput > div > div > input {
-            font-size: 16px !important;
-            padding: 12px !important;
-            min-height: 48px !important;
-        }
-        
-        /* Tablas responsivas */
-        .dataframe {
-            font-size: 12px !important;
-        }
-        
-        /* Ajustar dataframes */
-        div[data-testid="stDataFrame"] {
-            max-width: 100% !important;
-            overflow-x: auto !important;
-        }
-        
-        /* Sidebar más compacta */
-        section[data-testid="stSidebar"] {
-            min-width: 200px !important;
-            max-width: 100% !important;
-        }
-        
-        /* Ajustar métricas */
-        div[data-testid="stMetricValue"] {
-            font-size: 1.4rem !important;
-        }
-        
-        div[data-testid="stMetricLabel"] {
-            font-size: 0.8rem !important;
-        }
+    /* Sincronización de scroll para tablas divididas */
+    .synchronized-scroll {
+        overflow-y: scroll;
+        overflow-x: hidden;
+        scroll-behavior: smooth;
     }
     
-    /* Estilos generales que mejoran la experiencia móvil */
-    
-    /* Mejorar botones para toque */
-    .stButton > button {
-        border-radius: 8px !important;
-        border-width: 2px !important;
+    /* Contenedor para tablas sincronizadas */
+    .sync-container {
+        display: flex;
+        overflow: hidden;
+        margin-bottom: 10px;
     }
     
-    /* Mejorar inputs para toque */
-    .stTextInput > div > div > input {
-        border-radius: 8px !important;
+    /* Tabla fija (izquierda) */
+    .sync-fixed {
+        flex: 0 0 35%;
+        overflow-y: scroll;
+        height: 600px;
+        border-right: 2px solid #ddd;
     }
     
-    /* Asegurar que los selects sean fáciles de tocar */
-    .stSelectbox > div > div {
-        border-radius: 8px !important;
+    /* Tabla desplazable (derecha) */
+    .sync-scrollable {
+        flex: 0 0 65%;
+        overflow-y: scroll;
+        overflow-x: auto;
+        height: 600px;
     }
     
-    /* Mejorar experiencia de tablas */
-    .dataframe th, .dataframe td {
-        padding: 8px 4px !important;
-        min-width: 50px !important;
+    /* Asegurar que las tablas tengan el mismo alto */
+    .sync-table-wrapper {
+        height: auto;
     }
     
-    /* Ajustar expansores */
-    .streamlit-expanderHeader {
-        font-size: 1rem !important;
-        padding: 12px !important;
+    /* Estilos para el scroll personalizado */
+    .sync-container::-webkit-scrollbar,
+    .sync-fixed::-webkit-scrollbar,
+    .sync-scrollable::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
     }
     
-    /* Scroll suave en iOS */
-    .element-container {
-        -webkit-overflow-scrolling: touch !important;
+    .sync-container::-webkit-scrollbar-track,
+    .sync-fixed::-webkit-scrollbar-track,
+    .sync-scrollable::-webkit-scrollbar-track {
+        background: #f1f1f1;
     }
     
-    /* Ajustar spacing general */
-    .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
+    .sync-container::-webkit-scrollbar-thumb,
+    .sync-fixed::-webkit-scrollbar-thumb,
+    .sync-scrollable::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
     }
     
-    /* Clases personalizadas para mejor responsividad */
-    .mobile-optimized {
-        width: 100% !important;
-        max-width: 100% !important;
-    }
-    
-    .touch-friendly {
-        min-height: 44px !important;
-        min-width: 44px !important;
+    .sync-container::-webkit-scrollbar-thumb:hover,
+    .sync-fixed::-webkit-scrollbar-thumb:hover,
+    .sync-scrollable::-webkit-scrollbar-thumb:hover {
+        background: #555;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -2005,15 +1961,20 @@ def pagina_malla():
     else:
         mostrar_leyenda(inside_expander=True)
     
-    if st.session_state.malla_actual.empty:
-        st.warning("⚠️ No hay malla de turnos cargada. Presiona 'Cargar Malla' para ver los datos.")
-    else:
-        st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
-        
-        rol = st.session_state.auth['role']
+# En la función pagina_malla(), después de cargar la malla:
+if st.session_state.malla_actual.empty:
+    st.warning("⚠️ No hay malla de turnos cargada. Presiona 'Cargar Malla' para ver los datos.")
+else:
+    st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
+    
+    # Aplicar estilos para tablas sincronizadas
+    aplicar_estilos_tabla_sincronizada()  # <-- Añadir esta línea
+    
+    rol = st.session_state.auth['role']
+    # ... resto del código ...
         
         # AQUÍ ESTÁ EL CAMBIO: Solo mostrar tabla dividida para quienes pueden editar
-        if check_permission("write"):  # Admin y supervisor - TABLA DIVIDIDA
+        if check_permission("write"):  # Admin y supervisor - TABLA DIVIDIDA CON SCROLL SINCRONIZADO
             st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', unsafe_allow_html=True)
             
             df = st.session_state.malla_actual.copy()
@@ -2033,53 +1994,73 @@ def pagina_malla():
             df_fijo = df[columnas_fijas].copy()
             df_dias = df[columnas_dias].copy()
             
-            # Mostrar en dos columnas
+            # Obtener opciones de códigos para los selectboxes
+            if 'codigos_turno' in st.session_state:
+                opciones_codigos = list(st.session_state.codigos_turno.keys())
+                # Filtrar código vacío si existe
+                if "" in opciones_codigos:
+                    opciones_codigos.remove("")
+            else:
+                opciones_codigos = []
+            
+            # Configurar columnas editables para los días
+            column_config_dias = {}
+            for col in df_dias.columns:
+                column_config_dias[col] = st.column_config.SelectboxColumn(
+                    col,
+                    width="small",
+                    options=[""] + opciones_codigos,
+                    help="Selecciona el código del turno"
+                )
+            
+            # Asegurarse de que todas las celdas tengan valores válidos
+            df_dias_edit = df_dias.copy()
+            for col in df_dias_edit.columns:
+                df_dias_edit[col] = df_dias_edit[col].fillna("").astype(str)
+                for idx, val in enumerate(df_dias_edit[col]):
+                    if val not in [""] + opciones_codigos:
+                        df_dias_edit.at[idx, col] = ""
+            
+            # ============================================================
+            # NUEVO: Contenedor con scroll sincronizado usando JavaScript
+            # ============================================================
+            
+            # Primero, mostrar información para el usuario
+            st.info("""
+            **📋 Vista dividida con scroll sincronizado:**
+            - **← Izquierda:** Información del empleado (fija, solo lectura)
+            - **→ Derecha:** Turnos por día (editable, desplazable horizontalmente)
+            - **⬆⬇ Ambas tablas:** Se desplazan VERTICALMENTE al mismo tiempo
+            """)
+            
+            # Crear un contenedor personalizado para las tablas sincronizadas
+            st.markdown('<div class="sync-container">', unsafe_allow_html=True)
+            
+            # Columna izquierda: Información fija
             col_fijas, col_desplazables = st.columns([3, 7])
             
             with col_fijas:
                 st.markdown("#### 🏷️ Información del Empleado")
-                # Mostrar información fija (solo lectura)
+                # Configurar columnas fijas como solo lectura
                 column_config_fijo = {}
                 for col in df_fijo.columns:
                     column_config_fijo[col] = st.column_config.Column(col, disabled=True)
                 
+                # Usar una clave única para esta tabla
+                altura_tabla = min(600, max(400, len(df_fijo) * 35))
+                
+                # Mostrar información fija (solo lectura)
                 st.dataframe(
                     df_fijo,
                     column_config=column_config_fijo,
                     hide_index=True,
                     use_container_width=True,
-                    height=600
+                    height=altura_tabla,
+                    key="tabla_fija_malla"
                 )
             
             with col_desplazables:
                 st.markdown("#### 📅 Turnos por Día (Editable)")
-                
-                # Obtener opciones de códigos para los selectboxes
-                if 'codigos_turno' in st.session_state:
-                    opciones_codigos = list(st.session_state.codigos_turno.keys())
-                    # Filtrar código vacío si existe
-                    if "" in opciones_codigos:
-                        opciones_codigos.remove("")
-                else:
-                    opciones_codigos = []
-                
-                # Configurar columnas editables para los días
-                column_config_dias = {}
-                for col in df_dias.columns:
-                    column_config_dias[col] = st.column_config.SelectboxColumn(
-                        col,
-                        width="small",
-                        options=[""] + opciones_codigos,
-                        help="Selecciona el código del turno"
-                    )
-                
-                # Asegurarse de que todas las celdas tengan valores válidos
-                df_dias_edit = df_dias.copy()
-                for col in df_dias_edit.columns:
-                    df_dias_edit[col] = df_dias_edit[col].fillna("").astype(str)
-                    for idx, val in enumerate(df_dias_edit[col]):
-                        if val not in [""] + opciones_codigos:
-                            df_dias_edit.at[idx, col] = ""
                 
                 # Mostrar editor solo para las columnas de días
                 edited_dias_df = st.data_editor(
@@ -2087,17 +2068,94 @@ def pagina_malla():
                     column_config=column_config_dias,
                     hide_index=True,
                     use_container_width=True,
-                    height=600,
+                    height=altura_tabla,
                     num_rows="fixed",
                     key=f"editor_dias_{mes_numero}_{ano}"
                 )
             
-            # Información para el usuario
-            st.info("""
-            **📋 Vista dividida para edición:**
-            - **← Izquierda:** Información del empleado (fija, solo lectura)
-            - **→ Derecha:** Turnos por día (editable, desplazable horizontalmente)
-            """)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # ============================================================
+            # JavaScript para sincronizar el scroll vertical
+            # ============================================================
+            scroll_sync_js = """
+            <script>
+            // Función para sincronizar el scroll vertical de las tablas
+            function syncTableScroll() {
+                // Esperar a que las tablas se carguen
+                setTimeout(function() {
+                    // Obtener contenedores de tablas
+                    const tables = document.querySelectorAll('[data-testid="stDataFrame"], [data-testid="stDataFrameResizable"]');
+                    
+                    if (tables.length >= 2) {
+                        const leftTable = tables[0];
+                        const rightTable = tables[1];
+                        
+                        // Encontrar los contenedores de scroll reales
+                        const leftScrollable = leftTable.closest('.stDataFrame') || leftTable.closest('.element-container');
+                        const rightScrollable = rightTable.closest('.stDataFrame') || rightTable.closest('.element-container');
+                        
+                        if (leftScrollable && rightScrollable) {
+                            // Sincronizar scroll de izquierda a derecha
+                            leftScrollable.addEventListener('scroll', function() {
+                                rightScrollable.scrollTop = this.scrollTop;
+                            });
+                            
+                            // Sincronizar scroll de derecha a izquierda
+                            rightScrollable.addEventListener('scroll', function() {
+                                leftScrollable.scrollTop = this.scrollTop;
+                            });
+                            
+                            console.log('✅ Scroll de tablas sincronizado');
+                        }
+                    }
+                }, 1000); // Esperar 1 segundo para que se carguen las tablas
+            }
+            
+            // Ejecutar cuando la página se cargue
+            window.addEventListener('load', syncTableScroll);
+            
+            // También ejecutar cuando cambie el contenido (para Streamlit)
+            if (typeof stOnMessage !== 'undefined') {
+                const originalOnMessage = stOnMessage;
+                stOnMessage = function(msg) {
+                    originalOnMessage(msg);
+                    setTimeout(syncTableScroll, 500);
+                };
+            }
+            
+            // Ejecutar inicialmente
+            syncTableScroll();
+            </script>
+            """
+            
+            # Injectar el JavaScript
+            components.html(scroll_sync_js, height=0)
+            
+            # También usar un enfoque alternativo con intervalos
+            st.markdown("""
+            <script>
+            // Enfoque alternativo para sincronización continua
+            setInterval(function() {
+                const tables = document.querySelectorAll('[data-testid="stDataFrame"]');
+                if (tables.length >= 2) {
+                    const tbody1 = tables[0].querySelector('tbody');
+                    const tbody2 = tables[1].querySelector('tbody');
+                    
+                    if (tbody1 && tbody2) {
+                        // Sincronizar scroll por eventos de rueda del mouse
+                        tbody1.addEventListener('wheel', function(e) {
+                            tbody2.scrollTop = this.scrollTop;
+                        });
+                        
+                        tbody2.addEventListener('wheel', function(e) {
+                            tbody1.scrollTop = this.scrollTop;
+                        });
+                    }
+                }
+            }, 2000);
+            </script>
+            """, unsafe_allow_html=True)
             
             st.markdown("---")
             st.markdown("### 💾 Acciones de Guardado")
@@ -2171,7 +2229,6 @@ def pagina_malla():
                 mime="text/csv",
                 use_container_width=True
             )
-# Continúa con las demás funciones...
 
 def pagina_backup():
     """Página completa de backup y restauración"""
@@ -3592,6 +3649,54 @@ def pagina_info_sistema():
 # ============================================================================
 # FUNCIÓN PRINCIPAL - VERSIÓN CORREGIDA
 # ============================================================================
+def aplicar_estilos_tabla_sincronizada():
+    """Aplicar estilos CSS adicionales para tablas sincronizadas"""
+    st.markdown("""
+    <style>
+        /* Estilos adicionales para mejor sincronización */
+        .stDataFrame {
+            scrollbar-width: thin;
+        }
+        
+        .stDataFrame table {
+            width: 100%;
+            table-layout: fixed;
+        }
+        
+        /* Asegurar que las filas tengan la misma altura */
+        .stDataFrame tbody tr {
+            height: 40px !important;
+        }
+        
+        /* Contenedor principal para tablas sincronizadas */
+        .table-sync-wrapper {
+            display: flex;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .table-fixed-pane {
+            flex: 0 0 40%;
+            overflow-y: auto;
+            max-height: 600px;
+            border-right: 2px solid #1E3A8A;
+        }
+        
+        .table-scrollable-pane {
+            flex: 0 0 60%;
+            overflow: auto;
+            max-height: 600px;
+        }
+        
+        /* Estilos para las celdas */
+        .stDataFrame td, .stDataFrame th {
+            padding: 8px !important;
+            border: 1px solid #e0e0e0 !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 def main():
     """Función principal que gestiona toda la aplicación"""
     # Inicializar session state
