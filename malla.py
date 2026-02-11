@@ -1780,25 +1780,52 @@ def pagina_malla():
                 columnas_fijas.append(col)
         
         # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON ÍCONO =====
-        if check_permission("write"):
-            st.markdown("💡 **Los cambios se guardan automáticamente al salir de la celda**")
-            
-            # ===== SIN column_config - EL ÍCONO APARECERÁ =====
-            df_display = df.copy()
-            
-            # Convertir todo a string
-            for col in df_display.columns:
-                df_display[col] = df_display[col].astype(str).replace('nan', '').replace('None', '')
-            
-            # MOSTRAR TABLA - SIN CONFIGURACIÓN DE COLUMNAS
-            edited_df = st.data_editor(
-                df_display,
-                hide_index=True,
-                use_container_width=True,
-                height=600,
-                num_rows="fixed",
-                key=f"malla_editor_{mes_numero}_{ano}_{rol}"
-            )
+# ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON ÍCONO GARANTIZADO =====
+if check_permission("write"):
+    st.markdown("💡 **Los cambios se guardan automáticamente al salir de la celda**")
+    
+    df_display = df.copy()
+    
+    # Convertir todo a string
+    for col in df_display.columns:
+        df_display[col] = df_display[col].astype(str).replace('nan', '').replace('None', '')
+    
+    # ===== SOLUCIÓN DEFINITIVA PARA EL ÍCONO =====
+    # 1. NO usar num_rows="fixed"
+    # 2. Usar key DINÁMICO (con timestamp) para forzar recreación
+    # 3. Asegurar que hay suficientes columnas
+    
+    import time
+    editor_key = f"malla_editor_{mes_numero}_{ano}_{int(time.time())}"
+    
+    edited_df = st.data_editor(
+        df_display,
+        hide_index=True,
+        use_container_width=True,
+        height=600,
+        num_rows="dynamic",  # CAMBIO CRÍTICO: "dynamic" en lugar de "fixed"
+        key=editor_key       # Key única para cada renderizado
+    )
+    
+    # Mensaje INSTRUCTIVO - MÁS VISIBLE
+    st.success("""
+    ### 🎯 **¡EL ÍCONO YA DEBE ESTAR VISIBLE!**
+    
+    **👆 Busca en la ESQUINA SUPERIOR DERECHA de la tabla:**
+    
+    | Ícono | Función |
+    |-------|---------|
+    | **⫶ (tres puntos)** | Menú principal |
+    | **👁️ (ojo)** | Mostrar/ocultar columnas |
+    | **↕️ (flechas)** | Reordenar columnas |
+    | **📌 (chinche)** | Congelar columnas |
+    
+    ---
+    **🔄 Si no ves el ícono:**
+    1. Espera 2 segundos a que la tabla termine de cargar
+    2. Haz clic en cualquier celda de la tabla
+    3. Mueve el mouse a la esquina superior derecha
+    """, icon="✨")
             
             # Mensaje INSTRUCTIVO
             st.success("""
@@ -2183,56 +2210,58 @@ def pagina_empleados():
             st.rerun()
     
     st.markdown("---")
-    st.markdown("### 📋 Lista de Empleados")
+st.markdown("### 📋 Lista de Empleados")
+
+if st.session_state.empleados_df.empty:
+    st.warning("No hay empleados registrados.")
+else:
+    df_editable = st.session_state.empleados_df.copy()
     
-    if st.session_state.empleados_df.empty:
-        st.warning("No hay empleados registrados.")
-    else:
-        df_editable = st.session_state.empleados_df.copy()
-        
-        df_display = df_editable.rename(columns={
-            'id': 'ID_OCULTO',
-            'numero': 'N°',
-            'cargo': 'CARGO',
-            'nombre_completo': 'APELLIDOS Y NOMBRES',
-            'cedula': 'CC',
-            'departamento': 'DEPARTAMENTO',
-            'estado': 'ESTADO',
-            'hora_inicio': 'HORA_INICIO',
-            'hora_fin': 'HORA_FIN',
-            'created_at': 'FECHA_REGISTRO'
-        })
-        
-        df_display = df_display.fillna({
-            'CARGO': '',
-            'APELLIDOS Y NOMBRES': '',
-            'CC': '',
-            'DEPARTAMENTO': '',
-            'ESTADO': 'Activo',
-            'HORA_INICIO': '',
-            'HORA_FIN': '',
-            'FECHA_REGISTRO': ''
-        })
-        
-        column_order = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 
-                       'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO', 'ID_OCULTO']
-        
-        # === MENSAJE CLARO PARA EL ÍCONO DE COLUMNAS ===
-        st.success("""
-        🔧 **CONFIGURACIÓN DE COLUMNAS DISPONIBLE**  
-        ✅ Haz clic en el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
-        ✅ Puedes **mostrar/ocultar**, **reordenar** y **congelar** columnas
-        """, icon="👆")
-        
-        # ===== EDITOR DE EMPLEADOS - SIN column_config =====
-        # IMPORTANTE: Sin column_config para que aparezca el ícono
-        edited_df = st.data_editor(
-            df_display[column_order],
-            hide_index=True,
-            use_container_width=True,
-            num_rows="fixed",
-            key="editor_empleados_admin"
-        )
+    df_display = df_editable.rename(columns={
+        'id': 'ID_OCULTO',
+        'numero': 'N°',
+        'cargo': 'CARGO',
+        'nombre_completo': 'APELLIDOS Y NOMBRES',
+        'cedula': 'CC',
+        'departamento': 'DEPARTAMENTO',
+        'estado': 'ESTADO',
+        'hora_inicio': 'HORA_INICIO',
+        'hora_fin': 'HORA_FIN',
+        'created_at': 'FECHA_REGISTRO'
+    })
+    
+    df_display = df_display.fillna({
+        'CARGO': '',
+        'APELLIDOS Y NOMBRES': '',
+        'CC': '',
+        'DEPARTAMENTO': '',
+        'ESTADO': 'Activo',
+        'HORA_INICIO': '',
+        'HORA_FIN': '',
+        'FECHA_REGISTRO': ''
+    })
+    
+    column_order = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 
+                   'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO', 'ID_OCULTO']
+    
+    # ===== SOLUCIÓN PARA EMPLEADOS =====
+    import time
+    editor_key = f"editor_empleados_{int(time.time())}"
+    
+    edited_df = st.data_editor(
+        df_display[column_order],
+        hide_index=True,
+        use_container_width=True,
+        num_rows="dynamic",  # CRÍTICO: usar "dynamic"
+        key=editor_key
+    )
+    
+    # Instrucciones VISIBLES
+    st.info("""
+    **👆 CONFIGURACIÓN DE COLUMNAS**  
+    Busca el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
+    Allí encontrarás las opciones para **mostrar/ocultar**, **reordenar** y **congelar** columnas
+    """, icon="🔧")
         
         col1, col2, col3 = st.columns(3)
         with col1:
