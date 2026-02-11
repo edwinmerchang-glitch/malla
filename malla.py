@@ -1714,7 +1714,7 @@ def mostrar_estadisticas_avanzadas(mes, ano):
                     st.plotly_chart(fig, use_container_width=True)
 
 # ============================================================================
-# PÁGINA PRINCIPAL - MALLA DE TURNOS (CON ÍCONO DE COLUMNAS)
+# PÁGINA PRINCIPAL - MALLA DE TURNOS (CON ÍCONO DE COLUMNAS GARANTIZADO)
 # ============================================================================
 def pagina_malla():
     """Página principal - Malla de turnos CON ÍCONO DE CONFIGURACIÓN DE COLUMNAS"""
@@ -1779,39 +1779,36 @@ def pagina_malla():
                 columnas_fijas.append(col)
         
         # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON ÍCONO DE COLUMNAS =====
-        # ===== ADMIN Y SUPERVISOR: TABLA EDITABLE CON ÍCONO DE COLUMNAS =====
         if check_permission("write"):
             st.markdown("💡 **Los cambios se guardan automáticamente al salir de la celda**")
             
-            # === MENSAJE CLARO PARA EL ÍCONO DE COLUMNAS ===
-            st.success("""
-            🔧 **CONFIGURACIÓN DE COLUMNAS DISPONIBLE**  
-            ✅ Haz clic en el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
-            ✅ Puedes **mostrar/ocultar**, **reordenar** y **congelar** columnas
-            """, icon="👆")
+            # ===== IMPORTANTE: NO USAR column_config EN ABSOLUTO =====
+            # Para que el ícono aparezca, NO debemos usar column_config
             
-            # ===== NUEVO: CREAR UNA COPIA DEL DATAFRAME =====
+            # Crear una copia limpia del DataFrame
             df_display = df.copy()
             
             # Convertir todas las columnas a string para evitar problemas
             for col in df_display.columns:
                 df_display[col] = df_display[col].astype(str).replace('nan', '').replace('None', '')
             
-            # ===== IMPORTANTE: NO USAR column_config EN ABSOLUTO =====
-            # Para que aparezca el ícono, NO debemos usar column_config
-            
+            # MOSTRAR TABLA SIN NINGUNA CONFIGURACIÓN DE COLUMNAS
             edited_df = st.data_editor(
                 df_display,
                 hide_index=True,
                 use_container_width=True,
                 height=600,
                 num_rows="fixed",
-                key=f"malla_editor_simple_{mes_numero}_{ano}_{rol}"
+                key=f"malla_editor_{mes_numero}_{ano}_{rol}"
             )
             
-            # Resto del código igual...
+            # Mensaje instructivo
+            st.info("""
+            👆 **¿Ves el ícono ⫶ en la esquina superior derecha?**  
+            Haz clic ahí para mostrar/ocultar y reordenar columnas.
+            """)
             
-            # Limpiar valores inválidos
+            # Limpiar valores inválidos en columnas de días
             for col in columnas_dias:
                 if col in edited_df.columns:
                     edited_df[col] = edited_df[col].astype(str).replace('nan', '').replace('None', '')
@@ -1826,6 +1823,11 @@ def pagina_malla():
                 if st.button("💾 Guardar Cambios", use_container_width=True, type="primary"):
                     with st.spinner("Guardando cambios..."):
                         try:
+                            # Asegurar que todas las columnas de días existen
+                            for col in columnas_dias:
+                                if col not in edited_df.columns:
+                                    edited_df[col] = ""
+                            
                             cambios = guardar_malla_turnos_con_backup(edited_df, mes_numero, ano)
                             
                             if cambios > 0:
@@ -1849,10 +1851,9 @@ def pagina_malla():
             with col3:
                 if st.button("🗑️ Limpiar Todo", use_container_width=True, type="secondary"):
                     if st.checkbox("¿Confirmar limpieza total?"):
-                        malla_vacia = edited_df.copy()
+                        malla_vacia = df.copy()
                         for col in columnas_dias:
-                            if col in malla_vacia.columns:
-                                malla_vacia[col] = ""
+                            malla_vacia[col] = ""
                         
                         cambios = guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
                         st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
@@ -1863,11 +1864,11 @@ def pagina_malla():
             if rol in ['admin', 'supervisor']:
                 mostrar_estadisticas_avanzadas(mes_numero, ano)
         
-        # ===== EMPLEADOS: SOLO LECTURA (SIN ÍCONO) =====
+        # ===== EMPLEADOS: SOLO LECTURA =====
         else:
             st.info("👁️ Vista de solo lectura")
             
-            # Colorear celdas
+            # Para empleados, USAMOS dataframe (NO editor) - esto NO tiene ícono
             def color_cell(val):
                 if pd.isna(val) or val == '' or val == 'nan':
                     return 'background-color: #FFFFFF;'
@@ -1877,7 +1878,6 @@ def pagina_malla():
             styled_df = df.style.applymap(color_cell, subset=columnas_dias)
             st.dataframe(styled_df, height=600, use_container_width=True)
             
-            # Botón descargar
             st.markdown("---")
             csv = df.to_csv(index=False, encoding='utf-8-sig')
             st.download_button(
