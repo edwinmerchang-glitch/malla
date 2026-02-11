@@ -1749,28 +1749,31 @@ def pagina_malla():
         else:
             opciones_codigos = []
         
-        # ===== CSS PARA COLUMNAS FIJAS (SIN usar pinned=True) =====
+        # ===== CSS CORREGIDO PARA COLUMNAS FIJAS =====
         st.markdown("""
         <style>
-            /* Contenedor para scroll horizontal */
-            .stDataFrame {
+            /* ESTE CSS FUNCIONA CON LA VERSIÓN ACTUAL DE STREAMLIT */
+            
+            /* Contenedor principal de la tabla - asegurar scroll horizontal */
+            div[data-testid="stDataFrame"] {
                 overflow-x: auto !important;
                 overflow-y: visible !important;
-                position: relative !important;
                 width: 100% !important;
+                position: relative !important;
             }
             
-            /* Hacer que la tabla sea de ancho completo */
-            .stDataFrame table {
+            /* La tabla debe tener ancho completo */
+            div[data-testid="stDataFrame"] table {
                 width: max-content !important;
                 min-width: 100% !important;
                 border-collapse: collapse !important;
             }
             
             /* FIJAR COLUMNAS DE INFORMACIÓN DEL EMPLEADO */
-            /* N° - Primera columna */
-            .stDataFrame th:first-child,
-            .stDataFrame td:first-child {
+            
+            /* PRIMERA COLUMNA (N°) - Fija */
+            div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(1),
+            div[data-testid="stDataFrame"] td:nth-child(1) {
                 position: sticky !important;
                 left: 0 !important;
                 z-index: 100 !important;
@@ -1779,9 +1782,9 @@ def pagina_malla():
                 box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1) !important;
             }
             
-            /* CARGO - Segunda columna */
-            .stDataFrame th:nth-child(2),
-            .stDataFrame td:nth-child(2) {
+            /* SEGUNDA COLUMNA (CARGO) - Fija */
+            div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(2),
+            div[data-testid="stDataFrame"] td:nth-child(2) {
                 position: sticky !important;
                 left: 60px !important;
                 z-index: 99 !important;
@@ -1789,9 +1792,9 @@ def pagina_malla():
                 border-right: 1px solid #e0e0e0 !important;
             }
             
-            /* APELLIDOS Y NOMBRES - Tercera columna */
-            .stDataFrame th:nth-child(3),
-            .stDataFrame td:nth-child(3) {
+            /* TERCERA COLUMNA (APELLIDOS Y NOMBRES) - Fija */
+            div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(3),
+            div[data-testid="stDataFrame"] td:nth-child(3) {
                 position: sticky !important;
                 left: 200px !important;
                 z-index: 98 !important;
@@ -1799,9 +1802,9 @@ def pagina_malla():
                 border-right: 1px solid #e0e0e0 !important;
             }
             
-            /* CC - Cuarta columna */
-            .stDataFrame th:nth-child(4),
-            .stDataFrame td:nth-child(4) {
+            /* CUARTA COLUMNA (CC) - Fija */
+            div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(4),
+            div[data-testid="stDataFrame"] td:nth-child(4) {
                 position: sticky !important;
                 left: 400px !important;
                 z-index: 97 !important;
@@ -1809,9 +1812,9 @@ def pagina_malla():
                 border-right: 1px solid #e0e0e0 !important;
             }
             
-            /* DEPARTAMENTO - Quinta columna */
-            .stDataFrame th:nth-child(5),
-            .stDataFrame td:nth-child(5) {
+            /* QUINTA COLUMNA (DEPARTAMENTO) - Fija */
+            div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(5),
+            div[data-testid="stDataFrame"] td:nth-child(5) {
                 position: sticky !important;
                 left: 500px !important;
                 z-index: 96 !important;
@@ -1819,9 +1822,9 @@ def pagina_malla():
                 border-right: 1px solid #e0e0e0 !important;
             }
             
-            /* ESTADO - Sexta columna */
-            .stDataFrame th:nth-child(6),
-            .stDataFrame td:nth-child(6) {
+            /* SEXTA COLUMNA (ESTADO) - Fija */
+            div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(6),
+            div[data-testid="stDataFrame"] td:nth-child(6) {
                 position: sticky !important;
                 left: 620px !important;
                 z-index: 95 !important;
@@ -1829,69 +1832,94 @@ def pagina_malla():
                 border-right: 2px solid #1E3A8A !important;
             }
             
-            /* Asegurar que las celdas fijas mantengan su fondo al hacer scroll */
-            .stDataFrame td:is(:first-child, :nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)) {
+            /* Asegurar que las celdas fijas mantengan su fondo */
+            div[data-testid="stDataFrame"] td:nth-child(1),
+            div[data-testid="stDataFrame"] td:nth-child(2),
+            div[data-testid="stDataFrame"] td:nth-child(3),
+            div[data-testid="stDataFrame"] td:nth-child(4),
+            div[data-testid="stDataFrame"] td:nth-child(5),
+            div[data-testid="stDataFrame"] td:nth-child(6) {
                 background-color: white !important;
             }
             
-            /* Estilo para el hover en celdas fijas */
-            .stDataFrame tr:hover td:is(:first-child, :nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)) {
+            /* Efecto hover en celdas fijas */
+            div[data-testid="stDataFrame"] tr:hover td:nth-child(1),
+            div[data-testid="stDataFrame"] tr:hover td:nth-child(2),
+            div[data-testid="stDataFrame"] tr:hover td:nth-child(3),
+            div[data-testid="stDataFrame"] tr:hover td:nth-child(4),
+            div[data-testid="stDataFrame"] tr:hover td:nth-child(5),
+            div[data-testid="stDataFrame"] tr:hover td:nth-child(6) {
                 background-color: #f5f5f5 !important;
             }
             
             /* Ajuste para modo oscuro */
             @media (prefers-color-scheme: dark) {
-                .stDataFrame td:is(:first-child, :nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)),
-                .stDataFrame th:is(:first-child, :nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)) {
+                div[data-testid="stDataFrame"] td:nth-child(1),
+                div[data-testid="stDataFrame"] td:nth-child(2),
+                div[data-testid="stDataFrame"] td:nth-child(3),
+                div[data-testid="stDataFrame"] td:nth-child(4),
+                div[data-testid="stDataFrame"] td:nth-child(5),
+                div[data-testid="stDataFrame"] td:nth-child(6),
+                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(1),
+                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(2),
+                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(3),
+                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(4),
+                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(5),
+                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(6) {
                     background-color: #0E1117 !important;
                     color: #FAFAFA !important;
                 }
                 
-                .stDataFrame tr:hover td:is(:first-child, :nth-child(2), :nth-child(3), :nth-child(4), :nth-child(5), :nth-child(6)) {
+                div[data-testid="stDataFrame"] tr:hover td:nth-child(1),
+                div[data-testid="stDataFrame"] tr:hover td:nth-child(2),
+                div[data-testid="stDataFrame"] tr:hover td:nth-child(3),
+                div[data-testid="stDataFrame"] tr:hover td:nth-child(4),
+                div[data-testid="stDataFrame"] tr:hover td:nth-child(5),
+                div[data-testid="stDataFrame"] tr:hover td:nth-child(6) {
                     background-color: #1E1E1E !important;
                 }
             }
             
-            /* Ajuste para mobile */
+            /* Ajustes responsive para móvil */
             @media (max-width: 768px) {
-                .stDataFrame th:nth-child(2),
-                .stDataFrame td:nth-child(2) {
+                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(2),
+                div[data-testid="stDataFrame"] td:nth-child(2) {
                     left: 50px !important;
                 }
-                .stDataFrame th:nth-child(3),
-                .stDataFrame td:nth-child(3) {
+                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(3),
+                div[data-testid="stDataFrame"] td:nth-child(3) {
                     left: 150px !important;
                 }
-                .stDataFrame th:nth-child(4),
-                .stDataFrame td:nth-child(4) {
+                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(4),
+                div[data-testid="stDataFrame"] td:nth-child(4) {
                     left: 280px !important;
                 }
-                .stDataFrame th:nth-child(5),
-                .stDataFrame td:nth-child(5) {
+                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(5),
+                div[data-testid="stDataFrame"] td:nth-child(5) {
                     left: 360px !important;
                 }
-                .stDataFrame th:nth-child(6),
-                .stDataFrame td:nth-child(6) {
+                div[data-testid="stDataFrame"] th[data-testid="stDataFrameHeaderColumn"]:nth-child(6),
+                div[data-testid="stDataFrame"] td:nth-child(6) {
                     left: 460px !important;
                 }
             }
             
             /* Mejorar la barra de scroll */
-            .stDataFrame::-webkit-scrollbar {
+            div[data-testid="stDataFrame"]::-webkit-scrollbar {
                 height: 10px !important;
             }
             
-            .stDataFrame::-webkit-scrollbar-track {
+            div[data-testid="stDataFrame"]::-webkit-scrollbar-track {
                 background: #f1f1f1 !important;
                 border-radius: 5px !important;
             }
             
-            .stDataFrame::-webkit-scrollbar-thumb {
+            div[data-testid="stDataFrame"]::-webkit-scrollbar-thumb {
                 background: #888 !important;
                 border-radius: 5px !important;
             }
             
-            .stDataFrame::-webkit-scrollbar-thumb:hover {
+            div[data-testid="stDataFrame"]::-webkit-scrollbar-thumb:hover {
                 background: #555 !important;
             }
         </style>
@@ -1902,7 +1930,7 @@ def pagina_malla():
             st.markdown('<div class="auto-save-notice">💡 Los cambios se guardan automáticamente al salir de la celda</div>', 
                        unsafe_allow_html=True)
             
-            # CONFIGURACIÓN DE COLUMNAS - SIN pinned=True
+            # CONFIGURACIÓN DE COLUMNAS
             column_config = {}
             
             # Columnas fijas (solo lectura)
@@ -1918,7 +1946,6 @@ def pagina_malla():
                     col,
                     disabled=True,
                     width=width
-                    # SIN pinned=True - eliminado
                 )
             
             # Columnas de días (editables con selectbox)
@@ -1938,7 +1965,7 @@ def pagina_malla():
                     if val not in [""] + opciones_codigos:
                         df.at[idx, col] = ""
             
-            # MOSTRAR TABLA ÚNICA CON COLUMNAS FIJAS (por CSS)
+            # MOSTRAR TABLA ÚNICA CON COLUMNAS FIJAS
             edited_df = st.data_editor(
                 df,
                 column_config=column_config,
