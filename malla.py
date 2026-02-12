@@ -1795,10 +1795,10 @@ def pagina_malla():
             opciones_codigos = [""] + codigos_numericos + codigos_texto
             
             # DEBUG - Mostrar qué códigos se están cargando (solo para admin)
-            if rol == "admin":
-                with st.expander("🔧 Diagnóstico - Códigos cargados", expanded=False):
-                    st.write(f"**Total códigos:** {len(opciones_codigos)-1}")
-                    st.write(f"**Códigos:** {', '.join([str(c) for c in opciones_codigos if c != ''])}")
+            #if rol == "admin":
+            #    with st.expander("🔧 Diagnóstico - Códigos cargados", expanded=False):
+            #        st.write(f"**Total códigos:** {len(opciones_codigos)-1}")
+            #        st.write(f"**Códigos:** {', '.join([str(c) for c in opciones_codigos if c != ''])}")
         else:
             opciones_codigos = [""]
             st.warning("⚠️ No hay códigos de turno configurados")
