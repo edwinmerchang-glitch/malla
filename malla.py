@@ -1609,52 +1609,114 @@ def pagina_malla():
     """Página principal - Malla de turnos CON ÍCONO DE COLUMNAS"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
     
-    # ... (código existente de selectores) ...
+    # Selectores de mes y año
+    if st.session_state.is_mobile:
+        col1, col2 = st.columns(2)
+        col3, col4 = st.columns(2)
+    else:
+        col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
+                "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+        mes_seleccionado = st.selectbox("Mes:", meses, index=st.session_state.mes_actual - 1)
+        mes_numero = meses.index(mes_seleccionado) + 1
+    
+    with col2:
+        ano = st.selectbox("Año:", [2026, 2025, 2024, 2027], index=0)
+    
+    with col3:
+        if st.button("🔄 Cargar Malla", use_container_width=True):
+            st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+            st.session_state.mes_actual = mes_numero
+            st.session_state.ano_actual = ano
+            st.success(f"Malla cargada para {mes_seleccionado} {ano}")
+            registrar_log("cargar_malla", f"{mes_seleccionado} {ano}")
+            st.rerun()
+    
+    with col4:
+        if not st.session_state.malla_actual.empty:
+            csv = st.session_state.malla_actual.to_csv(index=False)
+            st.download_button(
+                label="📥 Exportar",
+                data=csv,
+                file_name=f"malla_{mes_seleccionado}_{ano}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+    
+    # Leyenda de códigos
+    with st.expander("🎨 Leyenda de códigos de turno", expanded=False):
+        mostrar_leyenda(inside_expander=True)
     
     if st.session_state.malla_actual.empty:
-        st.warning("⚠️ No hay malla de turnos cargada.")
-    else:
-        df = st.session_state.malla_actual.copy()
+        st.warning("⚠️ No hay malla de turnos cargada. Presiona 'Cargar Malla' para ver los datos.")
+        return
+    
+    st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
+    
+    df = st.session_state.malla_actual.copy()
+    
+    # Convertir a string para evitar problemas
+    for col in df.columns:
+        df[col] = df[col].astype(str).replace('nan', '').replace('None', '')
+    
+    # Identificar columnas
+    columnas_fijas = []
+    columnas_dias = []
+    
+    for col in df.columns:
+        if col.startswith('D') and col[1:].isdigit():
+            columnas_dias.append(col)
+        else:
+            columnas_fijas.append(col)
+    
+    # ===== ADMIN Y SUPERVISOR: CONFIGURACIÓN COMPLETA PARA ÍCONO =====
+    if check_permission("write"):
+        st.markdown("💡 **Los cambios se guardan con el botón Guardar**")
         
-        # Identificar columnas
-        columnas_fijas = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 'ESTADO', 'HORA_INICIO', 'HORA_FIN']
-        columnas_dias = [col for col in df.columns if col.startswith('D') and col[1:].isdigit()]
+        # ===== CONFIGURACIÓN CRÍTICA: CONFIGURAR TODAS LAS COLUMNAS =====
+        column_config = {}
         
-        if check_permission("write"):
-            # ===== CONFIGURACIÓN CRÍTICA PARA QUE APAREZCA EL ÍCONO =====
-            column_config = {}
-            
-            # 1. CONFIGURAR COLUMNAS FIJAS - OBLIGATORIO para que aparezca el menú
-            for col in columnas_fijas:
-                if col in df.columns:
-                    column_config[col] = st.column_config.Column(
-                        col,
-                        disabled=True,  # Solo lectura
-                        width="medium",
-                        help=f"Columna {col} - Solo lectura"
-                    )
-            
-            # 2. CONFIGURAR COLUMNAS DE DÍAS - Editables
-            for col in columnas_dias:
-                if col in df.columns:
-                    column_config[col] = st.column_config.SelectboxColumn(
-                        col,
-                        width="small",
-                        options=list(st.session_state.codigos_turno.keys()),
-                        default="",
-                        required=False
-                    )
-            
-            # 3. ¡IMPORTANTE! Agregar configuración de visualización
-            edited_df = st.data_editor(
-                df,
-                column_config=column_config,
-                hide_index=True,
-                use_container_width=True,
-                height=600,
-                key=f"editor_malla_{mes_numero}_{ano}",
-                column_order=list(columnas_fijas) + list(columnas_dias)  # Orden explícito
-            )
+        # 1. Configurar columnas fijas (solo lectura) - TODAS configuradas
+        columnas_fijas_orden = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 'ESTADO', 'HORA_INICIO', 'HORA_FIN']
+        
+        for col in columnas_fijas_orden:
+            if col in df.columns:
+                column_config[col] = st.column_config.Column(
+                    col,
+                    disabled=True,  # Solo lectura
+                    width="medium",
+                    help=f"{col} - Solo lectura"
+                )
+        
+        # 2. Configurar columnas de días (editables con selectbox)
+        opciones_turno = list(st.session_state.codigos_turno.keys())
+        
+        for col in columnas_dias:
+            if col in df.columns:
+                column_config[col] = st.column_config.SelectboxColumn(
+                    col,
+                    width="small",
+                    options=opciones_turno,
+                    default="",
+                    required=False,
+                    help="Selecciona el código de turno"
+                )
+        
+        # 3. Orden de columnas
+        column_order = [col for col in columnas_fijas_orden if col in df.columns] + columnas_dias
+        
+        # 4. MOSTRAR EL DATA EDITOR CON CONFIGURACIÓN COMPLETA
+        edited_df = st.data_editor(
+            df,
+            column_config=column_config,
+            column_order=column_order,
+            hide_index=True,
+            use_container_width=True,
+            height=600,
+            key=f"editor_malla_{mes_numero}_{ano}"
+        )
         
         # 5. MENSAJE CLARO SOBRE DÓNDE ESTÁ EL ÍCONO
         st.success("""
@@ -1682,14 +1744,18 @@ def pagina_malla():
         with col1:
             if st.button("💾 Guardar Cambios", use_container_width=True, type="primary"):
                 with st.spinner("Guardando cambios..."):
-                    cambios = guardar_malla_turnos_con_backup(edited_df, mes_numero, ano)
-                    if cambios > 0:
-                        st.session_state.last_save = obtener_hora_colombia()
-                        st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
-                        st.success(f"✅ {cambios} cambios guardados")
-                        st.rerun()
-                    else:
-                        st.warning("⚠️ No se detectaron cambios")
+                    try:
+                        cambios = guardar_malla_turnos_con_backup(edited_df, mes_numero, ano)
+                        if cambios > 0:
+                            st.session_state.last_save = obtener_hora_colombia()
+                            st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+                            st.success(f"✅ {cambios} cambios guardados")
+                            registrar_log("guardar_malla", f"{mes_seleccionado} {ano} - {cambios} cambios")
+                            st.rerun()
+                        else:
+                            st.warning("⚠️ No se detectaron cambios")
+                    except Exception as e:
+                        st.error(f"❌ Error al guardar: {str(e)}")
         
         with col2:
             if st.button("🔄 Recargar", use_container_width=True):
@@ -1908,32 +1974,65 @@ def agregar_empleado():
 # ============================================================================
 def pagina_usuarios():
     """Página de gestión de usuarios - CON ÍCONO DE COLUMNAS"""
+    if not check_permission("manage_users"):
+        st.error("⛔ No tienes permisos para gestionar usuarios")
+        return
     
-    # ===== CONFIGURACIÓN CRÍTICA =====
-    column_config = {
-        "USUARIO": st.column_config.TextColumn("USUARIO", disabled=True),
-        "NOMBRE_COMPLETO": st.column_config.TextColumn("NOMBRE COMPLETO", disabled=False),
-        "ROL": st.column_config.SelectboxColumn(
-            "ROL",
-            disabled=False,
-            options=list(ROLES.keys())
-        ),
-        "DEPARTAMENTO": st.column_config.SelectboxColumn(
-            "DEPARTAMENTO",
-            disabled=False,
-            options=st.session_state.configuracion.get('departamentos', [])
-        ),
-        "FECHA_CREACION": st.column_config.TextColumn("FECHA CREACIÓN", disabled=True)
-    }
+    st.markdown("<h1 class='main-header'>👑 Gestión de Usuarios</h1>", unsafe_allow_html=True)
     
-    edited_df = st.data_editor(
-        df_display,
-        column_config=column_config,
-        hide_index=True,
-        use_container_width=True,
-        num_rows="fixed",
-        key="editor_usuarios_config"
-    )
+    st.info("""
+    **🔧 CONFIGURACIÓN DE COLUMNAS DISPONIBLE**  
+    Busca el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
+    Allí encontrarás las opciones para **mostrar/ocultar**, **reordenar** y **congelar** columnas
+    """, icon="👆")
+    
+    st.markdown("### 📋 Usuarios del Sistema")
+    
+    usuarios_df = get_usuarios()
+    
+    if usuarios_df.empty:
+        st.warning("No hay usuarios registrados en el sistema.")
+    else:
+        df_editable = usuarios_df.copy()
+        
+        if 'password_hash' in df_editable.columns:
+            df_display = df_editable.drop(columns=['password_hash'])
+        else:
+            df_display = df_editable
+        
+        df_display = df_display.rename(columns={
+            'username': 'USUARIO',
+            'nombre': 'NOMBRE_COMPLETO',
+            'role': 'ROL',
+            'departamento': 'DEPARTAMENTO',
+            'created_at': 'FECHA_CREACION'
+        })
+        
+        # ===== CONFIGURACIÓN CRÍTICA =====
+        column_config = {
+            "USUARIO": st.column_config.TextColumn("USUARIO", disabled=True),
+            "NOMBRE_COMPLETO": st.column_config.TextColumn("NOMBRE COMPLETO", disabled=False),
+            "ROL": st.column_config.SelectboxColumn(
+                "ROL",
+                disabled=False,
+                options=list(ROLES.keys())
+            ),
+            "DEPARTAMENTO": st.column_config.SelectboxColumn(
+                "DEPARTAMENTO",
+                disabled=False,
+                options=st.session_state.configuracion.get('departamentos', [])
+            ),
+            "FECHA_CREACION": st.column_config.TextColumn("FECHA CREACIÓN", disabled=True)
+        }
+        
+        edited_df = st.data_editor(
+            df_display,
+            column_config=column_config,
+            hide_index=True,
+            use_container_width=True,
+            num_rows="fixed",
+            key="editor_usuarios_config"
+        )
         
         st.success("""
         **✅ ¡EL ÍCONO DE CONFIGURACIÓN DE COLUMNAS ESTÁ DISPONIBLE!**  
