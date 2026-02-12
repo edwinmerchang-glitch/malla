@@ -1718,7 +1718,7 @@ def mostrar_estadisticas_avanzadas(mes, ano):
 # ============================================================================
 def pagina_malla():
     """Página principal - Malla de turnos CON SELECTBOXES GARANTIZADOS"""
-    st.markdown("<h1 class='main-header'>Malla de Turnos</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='main-header'>📋 Malla de Turnos</h1>", unsafe_allow_html=True)
     
     # Selectores de mes y año
     if st.session_state.is_mobile:
