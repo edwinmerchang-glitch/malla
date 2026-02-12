@@ -1854,12 +1854,12 @@ def pagina_malla():
             )
             
             # INSTRUCCIONES CLARAS
-            st.success("""
-            **✅ SELECTBOXES ACTIVADOS:** 
-            - Cada celda de día tiene un menú desplegable con todos los códigos
-            - Haz clic en cualquier celda de día para ver las opciones
-            - Selecciona el código de turno correspondiente
-            """)
+            #st.success("""
+            #**✅ SELECTBOXES ACTIVADOS:** 
+            #- Cada celda de día tiene un menú desplegable con todos los códigos
+            #- Haz clic en cualquier celda de día para ver las opciones
+            #- Selecciona el código de turno correspondiente
+            #""")
             
             st.markdown("---")
             st.markdown("### 💾 Acciones de Guardado")
