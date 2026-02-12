@@ -31,7 +31,7 @@ import re
 # ============================================================================
 st.set_page_config(
     page_title="Malla de Turnos - Locatel Restrepo",
-    page_icon="",
+    page_icon="📋",
     layout="wide",
     initial_sidebar_state="expanded"
 )
