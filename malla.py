@@ -1605,8 +1605,10 @@ def mostrar_estadisticas_avanzadas(mes, ano):
 # ============================================================================
 # PÁGINA PRINCIPAL - MALLA DE TURNOS (CON ÍCONO DE COLUMNAS VISIBLE)
 # ============================================================================
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode, JsCode
+
 def pagina_malla():
-    """Página principal - Malla de turnos CON ÍCONO DE COLUMNAS"""
+    """Página principal - Malla de turnos CON ÍCONO DE COLUMNAS (AG Grid)"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
     
     # Selectores de mes y año
@@ -1661,82 +1663,110 @@ def pagina_malla():
     for col in df.columns:
         df[col] = df[col].astype(str).replace('nan', '').replace('None', '')
     
-    # Identificar columnas
-    columnas_fijas = []
-    columnas_dias = []
+    # ===== SOLUCIÓN DEFINITIVA: USAR AG GRID CON EL ÍCONO DEL OJO =====
     
-    for col in df.columns:
-        if col.startswith('D') and col[1:].isdigit():
-            columnas_dias.append(col)
-        else:
-            columnas_fijas.append(col)
+    # Crear GridOptionsBuilder
+    gb = GridOptionsBuilder.from_dataframe(df)
     
-    # ===== ADMIN Y SUPERVISOR: CONFIGURACIÓN COMPLETA PARA ÍCONO =====
+    # Configurar columnas fijas (solo lectura)
+    columnas_fijas = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 'ESTADO', 'HORA_INICIO', 'HORA_FIN']
+    for col in columnas_fijas:
+        if col in df.columns:
+            gb.configure_column(col, editable=False, pinned='left')
+    
+    # Configurar columnas de días (editables con dropdown)
+    columnas_dias = [col for col in df.columns if col.startswith('D') and col[1:].isdigit()]
+    
+    # Opciones para dropdown
+    opciones_turno = list(st.session_state.codigos_turno.keys())
+    opciones_turno = [op for op in opciones_turno if op != ""]  # Remover opción vacía
+    
+    # Configurar dropdown para cada día
+    for col in columnas_dias:
+        gb.configure_column(
+            col,
+            editable=check_permission("write"),
+            cellEditor='agSelectCellEditor',
+            cellEditorParams={'values': opciones_turno},
+            width=80,
+            cellStyle=JsCode("""
+            function(params) {
+                if (!params.value) return {'backgroundColor': '#FFFFFF'};
+                
+                // Mapa de colores desde Python a JavaScript
+                var colores = """ + json.dumps({
+                    codigo: info['color'] 
+                    for codigo, info in st.session_state.codigos_turno.items() 
+                    if codigo != ""
+                }) + """;
+                
+                var color = colores[params.value] || '#FFFFFF';
+                return {
+                    'backgroundColor': color,
+                    'color': 'black',
+                    'fontWeight': 'bold',
+                    'textAlign': 'center'
+                };
+            }
+            """)
+        )
+    
+    # Configurar opciones del grid
+    gb.configure_grid_options(
+        enableCellTextSelection=True,
+        ensureDomOrder=True,
+        enableRangeSelection=True,
+        rowHeight=45 if st.session_state.is_mobile else 35,
+        headerHeight=50 if st.session_state.is_mobile else 40
+    )
+    
+    # Configurar paginación si hay muchos empleados
+    if len(df) > 20:
+        gb.configure_pagination(enabled=True, paginationAutoPageSize=False, paginationPageSize=20)
+    
+    # CONFIGURACIÓN CLAVE: Habilitar el menú de columnas (¡aquí aparece el ojo!)
+    gb.configure_default_column(
+        groupable=True,
+        sorteable=True,
+        filterable=True,
+        resizable=True,
+        menuTabs=['generalMenuTab', 'columnsMenuTab'],  # ¡CRÍTICO! Activa pestaña de columnas
+        columnsMenuParams={'display': True}  # Forzar que aparezca el menú de columnas
+    )
+    
+    # Construir gridOptions
+    grid_options = gb.build()
+    
+    # ===== ADMIN Y SUPERVISOR: MODO EDICIÓN =====
     if check_permission("write"):
         st.markdown("💡 **Los cambios se guardan con el botón Guardar**")
+        st.success("""
+        ### 👁️ **¡EL ÍCONO DEL OJO ESTÁ ACTIVADO!**
         
-        # ===== CONFIGURACIÓN CRÍTICA: CONFIGURAR TODAS LAS COLUMNAS =====
-        column_config = {}
+        **📍 UBICACIÓN:**
         
-        # 1. Configurar columnas fijas (solo lectura) - TODAS configuradas
-        columnas_fijas_orden = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 'ESTADO', 'HORA_INICIO', 'HORA_FIN']
+        1. Haz clic en las **tres líneas (≡)** en cualquier cabecera de columna
+        2. Ve a la pestaña **"Columnas"**
+        3. Verás el ícono del **ojo 👁️** para mostrar/ocultar columnas
         
-        for col in columnas_fijas_orden:
-            if col in df.columns:
-                column_config[col] = st.column_config.Column(
-                    col,
-                    disabled=True,  # Solo lectura
-                    width="medium",
-                    help=f"{col} - Solo lectura"
-                )
+        También puedes reordenar y fijar columnas.
+        """, icon="✅")
         
-        # 2. Configurar columnas de días (editables con selectbox)
-        opciones_turno = list(st.session_state.codigos_turno.keys())
-        
-        for col in columnas_dias:
-            if col in df.columns:
-                column_config[col] = st.column_config.SelectboxColumn(
-                    col,
-                    width="small",
-                    options=opciones_turno,
-                    default="",
-                    required=False,
-                    help="Selecciona el código de turno"
-                )
-        
-        # 3. Orden de columnas
-        column_order = [col for col in columnas_fijas_orden if col in df.columns] + columnas_dias
-        
-        # 4. MOSTRAR EL DATA EDITOR CON CONFIGURACIÓN COMPLETA
-        edited_df = st.data_editor(
+        # Mostrar AG Grid
+        grid_response = AgGrid(
             df,
-            column_config=column_config,
-            column_order=column_order,
-            hide_index=True,
-            use_container_width=True,
+            gridOptions=grid_options,
             height=600,
-            key=f"editor_malla_{mes_numero}_{ano}"
+            width='100%',
+            theme='streamlit',  # Puedes probar 'material', 'balham', 'alpine'
+            update_mode=GridUpdateMode.MODEL_CHANGED,
+            data_return_mode=DataReturnMode.AS_INPUT,
+            allow_unsafe_jscode=True,
+            enable_enterprise_modules=False,  # Desactivado para evitar licencia
+            key=f"aggrid_malla_{mes_numero}_{ano}"
         )
         
-        # 5. MENSAJE CLARO SOBRE DÓNDE ESTÁ EL ÍCONO
-        st.success("""
-        ### 🔧 **CONFIGURACIÓN DE COLUMNAS DISPONIBLE**
-        
-        **📍 UBICACIÓN DEL ÍCONO:**
-        
-        Busca en la **ESQUINA SUPERIOR DERECHA** de la tabla:
-        
-        1. **⋮** (tres puntos) - Haz clic aquí
-        2. Selecciona **"Configurar columna"**
-        3. Aparecerá un panel con opciones para:
-           - **👁️ Mostrar/ocultar** columnas
-           - **↕️ Reordenar** columnas
-           - **📌 Congelar** columnas
-        
-        ---
-        **📝 NOTA:** Las columnas fijas son de solo lectura.  
-        Solo puedes editar los turnos usando los selectores en las columnas de días.
-        """, icon="✅")
+        edited_df = grid_response['data']
         
         # Botones de acción
         col1, col2, col3 = st.columns(3)
@@ -1763,18 +1793,6 @@ def pagina_malla():
                 st.success("✅ Malla recargada")
                 st.rerun()
         
-        with col3:
-            if st.button("🗑️ Limpiar Todo", use_container_width=True, type="secondary"):
-                if st.checkbox("¿Confirmar limpieza total?"):
-                    malla_vacia = df.copy()
-                    for col in columnas_dias:
-                        if col in malla_vacia.columns:
-                            malla_vacia[col] = ""
-                    guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
-                    st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
-                    st.success("✅ Turnos limpiados")
-                    st.rerun()
-        
         # Estadísticas
         if st.session_state.auth['role'] in ['admin', 'supervisor']:
             mostrar_estadisticas_avanzadas(mes_numero, ano)
@@ -1783,17 +1801,28 @@ def pagina_malla():
     else:
         st.info("👁️ Vista de solo lectura")
         
-        def color_cell(val):
-            if pd.isna(val) or val == '' or val == 'nan':
-                return 'background-color: #FFFFFF;'
-            color = st.session_state.codigos_turno.get(str(val), {}).get("color", "#FFFFFF")
-            return f'background-color: {color}; color: black; font-weight: bold; text-align: center;'
+        # Configurar grid de solo lectura
+        gb_readonly = GridOptionsBuilder.from_dataframe(df)
+        for col in df.columns:
+            gb_readonly.configure_column(col, editable=False)
         
-        if columnas_dias:
-            styled_df = df.style.applymap(color_cell, subset=columnas_dias)
-            st.dataframe(styled_df, height=600, use_container_width=True)
-        else:
-            st.dataframe(df, height=600, use_container_width=True)
+        gb_readonly.configure_default_column(
+            menuTabs=['columnsMenuTab'],  # Solo mostrar pestaña de columnas
+            columnsMenuParams={'display': True}
+        )
+        
+        grid_options_readonly = gb_readonly.build()
+        
+        AgGrid(
+            df,
+            gridOptions=grid_options_readonly,
+            height=600,
+            width='100%',
+            theme='streamlit',
+            allow_unsafe_jscode=True,
+            enable_enterprise_modules=False,
+            key=f"aggrid_malla_readonly_{mes_numero}_{ano}"
+        )
         
         csv = df.to_csv(index=False, encoding='utf-8-sig')
         st.download_button(
@@ -1808,84 +1837,144 @@ def pagina_malla():
 # PÁGINA DE EMPLEADOS (CON ÍCONO DE COLUMNAS VISIBLE)
 # ============================================================================
 def pagina_empleados():
-    """Página de gestión de empleados - CON ÍCONO DE COLUMNAS"""
+    """Página de gestión de empleados - CON ÍCONO DE COLUMNAS (AG Grid)"""
+    if not check_permission("write"):
+        st.error("⛔ No tienes permisos para editar empleados")
+        return
     
-    # ... (código existente) ...
-    
-    # ===== CONFIGURACIÓN CRÍTICA =====
-    column_config = {}
-    
-    # Configurar TODAS las columnas explícitamente
-    column_config["N°"] = st.column_config.NumberColumn("N°", disabled=True)
-    column_config["CARGO"] = st.column_config.TextColumn("CARGO", disabled=False)  # Editable
-    column_config["APELLIDOS Y NOMBRES"] = st.column_config.TextColumn("APELLIDOS Y NOMBRES", disabled=False)
-    column_config["CC"] = st.column_config.TextColumn("CC", disabled=False)
-    column_config["DEPARTAMENTO"] = st.column_config.SelectboxColumn(
-        "DEPARTAMENTO",
-        disabled=False,
-        options=st.session_state.configuracion.get('departamentos', [])
-    )
-    column_config["ESTADO"] = st.column_config.SelectboxColumn(
-        "ESTADO",
-        disabled=False,
-        options=["Activo", "Vacaciones", "Licencia", "Inactivo"]
-    )
-    column_config["HORA_INICIO"] = st.column_config.TextColumn("HORA_INICIO", disabled=False)
-    column_config["HORA_FIN"] = st.column_config.TextColumn("HORA_FIN", disabled=False)
-    column_config["FECHA_REGISTRO"] = st.column_config.TextColumn("FECHA_REGISTRO", disabled=True)
-    column_config["ID_OCULTO"] = st.column_config.NumberColumn("ID", disabled=True)
-    
-    edited_df = st.data_editor(
-        df_display[column_order],
-        column_config=column_config,
-        hide_index=True,
-        use_container_width=True,
-        num_rows="dynamic",  # Cambiar a "dynamic" para permitir agregar filas
-        key="editor_empleados_config"
-    )
+    st.markdown("<h1 class='main-header'>👥 Gestión de Empleados</h1>", unsafe_allow_html=True)
     
     st.success("""
-    **✅ ¡EL ÍCONO DE CONFIGURACIÓN DE COLUMNAS ESTÁ DISPONIBLE!**  
+    ### 👁️ **¡EL ÍCONO DEL OJO ESTÁ ACTIVADO!**
     
-    El ícono **⫶ (tres puntos)** debería aparecer en la esquina superior derecha de la tabla.
+    **📍 UBICACIÓN:**
+    
+    1. Haz clic en las **tres líneas (≡)** en cualquier cabecera de columna
+    2. Ve a la pestaña **"Columnas"**
+    3. Verás el ícono del **ojo 👁️** para mostrar/ocultar columnas
     """, icon="✅")
     
+    # Botones de acción
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("💾 Guardar Cambios", use_container_width=True, key="btn_guardar_empleados"):
-            try:
-                cambios, errores = guardar_empleados(edited_df)
-                if cambios > 0:
-                    st.success(f"✅ {cambios} cambios guardados correctamente")
-                    crear_backup_automatico()
-                    st.session_state.empleados_df = get_empleados()
-                    st.rerun()
-                else:
-                    if errores:
-                        for error in errores:
-                            st.error(error)
-                    else:
-                        st.warning("⚠️ No se realizaron cambios")
-            except Exception as e:
-                st.error(f"❌ Error al guardar: {str(e)}")
-    
-    with col2:
-        if st.button("🔄 Recargar desde BD", use_container_width=True, key="btn_recargar_empleados"):
+        if st.button("🔄 Recargar desde BD", use_container_width=True):
             st.session_state.empleados_df = get_empleados()
-            st.success("✅ Datos recargados desde base de datos")
+            st.success("✅ Datos recargados")
             st.rerun()
     
     with col3:
-        csv_data = df_display[['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 
-                              'ESTADO', 'HORA_INICIO', 'HORA_FIN', 'FECHA_REGISTRO']].to_csv(index=False)
-        st.download_button(
-            label="📥 Exportar CSV",
-            data=csv_data,
-            file_name="empleados.csv",
-            mime="text/csv",
-            use_container_width=True
+        if not st.session_state.empleados_df.empty:
+            csv_data = st.session_state.empleados_df.to_csv(index=False)
+            st.download_button(
+                label="📥 Exportar CSV",
+                data=csv_data,
+                file_name="empleados.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+    
+    st.markdown("### 📋 Lista de Empleados")
+    
+    if st.session_state.empleados_df.empty:
+        st.warning("No hay empleados registrados.")
+    else:
+        df_empleados = st.session_state.empleados_df.copy()
+        
+        # Renombrar columnas para mejor visualización
+        df_empleados = df_empleados.rename(columns={
+            'id': 'ID',
+            'numero': 'N°',
+            'cargo': 'CARGO',
+            'nombre_completo': 'APELLIDOS Y NOMBRES',
+            'cedula': 'CC',
+            'departamento': 'DEPARTAMENTO',
+            'estado': 'ESTADO',
+            'hora_inicio': 'HORA INICIO',
+            'hora_fin': 'HORA FIN',
+            'created_at': 'FECHA REGISTRO'
+        })
+        
+        # Configurar AG Grid
+        gb = GridOptionsBuilder.from_dataframe(df_empleados)
+        
+        # Configurar columnas
+        columnas_editables = ['CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 'ESTADO', 'HORA INICIO', 'HORA FIN']
+        
+        for col in df_empleados.columns:
+            if col in columnas_editables:
+                if col == 'DEPARTAMENTO':
+                    gb.configure_column(
+                        col,
+                        editable=True,
+                        cellEditor='agSelectCellEditor',
+                        cellEditorParams={'values': st.session_state.configuracion.get('departamentos', [])}
+                    )
+                elif col == 'ESTADO':
+                    gb.configure_column(
+                        col,
+                        editable=True,
+                        cellEditor='agSelectCellEditor',
+                        cellEditorParams={'values': ["Activo", "Vacaciones", "Licencia", "Inactivo"]}
+                    )
+                else:
+                    gb.configure_column(col, editable=True)
+            else:
+                gb.configure_column(col, editable=False)
+        
+        # Configurar menú de columnas (¡EL OJO!)
+        gb.configure_default_column(
+            menuTabs=['generalMenuTab', 'columnsMenuTab'],
+            columnsMenuParams={'display': True},
+            resizable=True,
+            sorteable=True,
+            filterable=True
         )
+        
+        gb.configure_pagination(enabled=True, paginationPageSize=15)
+        gb.configure_grid_options(rowHeight=40)
+        
+        grid_options = gb.build()
+        
+        grid_response = AgGrid(
+            df_empleados,
+            gridOptions=grid_options,
+            height=500,
+            width='100%',
+            theme='streamlit',
+            update_mode=GridUpdateMode.MODEL_CHANGED,
+            data_return_mode=DataReturnMode.AS_INPUT,
+            allow_unsafe_jscode=True,
+            enable_enterprise_modules=False,
+            key="aggrid_empleados"
+        )
+        
+        edited_df = grid_response['data']
+        
+        st.markdown("---")
+        st.markdown("### 💾 Guardar Cambios")
+        
+        if st.button("💾 Guardar Cambios en Empleados", use_container_width=True, type="primary"):
+            with st.spinner("Guardando empleados..."):
+                try:
+                    cambios, errores = guardar_empleados(edited_df)
+                    if cambios > 0:
+                        st.success(f"✅ {cambios} empleados actualizados correctamente")
+                        crear_backup_automatico()
+                        st.session_state.empleados_df = get_empleados()
+                        st.rerun()
+                    else:
+                        if errores:
+                            for error in errores:
+                                st.error(error)
+                        else:
+                            st.warning("⚠️ No se detectaron cambios")
+                except Exception as e:
+                    st.error(f"❌ Error al guardar: {str(e)}")
+    
+    st.markdown("---")
+    st.markdown("### ➕ Agregar Nuevo Empleado")
+    agregar_empleado()
 
 def agregar_empleado():
     """Agregar nuevo empleado a la base de datos"""
