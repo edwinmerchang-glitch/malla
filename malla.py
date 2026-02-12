@@ -30,8 +30,8 @@ import re
 # CONFIGURACIÓN INICIAL
 # ============================================================================
 st.set_page_config(
-    page_title="Malla de Turnos - Gestión Completa",
-    page_icon="📊",
+    page_title="Malla de Turnos - Locatel Restrepo",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
 )
