@@ -1606,20 +1606,11 @@ def mostrar_estadisticas_avanzadas(mes, ano):
 # PÁGINA PRINCIPAL - MALLA DE TURNOS (CON ÍCONO DE COLUMNAS VISIBLE)
 # ============================================================================
 def pagina_malla():
-    """Página principal - Malla de turnos con ÍCONO DE COLUMNAS VISIBLE"""
+    """Página principal - Malla de turnos CON ÍCONO DE COLUMNAS"""
     st.markdown("<h1 class='main-header'>📊 Malla de Turnos</h1>", unsafe_allow_html=True)
     
-    st.info("""
-    **🔧 CONFIGURACIÓN DE COLUMNAS DISPONIBLE**  
-    Busca el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
-    Allí encontrarás las opciones para **mostrar/ocultar**, **reordenar** y **congelar** columnas
-    """, icon="👆")
-    
-    if st.session_state.is_mobile:
-        col1, col2 = st.columns(2)
-        col3, col4 = st.columns(2)
-    else:
-        col1, col2, col3, col4 = st.columns(4)
+    # Selectores de mes y año
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
@@ -1636,7 +1627,6 @@ def pagina_malla():
             st.session_state.mes_actual = mes_numero
             st.session_state.ano_actual = ano
             st.success(f"Malla cargada para {mes_seleccionado} {ano}")
-            registrar_log("cargar_malla", f"{mes_seleccionado} {ano}")
             st.rerun()
     
     with col4:
@@ -1650,96 +1640,114 @@ def pagina_malla():
                 use_container_width=True
             )
     
+    # Leyenda de códigos
     with st.expander("🎨 Leyenda de códigos de turno", expanded=False):
         mostrar_leyenda(inside_expander=True)
     
     if st.session_state.malla_actual.empty:
         st.warning("⚠️ No hay malla de turnos cargada. Presiona 'Cargar Malla' para ver los datos.")
-    else:
-        st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
-        
-        rol = st.session_state.auth['role']
-        df = st.session_state.malla_actual.copy()
-        
-        columnas_fijas = []
-        columnas_dias = []
-        
-        for col in df.columns:
-            if col.startswith('D') and col[1:].isdigit():
-                columnas_dias.append(col)
-            else:
-                columnas_fijas.append(col)
+        return
     
-    # ===== ADMIN Y SUPERVISOR: TABLA CONFIGURABLE CON ÍCONO DE COLUMNAS =====
+    st.markdown(f"### 📋 Malla de Turnos - {mes_seleccionado} {ano}")
+    
+    df = st.session_state.malla_actual.copy()
+    
+    # Identificar columnas
+    columnas_fijas = []
+    columnas_dias = []
+    
+    for col in df.columns:
+        if col.startswith('D') and col[1:].isdigit():
+            columnas_dias.append(col)
+        else:
+            columnas_fijas.append(col)
+    
+    # ===== ADMIN Y SUPERVISOR: CONFIGURACIÓN COMPLETA PARA ÍCONO =====
     if check_permission("write"):
         st.markdown("💡 **Los cambios se guardan con el botón Guardar**")
         
         df_display = df.copy()
         
+        # Convertir a string para evitar problemas
         for col in df_display.columns:
             df_display[col] = df_display[col].astype(str).replace('nan', '').replace('None', '')
         
-        columnas_fijas = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 'ESTADO', 'HORA_INICIO', 'HORA_FIN']
-        columnas_dias = [col for col in df_display.columns if col.startswith('D') and col[1:].isdigit()]
+        # ===== CONFIGURACIÓN CRÍTICA: CONFIGURAR TODAS LAS COLUMNAS =====
+        column_config = {}
         
-        # ===== CONFIGURACIÓN DE COLUMNAS MÍNIMA =====
-        # SOLO configuramos las columnas que necesitan selectboxes
-        # NO configuramos las columnas fijas para que el ícono de configuración aparezca
-        column_config = {
-            col: st.column_config.SelectboxColumn(
+        # 1. Configurar columnas fijas (solo lectura) - TODAS configuradas
+        columnas_fijas_orden = ['N°', 'CARGO', 'APELLIDOS Y NOMBRES', 'CC', 'DEPARTAMENTO', 'ESTADO', 'HORA_INICIO', 'HORA_FIN']
+        
+        for col in columnas_fijas_orden:
+            if col in df_display.columns:
+                column_config[col] = st.column_config.Column(
+                    col,
+                    disabled=True,  # Solo lectura
+                    width="medium",
+                    help=f"{col} - Solo lectura"
+                )
+        
+        # 2. Configurar columnas de días (editables con selectbox)
+        opciones_turno = list(st.session_state.codigos_turno.keys())
+        
+        for col in columnas_dias:
+            column_config[col] = st.column_config.SelectboxColumn(
                 col,
                 width="small",
-                options=list(st.session_state.codigos_turno.keys()) if st.session_state.codigos_turno else [""],
-                default=""
-            ) for col in columnas_dias
-        }
+                options=opciones_turno,
+                default="",
+                required=False,
+                help="Selecciona el código de turno"
+            )
         
-        # ===== DATA EDITOR CON COLUMN_CONFIG MÍNIMO =====
-        # IMPORTANTE: No configuramos las columnas fijas, así Streamlit muestra el ícono de configuración
+        # 3. Orden de columnas
+        column_order = columnas_fijas_orden + columnas_dias
+        
+        # 4. MOSTRAR EL DATA EDITOR CON CONFIGURACIÓN COMPLETA
         edited_df = st.data_editor(
             df_display,
-            column_config=column_config,  # SOLO columnas de días
+            column_config=column_config,
+            column_order=column_order,
             hide_index=True,
             use_container_width=True,
             height=600,
             key=f"editor_malla_{mes_numero}_{ano}"
         )
         
+        # 5. MENSAJE CLARO SOBRE DÓNDE ESTÁ EL ÍCONO
         st.success("""
-        **👆 ¡EL ÍCONO DE CONFIGURACIÓN DE COLUMNAS ESTÁ DISPONIBLE!**  
+        ### 🔧 **CONFIGURACIÓN DE COLUMNAS DISPONIBLE**
         
-        Busca en la esquina **SUPERIOR DERECHA** de la tabla:
-        - **⫶** Menú de configuración de columnas
-        - **👁️** Mostrar/ocultar columnas
-        - **↕️** Reordenar columnas
-        - **📌** Congelar columnas
+        **📍 UBICACIÓN DEL ÍCONO:**
         
-        **Las columnas fijas son de SOLO LECTURA** - solo se editan los turnos
+        Busca en la **ESQUINA SUPERIOR DERECHA** de la tabla:
+        
+        1. **⋮** (tres puntos) - Haz clic aquí
+        2. Selecciona **"Configurar columna"**
+        3. Aparecerá un panel con opciones para:
+           - **👁️ Mostrar/ocultar** columnas
+           - **↕️ Reordenar** columnas
+           - **📌 Congelar** columnas
+        
+        ---
+        **📝 NOTA:** Las columnas fijas son de solo lectura.  
+        Solo puedes editar los turnos usando los selectores en las columnas de días.
         """, icon="✅")
         
-        st.markdown("---")
-        st.markdown("### 💾 Acciones de Guardado")
-        
+        # Botones de acción
         col1, col2, col3 = st.columns(3)
         
         with col1:
             if st.button("💾 Guardar Cambios", use_container_width=True, type="primary"):
                 with st.spinner("Guardando cambios..."):
-                    try:
-                        df_guardar = edited_df.copy()
-                        cambios = guardar_malla_turnos_con_backup(df_guardar, mes_numero, ano)
-                        
-                        if cambios > 0:
-                            st.session_state.last_save = obtener_hora_colombia()
-                            st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
-                            st.success(f"✅ {cambios} cambios guardados")
-                            registrar_log("guardar_malla", f"{mes_seleccionado} {ano} - {cambios} cambios")
-                            st.rerun()
-                        else:
-                            st.warning("⚠️ No se detectaron cambios")
-                            
-                    except Exception as e:
-                        st.error(f"❌ Error al guardar: {str(e)}")
+                    cambios = guardar_malla_turnos_con_backup(edited_df, mes_numero, ano)
+                    if cambios > 0:
+                        st.session_state.last_save = obtener_hora_colombia()
+                        st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
+                        st.success(f"✅ {cambios} cambios guardados")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ No se detectaron cambios")
         
         with col2:
             if st.button("🔄 Recargar", use_container_width=True):
@@ -1754,13 +1762,13 @@ def pagina_malla():
                     for col in columnas_dias:
                         if col in malla_vacia.columns:
                             malla_vacia[col] = ""
-                    
-                    cambios = guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
+                    guardar_malla_turnos_con_backup(malla_vacia, mes_numero, ano)
                     st.session_state.malla_actual = get_malla_turnos(mes_numero, ano)
-                    st.success(f"✅ Turnos limpiados")
+                    st.success("✅ Turnos limpiados")
                     st.rerun()
         
-        if rol in ['admin', 'supervisor']:
+        # Estadísticas
+        if st.session_state.auth['role'] in ['admin', 'supervisor']:
             mostrar_estadisticas_avanzadas(mes_numero, ano)
     
     # ===== EMPLEADOS: SOLO LECTURA =====
@@ -1779,7 +1787,6 @@ def pagina_malla():
         else:
             st.dataframe(df, height=600, use_container_width=True)
         
-        st.markdown("---")
         csv = df.to_csv(index=False, encoding='utf-8-sig')
         st.download_button(
             label="📥 Descargar CSV",
