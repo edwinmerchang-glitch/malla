@@ -771,43 +771,51 @@ def guardar_empleados(df_editado):
         return 0, [str(e)]
 
 def guardar_usuarios(edited_df, original_df):
-    """Guardar cambios en usuarios"""
+    """Guardar cambios en usuarios - Versión mejorada para AG Grid"""
     try:
         conn = get_connection()
         cursor = conn.cursor()
         
         cambios = 0
         
-        for _, edited_row in edited_df.iterrows():
-            username = edited_row['USUARIO']
+        # Convertir a DataFrame si es necesario
+        if hasattr(edited_df, 'to_dict'):
+            edited_records = edited_df.to_dict('records')
+        else:
+            edited_records = edited_df
+        
+        for record in edited_records:
+            username = record.get('USUARIO', '')
+            if not username:
+                continue
             
+            # Buscar registro original
             original_row = original_df[original_df['username'] == username]
             
             if not original_row.empty:
                 original_row = original_row.iloc[0]
                 
-                cambios_detectados = False
+                nombre_nuevo = str(record.get('NOMBRE COMPLETO', ''))
+                rol_nuevo = str(record.get('ROL', ''))
+                depto_nuevo = str(record.get('DEPARTAMENTO', ''))
                 
-                if str(edited_row['NOMBRE_COMPLETO']) != str(original_row['nombre']):
-                    cambios_detectados = True
-                elif str(edited_row['ROL']) != str(original_row['role']):
-                    cambios_detectados = True
-                elif str(edited_row['DEPARTAMENTO']) != str(original_row.get('departamento', '')):
-                    cambios_detectados = True
+                nombre_original = str(original_row.get('nombre', ''))
+                rol_original = str(original_row.get('role', ''))
+                depto_original = str(original_row.get('departamento', ''))
                 
-                if cambios_detectados:
+                if (nombre_nuevo != nombre_original or 
+                    rol_nuevo != rol_original or 
+                    depto_nuevo != depto_original):
+                    
                     cursor.execute('''
                         UPDATE usuarios 
                         SET nombre = ?, role = ?, departamento = ?
                         WHERE username = ?
-                    ''', (
-                        str(edited_row['NOMBRE_COMPLETO']),
-                        str(edited_row['ROL']),
-                        str(edited_row['DEPARTAMENTO']),
-                        username
-                    ))
+                    ''', (nombre_nuevo, rol_nuevo, depto_nuevo, username))
                     
-                    cambios += cursor.rowcount
+                    if cursor.rowcount > 0:
+                        cambios += 1
+                        print(f"✅ Usuario actualizado: {username}")
         
         conn.commit()
         conn.close()
@@ -816,6 +824,8 @@ def guardar_usuarios(edited_df, original_df):
         
     except Exception as e:
         print(f"❌ Error al guardar usuarios: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return 0
 
 # ============================================================================
@@ -1690,25 +1700,25 @@ def pagina_malla():
             cellEditorParams={'values': opciones_turno},
             width=80,
             cellStyle=JsCode("""
-            function(params) {
-                if (!params.value) return {'backgroundColor': '#FFFFFF'};
-                
-                // Mapa de colores desde Python a JavaScript
-                var colores = """ + json.dumps({
-                    codigo: info['color'] 
-                    for codigo, info in st.session_state.codigos_turno.items() 
-                    if codigo != ""
-                }) + """;
-                
-                var color = colores[params.value] || '#FFFFFF';
-                return {
-                    'backgroundColor': color,
-                    'color': 'black',
-                    'fontWeight': 'bold',
-                    'textAlign': 'center'
-                };
-            }
-            """)
+function(params) {
+    if (!params.value) return {'backgroundColor': '#FFFFFF', 'textAlign': 'center'};
+    
+    // Mapa de colores desde Python a JavaScript
+    var colores = """ + json.dumps({
+        codigo: info['color'] 
+        for codigo, info in st.session_state.codigos_turno.items() 
+        if codigo != ""
+    }) + """;
+    
+    var color = colores[params.value] || '#FFFFFF';
+    return {
+        'backgroundColor': color,
+        'color': 'black',
+        'fontWeight': 'bold',
+        'textAlign': 'center'
+    };
+}
+""")
         )
     
     # Configurar opciones del grid
@@ -2062,18 +2072,22 @@ def agregar_empleado():
 # PÁGINA DE USUARIOS (CON ÍCONO DE COLUMNAS VISIBLE)
 # ============================================================================
 def pagina_usuarios():
-    """Página de gestión de usuarios - CON ÍCONO DE COLUMNAS"""
+    """Página de gestión de usuarios - CON ÍCONO DE COLUMNAS (AG Grid)"""
     if not check_permission("manage_users"):
         st.error("⛔ No tienes permisos para gestionar usuarios")
         return
     
     st.markdown("<h1 class='main-header'>👑 Gestión de Usuarios</h1>", unsafe_allow_html=True)
     
-    st.info("""
-    **🔧 CONFIGURACIÓN DE COLUMNAS DISPONIBLE**  
-    Busca el ícono **⫶ (tres puntos)** en la esquina **SUPERIOR DERECHA** de la tabla  
-    Allí encontrarás las opciones para **mostrar/ocultar**, **reordenar** y **congelar** columnas
-    """, icon="👆")
+    st.success("""
+    ### 👁️ **¡EL ÍCONO DEL OJO ESTÁ ACTIVADO!**
+    
+    **📍 UBICACIÓN:**
+    
+    1. Haz clic en las **tres líneas (≡)** en cualquier cabecera de columna
+    2. Ve a la pestaña **"Columnas"**
+    3. Verás el ícono del **ojo 👁️** para mostrar/ocultar columnas
+    """, icon="✅")
     
     st.markdown("### 📋 Usuarios del Sistema")
     
@@ -2082,64 +2096,84 @@ def pagina_usuarios():
     if usuarios_df.empty:
         st.warning("No hay usuarios registrados en el sistema.")
     else:
-        df_editable = usuarios_df.copy()
+        df_usuarios = usuarios_df.copy()
         
-        if 'password_hash' in df_editable.columns:
-            df_display = df_editable.drop(columns=['password_hash'])
-        else:
-            df_display = df_editable
+        # Eliminar password_hash para visualización
+        if 'password_hash' in df_usuarios.columns:
+            df_usuarios = df_usuarios.drop(columns=['password_hash'])
         
-        df_display = df_display.rename(columns={
+        # Renombrar columnas
+        df_usuarios = df_usuarios.rename(columns={
             'username': 'USUARIO',
-            'nombre': 'NOMBRE_COMPLETO',
+            'nombre': 'NOMBRE COMPLETO',
             'role': 'ROL',
             'departamento': 'DEPARTAMENTO',
-            'created_at': 'FECHA_CREACION'
+            'created_at': 'FECHA CREACIÓN'
         })
         
-        # ===== CONFIGURACIÓN CRÍTICA =====
-        column_config = {
-            "USUARIO": st.column_config.TextColumn("USUARIO", disabled=True),
-            "NOMBRE_COMPLETO": st.column_config.TextColumn("NOMBRE COMPLETO", disabled=False),
-            "ROL": st.column_config.SelectboxColumn(
-                "ROL",
-                disabled=False,
-                options=list(ROLES.keys())
-            ),
-            "DEPARTAMENTO": st.column_config.SelectboxColumn(
-                "DEPARTAMENTO",
-                disabled=False,
-                options=st.session_state.configuracion.get('departamentos', [])
-            ),
-            "FECHA_CREACION": st.column_config.TextColumn("FECHA CREACIÓN", disabled=True)
-        }
+        # Configurar AG Grid
+        gb = GridOptionsBuilder.from_dataframe(df_usuarios)
         
-        edited_df = st.data_editor(
-            df_display,
-            column_config=column_config,
-            hide_index=True,
-            use_container_width=True,
-            num_rows="fixed",
-            key="editor_usuarios_config"
+        # Configurar columnas
+        gb.configure_column('USUARIO', editable=False, pinned='left')
+        gb.configure_column('NOMBRE COMPLETO', editable=True)
+        gb.configure_column(
+            'ROL', 
+            editable=True,
+            cellEditor='agSelectCellEditor',
+            cellEditorParams={'values': list(ROLES.keys())}
+        )
+        gb.configure_column(
+            'DEPARTAMENTO',
+            editable=True,
+            cellEditor='agSelectCellEditor',
+            cellEditorParams={'values': st.session_state.configuracion.get('departamentos', [])}
+        )
+        gb.configure_column('FECHA CREACIÓN', editable=False)
+        
+        # CONFIGURACIÓN CLAVE: Menú de columnas (¡EL OJO!)
+        gb.configure_default_column(
+            menuTabs=['generalMenuTab', 'columnsMenuTab'],
+            columnsMenuParams={'display': True},
+            resizable=True,
+            sorteable=True,
+            filterable=True
         )
         
-        st.success("""
-        **✅ ¡EL ÍCONO DE CONFIGURACIÓN DE COLUMNAS ESTÁ DISPONIBLE!**  
+        gb.configure_pagination(enabled=True, paginationPageSize=10)
+        gb.configure_grid_options(rowHeight=40)
         
-        El ícono **⫶ (tres puntos)** debería aparecer en la esquina superior derecha de la tabla.
-        """, icon="✅")
+        grid_options = gb.build()
         
-        if st.button("💾 Guardar Cambios de Usuarios", use_container_width=True):
-            try:
-                cambios = guardar_usuarios(edited_df, usuarios_df)
-                if cambios > 0:
-                    st.success(f"✅ {cambios} usuarios actualizados correctamente")
-                    crear_backup_automatico()
-                    st.rerun()
-                else:
-                    st.warning("⚠️ No se realizaron cambios")
-            except Exception as e:
-                st.error(f"❌ Error al guardar usuarios: {str(e)}")
+        grid_response = AgGrid(
+            df_usuarios,
+            gridOptions=grid_options,
+            height=400,
+            width='100%',
+            theme='streamlit',
+            update_mode=GridUpdateMode.MODEL_CHANGED,
+            data_return_mode=DataReturnMode.AS_INPUT,
+            allow_unsafe_jscode=True,
+            enable_enterprise_modules=False,
+            key="aggrid_usuarios"
+        )
+        
+        edited_df = grid_response['data']
+        
+        st.markdown("---")
+        
+        if st.button("💾 Guardar Cambios de Usuarios", use_container_width=True, type="primary"):
+            with st.spinner("Guardando usuarios..."):
+                try:
+                    cambios = guardar_usuarios(edited_df, usuarios_df)
+                    if cambios > 0:
+                        st.success(f"✅ {cambios} usuarios actualizados correctamente")
+                        crear_backup_automatico()
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ No se realizaron cambios")
+                except Exception as e:
+                    st.error(f"❌ Error al guardar usuarios: {str(e)}")
     
     st.markdown("---")
     st.markdown("### ➕ Crear Nuevo Usuario")
