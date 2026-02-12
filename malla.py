@@ -3335,7 +3335,7 @@ def main():
     
     footer_text = f"""
     <div style='text-align: center; color: #6c757d; padding: 10px; font-size: 0.9em;'>
-    📊 Malla de Turnos Locatel | {hora_colombia.strftime('%H:%M')} 🇨🇴
+    📊 Creado por Edwin Merchan | {hora_colombia.strftime('%H:%M')} 🇨🇴
     </div>
     """
     
